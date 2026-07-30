@@ -1,0 +1,134 @@
+<!-- ===========================================================================
+     WELCOME TO YOUR GALAXY  ·  Live Global Unearthings Map
+     Weebly embed. Paste this whole block into ONE "Embed Code" element.
+
+     Nothing to upload. Nothing hosted anywhere but your own repo.
+
+     ---------------------------------------------------------------------------
+     WHY IT IS BUILT THIS WAY
+     ---------------------------------------------------------------------------
+     The map is one self-contained HTML file, so the obvious move is to paste the
+     file itself into Weebly. That breaks, for two reasons worth knowing:
+
+     1. RELATIVE DATA PATHS. The map fetches remains.json.gz, wire.json,
+        lenses.json and the cemetery files as RELATIVE paths. Pasted into a
+        Weebly page those resolve against yoursite.weebly.com and 404 — you would
+        get the shell with no data and no obvious reason why. This embed fixes it
+        by injecting a <base> tag pointing at your repo, so every relative fetch
+        inside the map resolves to GitHub without touching the map's own code.
+
+     2. CSS BLEED. The map sets html/body to 100vh with overflow hidden and
+        positions eight fixed panels. Dropped into a Weebly page that fights the
+        theme and can swallow the rest of the page. Running it inside an iframe
+        with srcdoc gives it its own document, so its CSS cannot reach your site
+        and your theme cannot reach it.
+
+     So: this snippet fetches the map's HTML from your repo over
+     raw.githubusercontent.com (which sends access-control-allow-origin: *, so it
+     works cross-origin from Weebly), injects the <base>, and hands the result to
+     an iframe. Small paste, no uploads, no Pages dependency, and the map UPDATES
+     ITSELF every time you push — you never paste this again.
+
+     ---------------------------------------------------------------------------
+     THE ONE THING TO CHECK
+     ---------------------------------------------------------------------------
+     REPO below must point at the branch your harvesters commit to. If your
+     default branch is not "main", change it here and nowhere else.
+
+     Height: HEIGHT_VH is a percentage of the browser window. The map needs real
+     vertical room — its panels run floor to ceiling. Below about 860px wide it
+     drops the side panels and keeps the filters, so phones stay usable.
+     =========================================================================== -->
+
+<div id="wtyg-unearthings-mount" style="width:100%;margin:0;padding:0;"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ config */
+  var REPO      = "https://raw.githubusercontent.com/WelcomeToYourGalaxy/remains/main/";
+  var PAGE      = "index.html";
+  var HEIGHT_VH = 88;    /* percent of window height */
+  var MIN_PX    = 560;   /* never shorter than this */
+
+  var mount = document.getElementById("wtyg-unearthings-mount");
+  if (!mount) { return; }
+
+  /* Weebly's editor can inject this block more than once while you are editing.
+     Guard so you never end up with two maps stacked on the same page. */
+  if (mount.getAttribute("data-wtyg-ready") === "1") { return; }
+  mount.setAttribute("data-wtyg-ready", "1");
+
+  /* --------------------------------------------------------------- the frame */
+  var frame = document.createElement("iframe");
+  frame.title = "Live Global Unearthings Map";
+  frame.setAttribute("loading", "lazy");
+  frame.setAttribute("referrerpolicy", "no-referrer-when-downgrade");
+  frame.setAttribute("allowfullscreen", "");
+  frame.style.cssText =
+    "display:block;width:100%;border:0;margin:0;background:#0b0a08;" +
+    "border-radius:10px;height:" + HEIGHT_VH + "vh;min-height:" + MIN_PX + "px;";
+  mount.appendChild(frame);
+
+  /* A visible, honest waiting state. If something goes wrong the reader gets a
+     reason and a working link, not a silent grey rectangle. */
+  function notice(title, body, link) {
+    frame.removeAttribute("srcdoc");
+    frame.srcdoc =
+      '<!DOCTYPE html><meta charset="utf-8">' +
+      '<style>html,body{margin:0;height:100%;background:#0b0a08;color:#a89b84;' +
+      'font:13px/1.6 "DM Sans",system-ui,-apple-system,Segoe UI,sans-serif;}' +
+      'div{max-width:34em;padding:26px 30px;}' +
+      'h2{font-size:15px;color:#d8bd86;margin:0 0 10px;font-weight:600;}' +
+      'a{color:#d8bd86;}code{color:#d8bd86;font-size:12px;}</style>' +
+      '<div><h2>' + title + '</h2><p>' + body + '</p>' +
+      (link ? '<p><a href="' + link + '" target="_blank" rel="noopener">' +
+              'Open the map directly &rarr;</a></p>' : '') + '</div>';
+  }
+
+  notice("Loading the record\u2026",
+         "Fetching the map and this month's harvest.");
+
+  /* ------------------------------------------------------------------- load */
+  /* Cache-bust so a push shows up without the reader clearing anything. */
+  fetch(REPO + PAGE + "?_=" + Date.now(), { cache: "no-store" })
+    .then(function (r) {
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      return r.text();
+    })
+    .then(function (html) {
+
+      /* THE IMPORTANT LINE.
+         <base> makes every relative URL inside the map resolve against the repo,
+         so fetch("remains.json.gz") becomes the raw GitHub URL. The map's own
+         code is untouched — it still works unchanged when served from Pages,
+         where the same relative paths already resolve correctly.
+
+         target="_self" keeps the map's outbound source links opening in a new
+         tab as written, rather than <base> quietly retargeting them. */
+      var baseTag = '<base href="' + REPO + '" target="_self">';
+
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/<head[^>]*>/i, function (m) { return m + baseTag; });
+      } else {
+        html = baseTag + html;   /* no <head>? put it first and let the parser cope */
+      }
+
+      frame.removeAttribute("srcdoc");
+      frame.srcdoc = html;
+    })
+    .catch(function (err) {
+      notice(
+        "The map could not load",
+        "Could not read <code>" + PAGE + "</code> from the repository " +
+        "(" + String(err && err.message ? err.message : err) + "). " +
+        "Usually one of: the file is not committed to that branch yet, the " +
+        "branch in this snippet is not the default branch, or the repository " +
+        "is private \u2014 this embed can only read a public repo.",
+        REPO + PAGE
+      );
+      if (window.console) { console.warn("[unearthings embed]", err); }
+    });
+})();
+</script>
