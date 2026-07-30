@@ -1,0 +1,78 @@
+# Portal federations for the unearthings layer, sharded.
+# 6 parallel shards, each taking every 6th portal of the CKAN registry inherited from
+# harvest_projects.py, searched with the remains vocabulary. A merge job folds the parts
+# into remains.json.gz -- same pattern as projects_federations.yml.
+name: Harvest unearthings portal federations (sharded)
+
+on:
+  schedule:
+    - cron: '45 3 * * 2,5'     # Tue + Fri 03:45 UTC (offset from the projects federation job)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false          # one bad shard must not kill the others
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run federation shard
+        env:
+          FED_SHARD: ${{ matrix.shard }}
+          FED_SHARDS: '6'
+          FED_REMAINS_MAX_MIN: '150'
+        run: python harvest_remains.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fed-remains-part-${{ matrix.shard }}
+          path: fed_remains_part_${{ matrix.shard }}.json
+          if-no-files-found: warn
+          retention-days: 2
+
+  merge:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: fed-remains-part-*
+          merge-multiple: true
+      - name: Merge shard parts into remains.json.gz
+        env:
+          FED_MERGE: '1'
+        run: |
+          ls -la fed_remains_part_*.json || echo "no parts downloaded"
+          python harvest_remains.py
+      - name: Commit if changed
+        run: |
+          git config user.name  "remains-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add remains.json.gz
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "chore: refresh remains.json.gz (federations)"
+          BR="$(git rev-parse --abbrev-ref HEAD)"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BR" || true
+            if git merge -X ours FETCH_HEAD -m "merge remote; keep fresh remains.json.gz" && git push origin HEAD:"$BR"; then
+              echo "pushed"; exit 0
+            fi
+            git merge --abort 2>/dev/null || true
+            echo "push race, retry $i"; sleep 6
+          done
+          echo "push failed after retries"; exit 1
