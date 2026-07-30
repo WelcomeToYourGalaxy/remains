@@ -1,0 +1,801 @@
+{
+ "checked": "2026-07-30T02:53:10.518193Z",
+ "entries": {
+  "36 CFR Part 800 (Section 106 regulations)": {
+   "find": "36 CFR 800 protection of historic properties section 106 regulations",
+   "state": "find-only"
+  },
+  "ACHP — Section 106 objections and foreclosure": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.achp.gov/"
+  },
+  "AHIMS (NSW)": {
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
+   "url": "https://www.environment.nsw.gov.au/topics/heritage/search-heritage-databases/aboriginal-heritage-information-management-system"
+  },
+  "AHIP Boundaries dataset (NSW)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://data.nsw.gov.au/data/dataset/aboriginal-heritage-impact-permit-boundaries"
+  },
+  "AIATSIS (Australia)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://aiatsis.gov.au/"
+  },
+  "APABE (Advisory Panel on the Archaeology of Burials in England)": {
+   "find": "APABE guidance treatment human remains archaeology England",
+   "state": "find-only"
+  },
+  "ASOR Cultural Heritage Initiatives": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.asor.org/"
+  },
+  "Aboriginal Heritage Act (Western Australia)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.legislation.wa.gov.au/"
+  },
+  "Advisory Council on Historic Preservation (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.achp.gov/"
+  },
+  "Ainu remains repatriation (Japan)": {
+   "find": "Ainu human remains repatriation Hokkaido University government policy",
+   "state": "find-only"
+  },
+  "Alaska erosion and burial exposure": {
+   "find": "Alaska coastal erosion village relocation cemetery graves exposed permafrost",
+   "state": "find-only"
+  },
+  "American Association of Biological Anthropologists": {
+   "find": "American Association of Biological Anthropologists ethics human remains statement",
+   "state": "find-only"
+  },
+  "ArchSite (New Zealand)": {
+   "code": 0,
+   "note": "The read operation timed out",
+   "state": "dead",
+   "url": "https://www.archsite.org.nz/"
+  },
+  "Archaeological Resources Protection Act (US)": {
+   "find": "Archaeological Resources Protection Act 16 USC 470aa confidentiality",
+   "state": "find-only"
+  },
+  "Archaeological Survey of India": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://asi.nic.in/"
+  },
+  "Archaeology Data Service (UK)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://archaeologydataservice.ac.uk/"
+  },
+  "Archis (Netherlands)": {
+   "find": "Archis RCE archeologisch informatiesysteem Netherlands",
+   "state": "find-only"
+  },
+  "Askeladden / Kulturminnesøk (Norway)": {
+   "find": "Askeladden Kulturminnesok Norway cultural heritage database",
+   "state": "find-only"
+  },
+  "Assembly of First Nations (Canada)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://afn.ca/"
+  },
+  "Association on American Indian Affairs": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.indian-affairs.org/"
+  },
+  "Atlas des patrimoines / Patriarche (France)": {
+   "find": "Atlas des patrimoines Patriarche carte archeologique nationale",
+   "state": "find-only"
+  },
+  "Australian Museum": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://australian.museum/"
+  },
+  "Australian consulting archaeology standards": {
+   "find": "Australian Association of Consulting Archaeologists code of ethics standards",
+   "state": "find-only"
+  },
+  "BABAO": {
+   "code": 200,
+   "final": "https://babao.org.uk/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.babao.org.uk/"
+  },
+  "Banco Nacional de Datos Genéticos (Argentina)": {
+   "find": "Banco Nacional de Datos Geneticos Argentina identificacion",
+   "state": "find-only"
+  },
+  "Belgian restitution of remains from the Congo": {
+   "find": "Belgium restitution human remains Congo AfricaMuseum provenance",
+   "state": "find-only"
+  },
+  "Blue Shield International": {
+   "find": "Blue Shield International cultural property protection armed conflict",
+   "state": "find-only"
+  },
+  "Burial Act 1857 s.25 (England & Wales)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.legislation.gov.uk/"
+  },
+  "Bååstede and Sámi repatriation (Norway/Sweden)": {
+   "find": "Baastede Sami repatriation human remains Norway Sweden museum",
+   "state": "find-only"
+  },
+  "CITiZAN (England)": {
+   "find": "CITiZAN coastal intertidal zone archaeological network England erosion",
+   "state": "find-only"
+  },
+  "Charité Human Remains Project (Berlin)": {
+   "find": "Charite Human Remains Project provenance colonial skulls Berlin",
+   "state": "find-only"
+  },
+  "Chartered Institute for Archaeologists (CIfA)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.archaeologists.net/"
+  },
+  "Climate Heritage Network": {
+   "code": 200,
+   "final": "https://www.climateheritage.org/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://climateheritage.org/"
+  },
+  "Comisión Nacional de Búsqueda (Mexico)": {
+   "find": "Comisión Nacional de Búsqueda registro fosas clandestinas",
+   "state": "find-only"
+  },
+  "Committee on Missing Persons in Cyprus": {
+   "find": "Committee on Missing Persons Cyprus exhumation identification bicommunal",
+   "state": "find-only"
+  },
+  "Convention against Enforced Disappearance (ICPPED)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.ohchr.org/"
+  },
+  "Copernicus Data Space": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://dataspace.copernicus.eu/"
+  },
+  "Cultural Survival": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.culturalsurvival.org/"
+  },
+  "Digital Benin and colonial provenance projects": {
+   "find": "Digital Benin provenance colonial collections database",
+   "state": "find-only"
+  },
+  "Dutch committee on colonial collections": {
+   "find": "Commissie Koloniale Collecties Netherlands restitution",
+   "state": "find-only"
+  },
+  "EAAF — Equipo Argentino de Antropología Forense": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://eaaf.org/"
+  },
+  "EAMENA": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://eamena.org/"
+  },
+  "ELAW — Environmental Law Alliance Worldwide": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://elaw.org/"
+  },
+  "Ethics of ancient DNA and destructive sampling": {
+   "find": "ancient DNA ethics guidelines destructive sampling human remains consent descendant communities",
+   "state": "find-only"
+  },
+  "European Association of Archaeologists": {
+   "find": "European Association of Archaeologists EAA statement human remains ethics",
+   "state": "find-only"
+  },
+  "Excavations.ie": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://excavations.ie/"
+  },
+  "FAFG — Fundación de Antropología Forense de Guatemala": {
+   "code": 200,
+   "final": "https://www.fafg.org/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://fafg.org/"
+  },
+  "FOIA.gov (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.foia.gov/"
+  },
+  "Faro Convention (heritage and society)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.coe.int/"
+  },
+  "Federal Register": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.federalregister.gov/"
+  },
+  "Field Museum repatriation catalogues": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://repatriation.fieldmuseum.org/"
+  },
+  "Forensic Architecture": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://forensic-architecture.org/"
+  },
+  "Fornsök (Sweden)": {
+   "find": "Fornsok Riksantikvarieambetet fornlamningsregister search",
+   "state": "find-only"
+  },
+  "Fund og Fortidsminder (Denmark)": {
+   "find": "Fund og Fortidsminder Slots- og Kulturstyrelsen database",
+   "state": "find-only"
+  },
+  "German Museums Association guidance on human remains": {
+   "find": "Deutscher Museumsbund Empfehlungen menschliche Überreste",
+   "state": "find-only"
+  },
+  "Global Forest Watch": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.globalforestwatch.org/"
+  },
+  "Ground-penetrating radar guidance for burial survey": {
+   "find": "ground penetrating radar guidance unmarked graves survey limitations",
+   "state": "find-only"
+  },
+  "Hawaiʻi HRS Chapter 6E and burial rules": {
+   "find": "Hawaii Revised Statutes 6E burial sites HAR 13-300 iwi kupuna",
+   "state": "find-only"
+  },
+  "Heritage Gateway (England)": {
+   "code": 200,
+   "final": "https://www.heritagegateway.org.uk/gateway/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.heritagegateway.org.uk/"
+  },
+  "Heritage NSW — Aboriginal cultural heritage": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects"
+  },
+  "Heritage NSW — apply for an AHIP": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects/apply-for-ahip"
+  },
+  "Heritage New Zealand Pouhere Taonga": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.heritage.org.nz/"
+  },
+  "Heritage New Zealand Pouhere Taonga Act 2014": {
+   "code": 202,
+   "state": "ok",
+   "url": "https://www.legislation.govt.nz/"
+  },
+  "Historic England": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://historicengland.org.uk/"
+  },
+  "Historic Environment Scotland": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.historicenvironment.scot/"
+  },
+  "ICMP — International Commission on Missing Persons": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.icmp.int/"
+  },
+  "ICOM Code of Ethics for Museums": {
+   "code": 200,
+   "final": "https://icom.museum/en/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://icom.museum/"
+  },
+  "ICOMOS": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.icomos.org/"
+  },
+  "ICRC — missing persons and the dead": {
+   "code": 200,
+   "final": "https://www.icrc.org/en",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.icrc.org/"
+  },
+  "IFC/MIGA Compliance Advisor Ombudsman": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.cao-ombudsman.org/"
+  },
+  "INAH (Mexico)": {
+   "code": 468,
+   "note": "HTTP 468",
+   "state": "dead",
+   "url": "https://www.inah.gob.mx/"
+  },
+  "INRAP (France)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.inrap.fr/"
+  },
+  "INTERPOL Disaster Victim Identification": {
+   "find": "INTERPOL DVI guide disaster victim identification standards",
+   "state": "find-only"
+  },
+  "INTERPOL Stolen Works of Art database": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.interpol.int/"
+  },
+  "IPHAN (Brazil)": {
+   "find": "IPHAN patrimonio arqueologico licenciamento endosso",
+   "state": "find-only"
+  },
+  "IWGIA": {
+   "code": 200,
+   "final": "https://www.iwgia.org/en/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.iwgia.org/"
+  },
+  "Indigenous Repatriation Program (Australia)": {
+   "code": 0,
+   "note": "The read operation timed out",
+   "state": "dead",
+   "url": "https://www.arts.gov.au/"
+  },
+  "International Coalition of Sites of Conscience": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.sitesofconscience.org/"
+  },
+  "Inuit Tapiriit Kanatami": {
+   "code": 200,
+   "final": "https://itk.ca/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.itk.ca/"
+  },
+  "Island Burial Councils (Hawaiʻi)": {
+   "find": "Hawaii Island Burial Council SHPD iwi kupuna burial treatment plan",
+   "state": "find-only"
+  },
+  "Iziko Museums / UCT human remains (South Africa)": {
+   "find": "Iziko Museums South Africa human remains restitution UCT skeletal collection",
+   "state": "find-only"
+  },
+  "Karanga Aotearoa Repatriation Programme, Te Papa (NZ)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.tepapa.govt.nz/"
+  },
+  "Ley 20/2022 de Memoria Democrática (Spain)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.boe.es/"
+  },
+  "Mass Graves Directorate (Iraq)": {
+   "find": "Iraq Mass Graves Directorate Martyrs Foundation exhumation Yazidi",
+   "state": "find-only"
+  },
+  "Memoria Abierta (Argentina)": {
+   "code": 200,
+   "final": "https://memoriaabierta.org.ar/wp/en/inicio/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://memoriaabierta.org.ar/"
+  },
+  "Ministerio de Cultura CIRA (Peru)": {
+   "find": "Peru Ministerio de Cultura CIRA certificado inexistencia restos arqueologicos",
+   "state": "find-only"
+  },
+  "Missing Persons Institute (Bosnia and Herzegovina)": {
+   "find": "Missing Persons Institute Bosnia Herzegovina exhumation",
+   "state": "find-only"
+  },
+  "Museums Association (UK) — ethics": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.museumsassociation.org/"
+  },
+  "Musée du quai Branly (France)": {
+   "code": 200,
+   "final": "https://www.quaibranly.fr/en/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.quaibranly.fr/"
+  },
+  "NAGPRA Review Committee": {
+   "find": "NAGPRA Review Committee dispute findings recommendation",
+   "state": "find-only"
+  },
+  "NAGPRA and 43 CFR Part 10 (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.nps.gov/subjects/nagpra/the-law.htm"
+  },
+  "NAGPRA civil penalties": {
+   "find": "NAGPRA civil penalty allegation failure to comply museum National Park Service",
+   "state": "find-only"
+  },
+  "NAGPRA notices index": {
+   "code": 0,
+   "note": "<urlopen error [Errno -5] No address associated with hostname>",
+   "state": "dead",
+   "url": "https://home1.nps.gov/nagpra/NOTICES/INDEX.HTM"
+  },
+  "NATHPO — Tribal Historic Preservation Officers (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.nathpo.org/"
+  },
+  "NCAP — National Collection of Aerial Photography": {
+   "code": 200,
+   "final": "https://www.ncap.org/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://ncap.org.uk/"
+  },
+  "NCSHPO — State Historic Preservation Officers (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://ncshpo.org/"
+  },
+  "NCTR — National Centre for Truth and Reconciliation (Canada)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://nctr.ca/"
+  },
+  "NHPA §106 and §304 (US)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.achp.gov/"
+  },
+  "NOAA Sea Level Rise Viewer": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://coast.noaa.gov/slr/"
+  },
+  "National Congress of American Indians": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.ncai.org/"
+  },
+  "National Library of Scotland georeferenced maps": {
+   "code": 405,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://maps.nls.uk/"
+  },
+  "National Monuments Service (Ireland)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.archaeology.ie/"
+  },
+  "National NAGPRA Inventories database": {
+   "code": 0,
+   "note": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get l",
+   "state": "dead",
+   "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory"
+  },
+  "National NAGPRA Program (US)": {
+   "code": 200,
+   "final": "https://www.nps.gov/subjects/nagpra/index.htm",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.nps.gov/subjects/nagpra/"
+  },
+  "National NAGPRA Summaries database": {
+   "code": 0,
+   "note": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get l",
+   "state": "dead",
+   "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary"
+  },
+  "National NAGPRA Unclaimed Lists": {
+   "code": 0,
+   "note": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get l",
+   "state": "dead",
+   "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList"
+  },
+  "National NAGPRA grants database": {
+   "code": 0,
+   "note": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get l",
+   "state": "dead",
+   "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant"
+  },
+  "National NAGPRA grants programme": {
+   "find": "National NAGPRA consultation documentation repatriation grants apply",
+   "state": "find-only"
+  },
+  "National NAGPRA newspaper notices": {
+   "code": 0,
+   "note": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get l",
+   "state": "dead",
+   "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID"
+  },
+  "National NAGPRA public databases": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.nps.gov/subjects/nagpra/databases.htm"
+  },
+  "National Native Title Tribunal (Australia)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "http://www.nntt.gov.au/"
+  },
+  "National Parks and Wildlife Act 1974 s.90 (NSW)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://legislation.nsw.gov.au/"
+  },
+  "Native American Consultation Database (US)": {
+   "find": "NPS Native American Consultation Database NACD",
+   "state": "find-only"
+  },
+  "Native American Rights Fund": {
+   "code": 200,
+   "final": "https://narf.org/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.narf.org/"
+  },
+  "Native Land Digital": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://native-land.ca/"
+  },
+  "Natural History Museum, London": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.nhm.ac.uk/"
+  },
+  "OECD National Contact Points": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://mneguidelines.oecd.org/"
+  },
+  "Office of Hawaiian Affairs": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.oha.org/"
+  },
+  "Parks Canada — archaeology and heritage": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://parks.canada.ca/"
+  },
+  "Peabody Museum, Harvard": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://peabody.harvard.edu/"
+  },
+  "Permafrost thaw and archaeological remains": {
+   "find": "permafrost thaw archaeology human remains loss Arctic",
+   "state": "find-only"
+  },
+  "Planet NICFI basemaps": {
+   "find": "Planet NICFI Basemaps free access tropical imagery",
+   "state": "find-only"
+  },
+  "ProPublica Repatriation Database": {
+   "find": "ProPublica repatriation NAGPRA database search institution",
+   "state": "find-only"
+  },
+  "ProPublica — The Repatriation Project": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.propublica.org/series/the-repatriation-project"
+  },
+  "Register of Professional Archaeologists (US)": {
+   "find": "Register of Professional Archaeologists RPA grievance code of conduct",
+   "state": "find-only"
+  },
+  "Registered Aboriginal Parties (Victoria, Australia)": {
+   "find": "Registered Aboriginal Party Victoria First Peoples State Relations map",
+   "state": "find-only"
+  },
+  "Restitution of human remains, France (loi 2023-1194)": {
+   "find": "loi 2023 restitution restes humains collections publiques France",
+   "state": "find-only"
+  },
+  "Rijksdienst voor het Cultureel Erfgoed (Netherlands)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.cultureelerfgoed.nl/"
+  },
+  "Riksantikvaren (Norway)": {
+   "code": 200,
+   "final": "https://riksantikvaren.no/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.riksantikvaren.no/"
+  },
+  "Riksantikvarieämbetet (Sweden)": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.raa.se/"
+  },
+  "Rome Statute": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.icc-cpi.int/"
+  },
+  "SAHRA (South Africa)": {
+   "code": 200,
+   "final": "https://www.sahra.org.za/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://sahra.org.za/"
+  },
+  "SCAPE Trust and SCHARP (Scotland)": {
+   "find": "SCAPE Trust SCHARP Scotland coastal heritage at risk eroding burials",
+   "state": "find-only"
+  },
+  "Sentinel Hub EO Browser": {
+   "find": "Sentinel Hub EO Browser free satellite imagery",
+   "state": "find-only"
+  },
+  "Servicio Médico Legal (Chile)": {
+   "find": "Servicio Medico Legal Chile unidad especial identificacion forense detenidos desaparecidos",
+   "state": "find-only"
+  },
+  "Smithsonian National Museum of Natural History": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://naturalhistory.si.edu/"
+  },
+  "Society for American Archaeology": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.saa.org/"
+  },
+  "Society for Historical Archaeology": {
+   "find": "Society for Historical Archaeology ethics burial descendant communities",
+   "state": "find-only"
+  },
+  "Stop-work and interim protection orders (NSW)": {
+   "find": "NSW National Parks Wildlife Act stop work order interim protection order Aboriginal object",
+   "state": "find-only"
+  },
+  "Survival International": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.survivalinternational.org/"
+  },
+  "Sámi Parliaments (Norway, Sweden, Finland)": {
+   "find": "Sametinget Sami Parliament repatriation cultural heritage",
+   "state": "find-only"
+  },
+  "UBPD (Colombia)": {
+   "code": 0,
+   "note": "<urlopen error [Errno 101] Network is unreachable>",
+   "state": "dead",
+   "url": "https://ubpdbusquedadesaparecidos.co/"
+  },
+  "UK guidance on the care of human remains in museums": {
+   "find": "DCMS Guidance for the Care of Human Remains in Museums",
+   "state": "find-only"
+  },
+  "UN Committee on Enforced Disappearances": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.ohchr.org/"
+  },
+  "UN Special Rapporteur on the Rights of Indigenous Peoples": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.ohchr.org/"
+  },
+  "UNDRIP Article 12": {
+   "code": 200,
+   "final": "https://social.desa.un.org/issues/indigenous-peoples",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.un.org/development/desa/indigenouspeoples/"
+  },
+  "UNESCO 1970 Convention (illicit transfer)": {
+   "code": 200,
+   "final": "https://www.unesco.org/en",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://www.unesco.org/"
+  },
+  "USGS EarthExplorer": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://earthexplorer.usgs.gov/"
+  },
+  "Ukraine exhumation and identification": {
+   "find": "Ukraine exhumation identification war dead prosecutor general forensic",
+   "state": "find-only"
+  },
+  "University anatomical collections": {
+   "find": "university anatomical museum human remains provenance audit collection",
+   "state": "find-only"
+  },
+  "Valletta Convention (archaeological heritage)": {
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
+   "url": "https://www.coe.int/"
+  },
+  "Vermillion Accord on Human Remains": {
+   "code": 200,
+   "final": "https://worldarchaeologicalcongress.com/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://worldarch.org/"
+  },
+  "WA Department of Planning, Lands and Heritage": {
+   "find": "DPLH Aboriginal Heritage Inquiry System section 18 consent register",
+   "state": "find-only"
+  },
+  "Wildfire and heritage damage assessment": {
+   "find": "wildfire heritage damage assessment archaeological sites burn severity",
+   "state": "find-only"
+  },
+  "World Archaeological Congress": {
+   "code": 200,
+   "final": "https://worldarchaeologicalcongress.com/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
+   "url": "https://worldarch.org/"
+  },
+  "World Bank Inspection Panel": {
+   "code": 200,
+   "state": "ok",
+   "url": "https://www.inspectionpanel.org/"
+  }
+ },
+ "tally": {
+  "blocked": 15,
+  "dead": 11,
+  "find-only": 55,
+  "ok": 56,
+  "redirect": 19
+ }
+}
