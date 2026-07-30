@@ -1,0 +1,40 @@
+# Link-checks the curated resource lenses and commits lenses_status.json.
+#
+# lenses.json is hand-compiled -- the one part of this project a harvester cannot do,
+# and the part that rots fastest. It therefore ships WITHOUT any claim that every link
+# works, and this workflow is what verifies it, in public, on a schedule. The map reads
+# lenses_status.json and greys out dead links rather than deleting them: a resource
+# that has vanished tells you an office closed, which is worth knowing.
+name: Check lens links
+
+on:
+  schedule:
+    - cron: '30 5 * * 1'      # Mondays 05:30 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check links
+        env:
+          CHECK_TIMEOUT: '20'
+          CHECK_SLEEP: '0.7'
+        run: python check_lenses.py
+      - name: Commit if changed
+        # A dead link is a maintenance task, not a build failure -- always commit.
+        run: |
+          git config user.name  "lenses-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lenses_status.json
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "chore: refresh lenses_status.json"
+          git push

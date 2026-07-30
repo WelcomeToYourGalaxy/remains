@@ -1,0 +1,95 @@
+# Global cemetery / crematorium / mortuary directory from OpenStreetMap, sharded.
+#
+# This is the FACILITY layer and it is deliberately NOT subject to the unearthings
+# map's blurring rule: a working cemetery is a signposted public place people need to
+# be able to find. harvest_cemeteries.py refuses every archaeological tag
+# (historic=*, tombs, tumuli, necropoleis) and every lifecycle prefix (was:,
+# demolished:, removed:, abandoned:) -- those are unearthing EVENTS and belong to
+# harvest_remains.py, where the blur applies. See design note 3 in the map.
+#
+# Cemeteries are far denser than the projects repo's courthouses, so this runs 24
+# shards over a 2.5-degree grid with a tighter recursive-split floor.
+name: Harvest cemeteries
+
+on:
+  schedule:
+    - cron: '0 4 * * 6'        # Saturdays 04:00 UTC -- full global sweep
+  workflow_dispatch:
+    inputs:
+      fac_type:
+        description: 'cemetery | crematory | mortuary | all'
+        default: 'all'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  shards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false          # one bad shard must not kill the others
+      matrix:
+        facility: [cemetery, crematory, mortuary]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Harvest ${{ matrix.facility }} shard ${{ matrix.shard }}
+        env:
+          FAC_TYPE: ${{ matrix.facility }}
+          FAC_SHARD: ${{ matrix.shard }}
+          FAC_SHARDS: '8'
+          OSM_BUDGET_MIN: '160'
+          OSM_TILE_DEG: '2.5'
+          OSM_MIN_DEG: '0.3125'
+        run: python harvest_cemeteries.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fac-${{ matrix.facility }}-${{ matrix.shard }}
+          path: remains_local_${{ matrix.facility }}_part${{ matrix.shard }}.json
+          if-no-files-found: warn
+          retention-days: 2
+
+  merge:
+    needs: shards
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: fac-*
+          merge-multiple: true
+      - name: Merge shard parts
+        run: |
+          ls -la remains_local_*_part*.json || echo "no parts downloaded"
+          for t in cemetery crematory mortuary; do
+            FAC_MERGE=1 FAC_TYPE=$t python harvest_cemeteries.py
+          done
+          rm -f remains_local_*_part*.json
+      - name: Commit if changed
+        run: |
+          git config user.name  "cemeteries-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add remains_local_cemetery.json remains_local_crematory.json remains_local_mortuary.json 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "chore: refresh cemetery directory (global OSM sweep)"
+          BR="$(git rev-parse --abbrev-ref HEAD)"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BR" || true
+            if git merge -X ours FETCH_HEAD -m "merge remote; keep fresh facility files" && git push origin HEAD:"$BR"; then
+              echo "pushed"; exit 0
+            fi
+            git merge --abort 2>/dev/null || true
+            echo "push race, retry $i"; sleep 6
+          done
+          echo "push failed after retries"; exit 1

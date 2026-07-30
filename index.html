@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Global Unearthings Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Uncial+Antiqua&family=DM+Sans:wght@400;500;700&display=swap');
+
+  /* Sibling palette to the Live Projects map: same structure and type, shifted
+     from that map's green to bone + ochre + rust so the two are never confused. */
+  :root{
+    --accent:#8a6f3f; --accent-hi:#d8bd86; --accent-soft:rgba(138,111,63,0.30);
+    --ink:#efe9dd; --muted:#a89b84; --dim:#7d7360;
+    --panel:rgba(22,19,14,0.95); --popup:#1a1611;
+    --harm:#b5462f; --watch:#c9a227; --redress:#6f9e8c; --unlawful:#7d3350;
+    --facility:#8f9bab;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Marcellus','Georgia',serif;background:#0b0a08;color:var(--ink);
+       overflow:hidden;height:100vh;}
+  #map{width:100%;height:100vh;background:#17140f;}
+
+  #header{position:fixed;top:0;left:0;right:0;z-index:1000;pointer-events:none;
+    background:linear-gradient(180deg,rgba(11,10,8,0.97) 0%,rgba(11,10,8,0.85) 70%,rgba(11,10,8,0) 100%);
+    padding:12px 18px 26px;}
+  #header h1{font-family:'Uncial Antiqua','Marcellus',serif;font-size:22px;font-weight:800;
+    letter-spacing:.5px;color:#f4efe4;pointer-events:auto;}
+  #header .subtitle{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.3px;
+    pointer-events:auto;max-width:62ch;line-height:1.5;}
+  #header .subtitle b{color:var(--accent-hi);font-weight:400;}
+
+  /* ---- panels ---------------------------------------------------------- */
+  .panel{background:var(--panel);border:1px solid var(--accent-soft);border-radius:10px;
+    backdrop-filter:blur(3px);}
+  #controls{position:fixed;top:74px;right:16px;z-index:1001;width:306px;padding:12px 13px;
+    max-height:calc(100vh - 150px);overflow-y:auto;}
+  #controls::-webkit-scrollbar,#leftcol ::-webkit-scrollbar{width:5px;}
+  #controls::-webkit-scrollbar-thumb,#leftcol ::-webkit-scrollbar-thumb{
+    background:var(--accent-soft);border-radius:3px;}
+  .pnl-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+    font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--accent-hi);}
+  .collapsed .pnl-body{display:none;}
+  label.chk{display:block;font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
+    cursor:pointer;margin:6px 0;line-height:1.45;}
+  label.chk input{accent-color:var(--accent);vertical-align:-2px;margin-right:5px;}
+  select{width:100%;font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);
+    border-radius:7px;padding:6px 9px;outline:none;}
+  select:focus{border-color:var(--accent);}
+  select option{background:#1a1611;color:var(--ink);}
+  /* left column holds the key, the wire and the lenses */
+  #leftcol{position:fixed;bottom:18px;left:18px;z-index:1000;width:344px;
+    max-height:calc(100vh - 108px);display:flex;flex-direction:column;gap:9px;overflow:hidden;}
+  #leftcol > .panel{padding:11px 13px;flex:0 0 auto;}
+  #legend .pnl-body{max-height:46vh;overflow-y:auto;}
+  #wireList{max-height:29vh;overflow-y:auto;margin-top:8px;}
+  .wi{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);}
+  .wi:last-child{border-bottom:none;}
+  .wi a{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+    text-decoration:none;line-height:1.4;display:block;}
+  .wi a:hover{color:var(--accent-hi);}
+  .wi .meta{font-family:'DM Sans',sans-serif;font-size:9.5px;color:var(--dim);
+    margin-top:3px;letter-spacing:.02em;}
+  .wi.sig2 a{font-weight:700;}
+  .wi .tt{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-right:5px;
+    background:rgba(255,255,255,.07);color:var(--muted);}
+  #lensBody{max-height:32vh;overflow-y:auto;margin-top:8px;}
+  .lens-desc{font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
+    line-height:1.5;margin:7px 0 9px;}
+  .li{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+  .li:last-child{border-bottom:none;}
+  .li a,.li span.nolink{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+    text-decoration:none;font-weight:600;line-height:1.35;}
+  .li a:hover{color:var(--accent-hi);}
+  .li .note{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+    line-height:1.5;margin-top:3px;}
+  .li .st{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:1px;}
+  .st-dead{background:rgba(181,70,47,.22);color:#e79a86;}
+  .st-unchecked{background:rgba(255,255,255,.06);color:var(--dim);}
+  .st-blocked{background:rgba(201,162,39,.18);color:#e6cf85;}
+  .st-find{background:rgba(111,158,140,.18);color:#a6cfc0;}
+  .li.dead a,.li.dead span.nolink{color:var(--dim);text-decoration:line-through;}
+  .li .lvl{font-family:'DM Sans',sans-serif;font-size:9px;color:var(--dim);
+    text-transform:uppercase;letter-spacing:.06em;margin-left:6px;}
+  details.disc .body .callout{margin:8px 0;padding:8px 10px;background:rgba(255,255,255,.04);
+    border-left:2px solid var(--accent);border-radius:4px;}
+  .ctl-title{font-family:'DM Sans',sans-serif;font-size:9.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.085em;color:var(--dim);margin:13px 0 6px;}
+  .ctl-note{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--dim);
+    line-height:1.5;margin:6px 2px 0;}
+  .ctl-note b{color:var(--muted);font-weight:600;}
+
+  .pill{display:inline-block;font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;
+    padding:4px 9px;margin:0 4px 5px 0;border-radius:13px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.14);color:var(--muted);background:transparent;
+    transition:border-color .18s,color .18s,background .18s;user-select:none;}
+  .pill:hover{border-color:var(--accent-hi);color:var(--ink);}
+  .pill.on{background:var(--accent-soft);color:var(--accent-hi);border-color:var(--accent);}
+  .pill .n{opacity:.55;font-weight:600;margin-left:5px;}
+  .pill.empty{opacity:.34;cursor:default;}
+  .pill.empty:hover{border-color:rgba(255,255,255,.14);color:var(--muted);}
+  .pill.p-harm.on{background:rgba(181,70,47,.24);color:#e79a86;border-color:var(--harm);}
+  .pill.p-watch.on{background:rgba(201,162,39,.22);color:#e6cf85;border-color:var(--watch);}
+  .pill.p-redress.on{background:rgba(111,158,140,.22);color:#a6cfc0;border-color:var(--redress);}
+  .pill.p-unlawful.on{background:rgba(125,51,80,.26);color:#d093ab;border-color:var(--unlawful);}
+
+  #q{width:100%;font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:7px;
+    padding:6px 9px;outline:none;}
+  #q:focus{border-color:var(--accent);}
+  #q::placeholder{color:var(--dim);}
+  .qn{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--dim);margin-top:5px;display:block;}
+
+  /* ---- legend: the placement-resolution key --------------------------- */
+    .leg-sec{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--dim);margin:11px 0 5px;}
+  .leg-row{display:flex;align-items:flex-start;gap:9px;margin-bottom:5px;
+    font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);line-height:1.45;}
+  .leg-row i{flex:0 0 22px;height:15px;position:relative;}
+  .leg-row b{color:var(--ink);font-weight:600;}
+  .sw{position:absolute;left:3px;top:2px;width:11px;height:11px;border-radius:50%;}
+
+  /* ---- disclosure ----------------------------------------------------- */
+  details.disc{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:9px;}
+  details.disc > summary{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--accent-hi);
+    cursor:pointer;list-style:none;padding:2px 0;letter-spacing:.02em;}
+  details.disc > summary::-webkit-details-marker{display:none;}
+  details.disc > summary::before{content:'\25B8  ';}
+  details.disc[open] > summary::before{content:'\25BE  ';}
+  details.disc .body{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+    line-height:1.62;margin-top:8px;max-height:44vh;overflow-y:auto;padding-right:5px;}
+  details.disc .body::-webkit-scrollbar{width:5px;}
+  details.disc .body::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:3px;}
+  details.disc .body b.h{display:block;color:var(--accent-hi);font-weight:700;
+    text-transform:uppercase;letter-spacing:.07em;font-size:9px;margin:11px 0 4px;}
+  details.disc .body b{color:var(--ink);font-weight:600;}
+  details.disc .body ul{margin:4px 0 4px 14px;} details.disc .body li{margin:3px 0;}
+
+  /* ---- popup --------------------------------------------------------- */
+  .leaflet-popup-content-wrapper{background:var(--popup)!important;
+    border:1px solid var(--accent-soft)!important;border-radius:10px!important;
+    box-shadow:0 8px 26px rgba(0,0,0,.6)!important;}
+  .leaflet-popup-content{margin:14px 16px!important;font-family:'DM Sans',sans-serif!important;
+    line-height:1.55!important;font-size:12px!important;color:var(--muted)!important;
+    max-height:56vh;overflow-y:auto;width:280px!important;}
+  .leaflet-popup-content::-webkit-scrollbar{width:5px;}
+  .leaflet-popup-content::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:3px;}
+  .leaflet-popup-tip{background:var(--popup)!important;border:1px solid var(--accent-soft)!important;}
+  .leaflet-popup-close-button{color:var(--dim)!important;font-size:20px!important;
+    padding:6px 8px 0 0!important;}
+  .pk{font-family:'Marcellus',serif;font-size:15px;color:#f4efe4;line-height:1.35;
+    margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid var(--accent-soft);}
+  .tag{display:inline-block;font-size:8.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.075em;padding:2px 6px;border-radius:3px;margin:0 4px 5px 0;}
+  .t-harm{background:rgba(181,70,47,.2);color:#e79a86;}
+  .t-watch{background:rgba(201,162,39,.2);color:#e6cf85;}
+  .t-redress{background:rgba(111,158,140,.2);color:#a6cfc0;}
+  .t-unlawful{background:rgba(125,51,80,.24);color:#d093ab;}
+  .t-plain{background:rgba(255,255,255,.07);color:var(--muted);}
+  .kv{margin:5px 0;} .kv span{color:var(--dim);}
+  .geo-note{margin-top:9px;padding:7px 9px;background:rgba(255,255,255,.04);
+    border-left:2px solid var(--accent);border-radius:4px;font-size:10.5px;
+    color:var(--muted);line-height:1.5;}
+  .plink{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;
+    color:var(--accent-hi);text-decoration:none;border-bottom:1px dotted var(--accent-soft);}
+  .plink:hover{color:#fff;}
+
+  /* ---- states -------------------------------------------------------- */
+  #status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1002;
+    max-width:430px;padding:20px 24px;text-align:left;display:none;}
+  #status h2{font-family:'Uncial Antiqua',serif;font-size:15px;color:var(--accent-hi);
+    margin-bottom:9px;}
+  #status p{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--muted);
+    line-height:1.65;margin-bottom:7px;}
+  #status code{font-family:ui-monospace,'DejaVu Sans Mono',monospace;font-size:10.5px;
+    color:var(--accent-hi);background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;}
+  .leaflet-container{outline:none;}
+  :focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+  @media (max-width:900px){
+    #leftcol{display:none;}
+    #controls{width:auto;left:12px;right:12px;top:auto;bottom:12px;max-height:52vh;}
+    #header .subtitle{font-size:11px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Live Global Unearthings Map</h1>
+  <div class="subtitle" id="subtitle">Loading the record&hellip;</div>
+</div>
+<div id="map"></div>
+
+<div id="status" class="panel"></div>
+
+<div id="controls" class="panel">
+  <div class="pnl-head" onclick="document.getElementById('controls').classList.toggle('collapsed')">
+    <span>Layers &amp; filters</span><span>&#9662;</span>
+  </div>
+  <div class="pnl-body">
+    <div class="ctl-title">Layers</div>
+    <label class="chk"><input type="checkbox" id="layUnearth" checked>
+      <b>Unearthings &amp; decisions</b> &mdash; <span id="nUnearth">&hellip;</span></label>
+    <label class="chk"><input type="checkbox" id="layCem">
+      <b>Cemeteries &amp; burial grounds</b> &mdash; <span id="nCem">not loaded</span></label>
+    <label class="chk"><input type="checkbox" id="layCrem">
+      Crematoria &mdash; <span id="nCrem">not loaded</span></label>
+    <label class="chk"><input type="checkbox" id="layMort">
+      Mortuaries &amp; funeral directors &mdash; <span id="nMort">not loaded</span></label>
+    <div class="ctl-note">The facility layers are a <b>directory</b> from OpenStreetMap:
+      established, signposted burial places. They are drawn plainly and are <b>not
+      blurred</b>, because a working cemetery is already on every street map.
+      Archaeological and unmarked burial sites are excluded from them by design
+      &mdash; design note 3 in the map key explains why.</div>
+
+    <div class="ctl-title">Posture &mdash; what is being done</div>
+    <div id="fPosture"></div>
+    <div class="ctl-note">Posture is the difference between a permit to dig and a
+      return to descendants. Both are on this map; they are not the same event.</div>
+
+    <div class="ctl-title">Kind of record</div>
+    <div id="fKind"></div>
+
+    <div class="ctl-title">What is driving it</div>
+    <div id="fTrigger"></div>
+
+    <div class="ctl-title">Scale &mdash; individuals affected</div>
+    <div id="fScale"></div>
+    <div class="ctl-note">Scale rises only when a source <b>states</b> a number of
+      individuals. Most do not, so most records sit at their category floor.</div>
+
+    <div class="ctl-title">Recency &mdash; dated records</div>
+    <div id="fWindow"></div>
+    <label class="chk"><input type="checkbox" id="inclUndated" checked>
+      Include undated records</label>
+
+    <div class="ctl-title">Search</div>
+    <input id="q" type="search" placeholder="Institution, permit, place&hellip;" autocomplete="off">
+    <span class="qn" id="qn"></span>
+  </div>
+</div>
+
+<div id="leftcol">
+
+<div id="legend" class="panel">
+  <div class="pnl-head" onclick="document.getElementById('legend').classList.toggle('collapsed')">
+    <span>Map key &amp; design notes</span><span>&#9662;</span>
+  </div>
+  <div class="pnl-body">
+    <div class="leg-sec">Colour &mdash; posture</div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--harm)"></span></i>
+      <span><b>Harm</b> &mdash; authorises or carries out disturbance</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--watch)"></span></i>
+      <span><b>Watch</b> &mdash; disclosed or under review, not yet decided</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--redress)"></span></i>
+      <span><b>Redress</b> &mdash; returning, reburying, recovering for descendants</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--unlawful)"></span></i>
+      <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
+      <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
+
+    <div class="leg-sec">Shape &mdash; how precise the placement is</div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="exact" width="22" height="15"></canvas></i>
+      <span><b>Solid dot</b> &mdash; the named institution or address</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="area" width="22" height="15"></canvas></i>
+      <span><b>Ringed dot</b> &mdash; centre of a permit or project area</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="admin" width="22" height="15"></canvas></i>
+      <span><b>Hollow ring</b> &mdash; centre of an administrative unit, not the site</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="coarsened" width="22" height="15"></canvas></i>
+      <span><b>Diffuse halo, no centre</b> &mdash; deliberately blurred to about 5&nbsp;km</span></div>
+    <div class="ctl-note" style="margin-top:7px;">A halo means the dot is honest about
+      not knowing, or about refusing to say. Size of the mark tracks scale, not certainty.</div>
+
+    <details class="disc">
+      <summary>Design notes &mdash; the calls made here, and how to overrule them</summary>
+      <div class="body">
+
+        <b class="h">1. This map does not plot graves. That is the whole design.</b>
+        <div class="callout">Precise burial locations are withheld by archaeologists,
+          descendant communities and states because publishing them invites
+          desecration. In the United States site-location data is exempt from
+          disclosure under <b>NHPA&nbsp;&sect;304</b> and <b>ARPA&nbsp;&sect;9</b> for
+          exactly that reason, and NAGPRA notices themselves name only counties of
+          removal, never coordinates.</div>
+        So the unit of this map is <b>the accountable actor and the decision</b>, not the
+        grave:
+        <ul>
+          <li>A repatriation notice sits at the <b>institution holding the remains</b>.</li>
+          <li>A heritage-harm permit sits at the <b>centre of the permit area</b>.</li>
+          <li>A review sits at the <b>administrative unit it names</b>.</li>
+          <li>Anything that is itself a burial location is <b>blurred to about 5&nbsp;km</b>
+              and drawn as a halo with no centre.</li>
+        </ul>
+        The blur is enforced by a gate keyed to the <i>record type</i>, not to the good
+        intentions of whoever wrote the fetcher: hand it exact coordinates for a mass
+        grave and it blurs them anyway. Unknown record types fail safe to blurred, and an
+        audit pass re-checks every record before the file is written.
+        <b>If you disagree with this call, it is one constant to change</b> &mdash;
+        <code>COARSE_GRID_DEG</code> &mdash; and one table, <code>KINDS</code>, that
+        decides which record types get blurred.
+
+        <b class="h">2. Spain is the case that tests the rule</b>
+        Spain's state map of the disappeared publishes grave coordinates deliberately, so
+        families can find their dead. That looked like grounds for an exemption. But
+        <b>Ley 20/2022 art.&nbsp;17</b> both mandates the map <i>and</i> requires the
+        zones it names to receive <i>preservaci&oacute;n especial</i> &mdash; Spain
+        publishes and protects at once. So the blur stays even there. Separately, the
+        Spanish data is not machine-readable anyway: the live tool is georeferenced, while
+        the downloadable release dates from 2017 and carries no coordinates at all.
+
+        <b class="h">3. Two layers, two different rules, on purpose</b>
+        The cemetery layer is <b>not</b> blurred, and that is not an inconsistency:
+        <ul>
+          <li>A <b>working cemetery</b> is a signposted public place with a street
+            address. People need to find it. Blurring it would serve nobody.</li>
+          <li>An <b>archaeological or unmarked burial site</b> is the opposite:
+            unadvertised, and endangered by publication.</li>
+        </ul>
+        So the facility harvester takes only tags denoting an established public burial
+        facility, and explicitly <b>refuses</b> <code>historic=*</code>, tombs, tumuli,
+        necropoleis, and every lifecycle-prefixed tag (<code>was:</code>,
+        <code>demolished:</code>, <code>removed:</code>, <code>abandoned:</code>). Those
+        last are unearthing <i>events</i> and belong to the other harvester, where the
+        blur applies. An element carrying both a cemetery tag and an archaeological tag is
+        dropped rather than published.
+
+        <b class="h">4. Posture is not a quality score</b>
+        A repatriation and a permit to destroy are both on this map. Collapsing them into
+        a single "impact" number would have made the map say something false, so
+        <b>posture</b> carries direction (harm / watch / redress / unlawful) and
+        <b>scale</b> carries magnitude only. A large repatriation is a large event, not a
+        bad one.
+
+        <b class="h">5. Counts are never estimated</b>
+        A number of individuals appears only where a source states one, after an explicit
+        "at least" / "a minimum of" / "a total of". Absence of a count means the source
+        was silent &mdash; never that the number is small.
+
+        <b class="h">6. No coverage percentage is claimed</b>
+        No dataset holds the true global count of unearthings, so any percentage would be
+        invented. Coverage is weighted toward jurisdictions with statutory repatriation
+        and heritage-permit regimes, because those are the ones that publish.
+        <b>Sparse regions on this map are sparse in the records, not necessarily in the
+        ground.</b> The same caution applies to the wire: an empty wire for a region is a
+        gap in reporting, not evidence that nothing is happening.
+
+        <b class="h">7. The lenses ship unverified, then get checked in public</b>
+        The resource lenses are hand-compiled, and curation rots faster than data. So they
+        ship without any claim that every link works, and a scheduled link-checker
+        verifies them. Dead links are <b>greyed out and labelled, not deleted</b> &mdash;
+        a resource that has vanished tells you an office closed or a programme was wound
+        up, which is itself worth knowing.
+      </div>
+    </details>
+
+    <details class="disc">
+      <summary>Where this data comes from &amp; what&rsquo;s not (yet) in it</summary>
+      <div class="body">
+
+        <b class="h">What this map is</b>
+        Every mark is a public record of an <b>unearthing or a decision about unearthed
+        human remains</b> &mdash; a repatriation notice, a permit to disturb a burial
+        ground, an environmental review that admits graves are in the way, a burial
+        ground recorded as removed. Records are harvested automatically from official
+        registers and community databases, and each mark links back to its primary source.
+
+        <b class="h">What this map deliberately will not do</b>
+        It does not publish grave coordinates. Precise burial locations are withheld by
+        archaeologists, descendant communities and states because publishing them invites
+        desecration &mdash; in the United States site-location data is exempt from
+        disclosure under NHPA&nbsp;s.304 and ARPA&nbsp;s.9 for exactly that reason. So the
+        unit of this map is <b>the accountable actor and the decision</b>, not the grave:
+        <ul>
+          <li>A repatriation notice sits at the <b>institution holding the remains</b>.</li>
+          <li>A heritage-harm permit sits at the <b>centre of the permit area</b>.</li>
+          <li>A review sits at the <b>administrative unit it names</b>.</li>
+          <li>Anything that is itself a burial location is <b>blurred to about 5&nbsp;km</b>
+              and drawn as a halo with no centre.</li>
+        </ul>
+        The blurring is enforced in the harvester by a fail-safe gate keyed to the record
+        type, plus an audit pass before writing, so a source cannot publish a precise
+        burial point by accident.
+
+        <b class="h">Feeds in production</b>
+        <ul>
+          <li><b>United States &mdash; NAGPRA notices.</b> Notices of Inventory Completion,
+            Intent to Repatriate, Intended Disposition, and Transfer, from the
+            <i>Federal Register</i> API. This is the statutory venue: if remains are being
+            repatriated from a US museum or agency, it is published here.</li>
+          <li><b>United States &mdash; federal reviews naming burials.</b> NEPA and NHPA
+            notices whose text puts human remains in a project&rsquo;s path. Placed at
+            state level only; these notices carry no coordinates.</li>
+          <li><b>Australia (NSW) &mdash; Aboriginal Heritage Impact Permits.</b> Legal
+            authorisations under s.90 of the <i>National Parks and Wildlife Act 1974</i>
+            to harm Aboriginal objects and places. Boundary polygons, quarterly refresh.
+            NSW DCCEEW, CC-BY. DCCEEW notes some permits are missing from the spatial
+            layer; the AHIP Public Register is authoritative.</li>
+          <li><b>California &mdash; CEQA filings.</b> State clearinghouse filings naming
+            burials or remains. California&rsquo;s AB&nbsp;52 tribal-consultation track
+            means disclosure lands here earlier than in federal notices.</li>
+          <li><b>United Kingdom &mdash; planning applications.</b> Local-authority
+            applications affecting burial grounds, via PlanIt. Removal of remains also
+            needs a Ministry of Justice licence, which is not published as open data.</li>
+          <li><b>Worldwide &mdash; removed burial grounds in OpenStreetMap.</b> Ground
+            that mappers record as having held a cemetery that is now gone. Community
+            contributed, not an official register, and labelled as such.</li>
+          <li><b>Worldwide &mdash; government open-data portals.</b> Cemetery, burial and
+            excavation datasets found across the portal federations, searched in the
+            languages those portals publish in.</li>
+        </ul>
+
+        <b class="h">Registers that exist but are not in yet</b>
+        Named so the gaps are legible rather than invisible. Each is real; what is missing
+        is a machine-readable, licence-clear route in.
+        <ul>
+          <li><b>NPS National NAGPRA tables</b> &mdash; the Inventories and Unclaimed
+            Lists grids, which carry per-institution counts of individuals still held.
+            The single most valuable gap on this list.</li>
+          <li><b>Western Australia s.18 consents</b> &mdash; the WA equivalent of an AHIP.
+            Spatial reuse terms need checking first.</li>
+          <li><b>Queensland</b> Cultural Heritage Management Plans register.</li>
+          <li><b>Spain</b> state Mapa de Fosas &mdash; Civil War and dictatorship mass
+            graves, published <i>with</i> coordinates as an act of public memory. The one
+            case where the blurring rule may be the wrong call, since families are meant
+            to be able to find these.</li>
+          <li><b>Ireland</b> National Monuments excavation licences and excavations.ie.</li>
+          <li><b>EAMENA</b> &mdash; disturbance and looting across the Middle East and
+            North Africa. Account-gated.</li>
+          <li><b>Colombia</b> UBPD recovery of the disappeared; <b>Mexico</b> CNB
+            clandestine-grave registry.</li>
+          <li><b>England &amp; Wales</b> Ministry of Justice licences to remove remains
+            (Burial Act 1857 s.25) &mdash; issued in volume, released only on request.</li>
+          <li><b>ICMP</b> &mdash; the fullest record of conflict-grave exhumations
+            anywhere; publishes reports, not data.</li>
+        </ul>
+
+        <b class="h">What the numbers can and cannot tell you</b>
+        <ul>
+          <li>No percentage of world coverage is given, because no dataset holds the true
+            global count. Any figure would be invented. The shape of the sample is
+            described instead.</li>
+          <li>A count of individuals appears only where a source states one. Absence of a
+            count means the source was silent, never that the number is small.</li>
+          <li>Coverage is heavily weighted to countries with statutory repatriation and
+            heritage-permit regimes. Sparse regions on this map are sparse in the
+            <i>records</i>, not necessarily in the ground.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div id="wirePanel" class="panel">
+  <div class="pnl-head" onclick="document.getElementById('wirePanel').classList.toggle('collapsed')">
+    <span>The wire <span id="wireCount" style="opacity:.6;font-weight:400;"></span></span><span>&#9662;</span>
+  </div>
+  <div class="pnl-body">
+    <select id="wireRegion"><option value="">Everywhere</option></select>
+    <div id="wireTopics" style="margin-top:8px;"></div>
+    <div id="wireList"><div class="ctl-note">Loading&hellip;</div></div>
+  </div>
+</div>
+
+<div id="lensPanel" class="panel collapsed">
+  <div class="pnl-head" onclick="document.getElementById('lensPanel').classList.toggle('collapsed')">
+    <span>Lenses &mdash; who to go to</span><span>&#9662;</span>
+  </div>
+  <div class="pnl-body">
+    <div id="lensPills"></div>
+    <div class="lens-desc" id="lensDesc"></div>
+    <div id="lensBody"></div>
+    <div class="ctl-note" id="lensStatus"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ------------------------------------------------------------------ config */
+var POSTURES=[['harm','Harm'],['watch','Watch'],['redress','Redress'],['unlawful','Unlawful']];
+var PCOLOR={harm:'#b5462f',watch:'#c9a227',redress:'#6f9e8c',unlawful:'#7d3350'};
+var KIND_LABEL={
+  'repatriation':'Repatriation notice','disposition':'Intended disposition',
+  'reinterment':'Transfer or reinterment','holding':'Institution holding remains',
+  'harm-permit':'Permit to harm burial site','excavation':'Licensed excavation',
+  'exhumation':'Exhumation / cemetery removal','removed-ground':'Burial ground removed',
+  'mass-grave':'Forensic recovery','discovery':'Inadvertent discovery',
+  'looting':'Illicit disturbance','review':'Review flagging burials'};
+var GEO_LABEL={exact:'Named institution or address',area:'Centre of permit or project area',
+  admin:'Centre of an administrative unit',coarsened:'Blurred to about 5 km'};
+var WINDOWS=[[0,'All ages'],[30,'\u226430d'],[90,'\u226490d'],[180,'\u22646mo'],[365,'\u22641yr']];
+/* facility layers: id -> [file, label, min zoom at which the mark is readable] */
+var FACILITIES={
+  cem:  ['remains_local_cemetery.json','Cemetery or burial ground',5],
+  crem: ['remains_local_crematory.json','Crematorium',5],
+  mort: ['remains_local_mortuary.json','Mortuary or funeral director',7]
+};
+var WTOPIC=[['redress','Return'],['conflict','Conflict & the disappeared'],
+            ['development','Development'],['desecration','Desecration & looting'],
+            ['institution','Institutions'],['other','Other']];
+
+/* ------------------------------------------------------------------- state */
+var RECORDS=[], META={}, showUnearth=true;
+var FAC={};                       /* id -> {rows, on, loading} */
+var WIRE=[], wireRegion='', wireTopics=new Set();
+var LENSES=null, LENS_STATUS=null, lensKey=null;
+var fPosture=new Set(), fKind=new Set(), fTrigger=new Set(), fScale=new Set();
+var fWindow=0, inclUndated=true, query='';
+
+/* --------------------------------------------------------------------- map */
+var map=L.map('map',{worldCopyJump:false,minZoom:2,maxZoom:16,zoomControl:true,
+                     preferCanvas:true}).setView([26,10],3);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {noWrap:true,maxZoom:16,attribution:'Satellite: &copy; Esri'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  {noWrap:true,maxZoom:16,opacity:.55}).addTo(map);
+
+/* --------------------------------------------------- the mark: epistemics */
+/* Solid dot = we know where. Halo with no centre = we don't, or we won't say.
+   Drawing the uncertainty into the mark keeps the map from over-claiming. */
+function drawMark(ctx,x,y,r,color,geo){
+  ctx.save();
+  if(geo==='coarsened'){
+    var g=ctx.createRadialGradient(x,y,0,x,y,r*2.1);
+    g.addColorStop(0,'rgba(0,0,0,0)');
+    g.addColorStop(.42,hexA(color,.30));
+    g.addColorStop(1,hexA(color,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*2.1,0,6.2832); ctx.fill();
+    ctx.strokeStyle=hexA(color,.40); ctx.setLineDash([2,2.4]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,r*1.25,0,6.2832); ctx.stroke();
+  } else if(geo==='admin'){
+    ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.stroke();
+  } else if(geo==='area'){
+    ctx.fillStyle=hexA(color,.85);
+    ctx.beginPath(); ctx.arc(x,y,r*.62,0,6.2832); ctx.fill();
+    ctx.strokeStyle=hexA(color,.7); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,r+1.5,0,6.2832); ctx.stroke();
+  } else {
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.stroke();
+  }
+  ctx.restore();
+}
+function hexA(hex,a){
+  var n=parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+/* Facilities get a deliberately plain, quiet mark: a small grey square. They are
+   context, not events, and must never read as an unearthing. */
+function drawFacility(ctx,x,y,z){
+  var sz=z<8?2:(z<11?2.6:3.4);
+  ctx.fillStyle='rgba(143,155,171,.72)';
+  ctx.fillRect(x-sz/2,y-sz/2,sz,sz);
+  if(z>=11){ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;
+    ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);}
+}
+function markRadius(impact,zoom){
+  var base=2.6+1.15*(Math.max(1,Math.min(5,impact||2))-1);
+  return base*(zoom<4?0.82:zoom<7?1:1.22);
+}
+
+var MarkLayer=L.Layer.extend({
+  onAdd:function(m){
+    this._c=L.DomUtil.create('canvas','leaflet-zoom-animated');
+    this._c.style.pointerEvents='none';
+    m.getPanes().overlayPane.appendChild(this._c);
+    m.on('moveend zoomend resize',this.redraw,this); this.redraw();
+  },
+  onRemove:function(m){
+    m.off('moveend zoomend resize',this.redraw,this);
+    if(this._c&&this._c.parentNode)this._c.parentNode.removeChild(this._c);
+  },
+  redraw:function(){
+    if(!this._c)return;
+    var m=map,size=m.getSize(),tl=m.containerPointToLayerPoint([0,0]),
+        dpr=window.devicePixelRatio||1;
+    L.DomUtil.setPosition(this._c,tl);
+    this._c.width=size.x*dpr; this._c.height=size.y*dpr;
+    this._c.style.width=size.x+'px'; this._c.style.height=size.y+'px';
+    var ctx=this._c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,size.x,size.y);
+    var z=m.getZoom(), b=m.getBounds().pad(.2);
+    this._hit=[];
+
+    /* facilities first: they sit UNDER the event marks, always */
+    var self=this;
+    Object.keys(FACILITIES).forEach(function(id){
+      var f=FAC[id];
+      if(!f||!f.on||!f.rows)return;
+      if(z<FACILITIES[id][2])return;      /* too zoomed out for the mark to read */
+      var rows=f.rows,drawn=0;
+      for(var i=0;i<rows.length&&drawn<40000;i++){
+        var fr=rows[i];
+        if(!b.contains([fr[0],fr[1]]))continue;
+        var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
+        drawFacility(ctx,fp.x,fp.y,z); drawn++;
+        if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
+      }
+    });
+
+    if(showUnearth){
+      var shown=visible();
+      /* draw halos first so solid dots stay legible on top */
+      var order=shown.slice().sort(function(a,c){
+        return (a.geo==='coarsened'?0:1)-(c.geo==='coarsened'?0:1);
+      });
+      for(var i=0;i<order.length;i++){
+        var r=order[i];
+        if(r.lat==null||r.lng==null)continue;
+        if(!b.contains([r.lat,r.lng]))continue;
+        var p=m.latLngToContainerPoint([r.lat,r.lng]),
+            rad=markRadius(r.impact,z),
+            col=PCOLOR[r.posture]||'#c9a227';
+        drawMark(ctx,p.x,p.y,rad,col,r.geo||'admin');
+        this._hit.push({x:p.x,y:p.y,r:Math.max(rad*1.6,7),rec:r});
+      }
+    }
+  },
+  pick:function(pt){
+    if(!this._hit)return null;
+    var best=null,bd=1e9;
+    /* iterate backwards so event marks (pushed last) win over facilities */
+    for(var i=this._hit.length-1;i>=0;i--){
+      var h=this._hit[i],dx=h.x-pt.x,dy=h.y-pt.y,d=dx*dx+dy*dy;
+      if(d<=h.r*h.r&&d<bd){bd=d;best=h;}
+    }
+    return best;
+  }
+});
+var layer=new MarkLayer().addTo(map);
+
+map.on('click',function(e){
+  var h=layer.pick(e.containerPoint); if(!h)return;
+  var html=h.rec?popupHTML(h.rec):facilityHTML(h.fac,h.facType);
+  var ll=h.rec?[h.rec.lat,h.rec.lng]:[h.fac[0],h.fac[1]];
+  L.popup({maxWidth:320,autoPanPadding:[26,26]}).setLatLng(ll).setContent(html).openOn(map);
+});
+map.on('mousemove',function(e){
+  map.getContainer().style.cursor=layer.pick(e.containerPoint)?'pointer':'';
+});
+
+/* ------------------------------------------------------------------ popup */
+function esc(s){return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function popupHTML(r){
+  var h='<div class="pk">'+esc(r.name||'Record')+'</div>';
+  h+='<span class="tag t-'+esc(r.posture||'watch')+'">'+esc(r.posture||'watch')+'</span>';
+  if(r.kind)h+='<span class="tag t-plain">'+esc(KIND_LABEL[r.kind]||r.kind)+'</span>';
+  if(r.trigger&&r.trigger!=='unknown')
+    h+='<span class="tag t-plain">'+esc(r.trigger)+'</span>';
+  if(r.count!=null)h+='<div class="kv"><span>Individuals stated:</span> <b>'+esc(r.count)+'</b></div>';
+  if(r.held_by)h+='<div class="kv"><span>Held by:</span> '+esc(r.held_by)+'</div>';
+  if(r.actor&&r.actor!==r.held_by)h+='<div class="kv"><span>Acting party:</span> '+esc(r.actor)+'</div>';
+  var where=[r.region,r.country].filter(Boolean).join(', ');
+  if(where)h+='<div class="kv"><span>Where:</span> '+esc(where)+'</div>';
+  if(r.status)h+='<div class="kv"><span>Status:</span> '+esc(r.status)+'</div>';
+  if(r.date)h+='<div class="kv"><span>Dated:</span> '+esc(r.date)+'</div>';
+  if(r.deadline)h+='<div class="kv"><span>Deadline:</span> <b>'+esc(r.deadline)+'</b></div>';
+  h+='<div class="geo-note"><b>'+esc(GEO_LABEL[r.geo||'admin'])+'.</b> '+esc(r.desc||'')+'</div>';
+  if(r.url)h+='<a class="plink" href="'+esc(r.url)+'" target="_blank" rel="noopener">'
+             +'Open the primary record &rarr;</a>';
+  if(r.source)h+='<div class="kv" style="margin-top:8px;font-size:10px;"><span>Feed:</span> '
+                 +esc(r.source)+'</div>';
+  return h;
+}
+
+/* facility row shape is the projects map's facility contract:
+   [lat, lng, name, website, "", address, "", phone] */
+function facilityHTML(f,id){
+  var h='<div class="pk">'+esc(f[2]||'Unnamed burial ground')+'</div>';
+  h+='<span class="tag t-plain">'+esc(FACILITIES[id][1])+'</span>';
+  if(f[5])h+='<div class="kv"><span>Address:</span> '+esc(f[5])+'</div>';
+  if(f[7])h+='<div class="kv"><span>Phone:</span> '+esc(f[7])+'</div>';
+  h+='<div class="geo-note">An existing, publicly mapped burial facility &mdash; '
+    +'<b>not blurred</b>, because it is a signposted public place. Mapped by '
+    +'OpenStreetMap contributors (ODbL); verify before relying on it.</div>';
+  if(f[3])h+='<a class="plink" href="'+esc(f[3])+'" target="_blank" rel="noopener">Website &rarr;</a>';
+  return h;
+}
+
+/* ---------------------------------------------------------------- filters */
+function visible(){
+  var now=Date.now(), cut=fWindow?now-fWindow*864e5:0;
+  return RECORDS.filter(function(r){
+    if(fPosture.size&&!fPosture.has(r.posture))return false;
+    if(fKind.size&&!fKind.has(r.kind))return false;
+    if(fTrigger.size&&!fTrigger.has(r.trigger||'unknown'))return false;
+    if(fScale.size&&!fScale.has(Math.max(1,Math.min(5,r.impact||2))))return false;
+    if(cut){
+      if(!r.date)return inclUndated;
+      var t=Date.parse(r.date);
+      if(isNaN(t))return inclUndated;
+      if(t<cut)return false;
+    }
+    if(query){
+      var hay=[r.name,r.held_by,r.actor,r.region,r.country,r.status,r.desc]
+              .filter(Boolean).join(' ').toLowerCase();
+      if(hay.indexOf(query)<0)return false;
+    }
+    return true;
+  });
+}
+function tally(field,norm){
+  var m={};
+  RECORDS.forEach(function(r){
+    var v=norm?norm(r):r[field];
+    if(v==null||v==='')return;
+    m[v]=(m[v]||0)+1;
+  });
+  return m;
+}
+function pills(host,items,set,onchange,numeric){
+  var el=document.getElementById(host);
+  el.innerHTML=items.map(function(it){
+    var cls='pill'+(it.cls?' '+it.cls:'')+(set.has(it.key)?' on':'')
+            +(it.n===0?' empty':'');
+    return '<span class="'+cls+'" data-k="'+esc(it.key)+'">'+esc(it.label)
+           +(it.n!=null?'<span class="n">'+it.n+'</span>':'')+'</span>';
+  }).join('');
+  el.onclick=function(e){
+    var b=e.target.closest('.pill'); if(!b||b.classList.contains('empty'))return;
+    var k=b.getAttribute('data-k');
+    var key=numeric?+k:k;      /* scale keys are numbers, every other key a string */
+    if(set.has(key))set.delete(key); else set.add(key);
+    b.classList.toggle('on'); onchange();
+  };
+}
+function buildFilters(){
+  var byP=tally('posture'), byK=tally('kind'), byT=tally(null,function(r){
+    return r.trigger||'unknown';});
+  var byS=tally(null,function(r){return Math.max(1,Math.min(5,r.impact||2));});
+
+  pills('fPosture',POSTURES.map(function(p){
+    return {key:p[0],label:p[1],n:byP[p[0]]||0,cls:'p-'+p[0]};}),fPosture,render);
+
+  var kinds=Object.keys(KIND_LABEL).filter(function(k){return byK[k];})
+            .sort(function(a,b){return byK[b]-byK[a];});
+  pills('fKind',kinds.map(function(k){
+    return {key:k,label:KIND_LABEL[k],n:byK[k]};}),fKind,render);
+
+  var trigs=Object.keys(byT).sort(function(a,b){return byT[b]-byT[a];});
+  pills('fTrigger',trigs.map(function(t){
+    return {key:t,label:t,n:byT[t]};}),fTrigger,render);
+
+  pills('fScale',[1,2,3,4,5].map(function(s){
+    return {key:s,label:'\u2265'+s,n:byS[s]||0};}),fScale,render,true);
+
+  var w=document.getElementById('fWindow');
+  w.innerHTML=WINDOWS.map(function(x){
+    return '<span class="pill'+(x[0]===fWindow?' on':'')+'" data-w="'+x[0]+'">'
+           +x[1]+'</span>';}).join('');
+  w.onclick=function(e){
+    var b=e.target.closest('.pill'); if(!b)return;
+    fWindow=+b.getAttribute('data-w');
+    w.querySelectorAll('.pill').forEach(function(p){
+      p.classList.toggle('on',+p.getAttribute('data-w')===fWindow);});
+    render();
+  };
+  document.getElementById('inclUndated').onchange=function(){
+    inclUndated=this.checked; render();};
+  var qi=document.getElementById('q'),t;
+  qi.oninput=function(){clearTimeout(t);var v=qi.value.trim().toLowerCase();
+    t=setTimeout(function(){query=v;render();},200);};
+}
+
+/* ---------------------------------------------------------------- render */
+function render(){
+  layer.redraw();
+  var n=visible().length;
+  document.getElementById('nUnearth').textContent=
+    n===RECORDS.length?(n.toLocaleString()+' records')
+                      :(n.toLocaleString()+' of '+RECORDS.length.toLocaleString());
+  document.getElementById('qn').textContent=
+    n===RECORDS.length?(n+' records'):(n+' of '+RECORDS.length+' records shown');
+  subtitle(n);
+}
+function subtitle(n){
+  var s=document.getElementById('subtitle');
+  if(!RECORDS.length){s.textContent='No records loaded.';return;}
+  var gen=META.generated?String(META.generated).slice(0,10):'';
+  var coarse=RECORDS.filter(function(r){return r.geo==='coarsened';}).length;
+  s.innerHTML='<b>'+n.toLocaleString()+'</b> public records of unearthings and '
+    +'decisions about unearthed human remains, worldwide'
+    +(gen?', harvested '+esc(gen):'')+'. '
+    +'<b>'+coarse.toLocaleString()+'</b> are drawn as halos because their location is '
+    +'deliberately blurred &mdash; this map does not publish grave coordinates.';
+}
+
+/* ------------------------------------------------------------- legend key */
+document.querySelectorAll('canvas.lg').forEach(function(c){
+  var ctx=c.getContext('2d');
+  drawMark(ctx,11,7.5,4,'#d8bd86',c.getAttribute('data-geo'));
+});
+
+/* ------------------------------------------------------------------ load */
+/* remains.json.gz is committed gzipped. GitHub Pages serves .gz files with
+   Content-Encoding: gzip, so fetch() may ALREADY have inflated the body before
+   this code sees it -- inflating a second time throws. So: read the bytes once,
+   try plain JSON first, and only gunzip manually if that fails. Same dual-path
+   loader the projects map needs, for the same reason. */
+function parseGz(r){
+  if(!r.ok)return Promise.reject('http '+r.status);
+  return r.arrayBuffer().then(function(buf){
+    var bytes=new Uint8Array(buf);
+    try{return JSON.parse(new TextDecoder('utf-8').decode(bytes));}catch(e){}
+    if(typeof DecompressionStream==='undefined')return Promise.reject('no DecompressionStream');
+    var ds=new DecompressionStream('gzip');
+    return new Response(new Blob([bytes]).stream().pipeThrough(ds)).json();
+  });
+}
+function showStatus(title,body){
+  var el=document.getElementById('status');
+  el.innerHTML='<h2>'+title+'</h2>'+body;
+  el.style.display='block';
+}
+/* ------------------------------------------------------- facility loading */
+/* Loaded lazily on toggle: the global cemetery file is large, and most sessions
+   never ask for it. A missing file is a normal state, not an error. */
+function facCheckbox(id,cbId,countId){
+  var cb=document.getElementById(cbId);
+  cb.addEventListener('change',function(){
+    FAC[id]=FAC[id]||{rows:null,on:false,loading:false};
+    FAC[id].on=cb.checked;
+    var lbl=document.getElementById(countId);
+    if(cb.checked&&!FAC[id].rows&&!FAC[id].loading){
+      FAC[id].loading=true; lbl.textContent='loading\u2026';
+      fetch(FACILITIES[id][0]+'?_='+Date.now(),{cache:'no-store'})
+        .then(function(r){if(!r.ok)return Promise.reject('http '+r.status);return r.json();})
+        .then(function(rows){
+          FAC[id].rows=Array.isArray(rows)?rows:[];
+          FAC[id].loading=false;
+          lbl.textContent=FAC[id].rows.length.toLocaleString()+' mapped';
+          layer.redraw();
+        })
+        .catch(function(err){
+          FAC[id].loading=false; lbl.textContent='no file yet';
+          if(window.console)console.warn('facility file missing:',FACILITIES[id][0],err);
+        });
+    } else { layer.redraw(); }
+  });
+}
+
+/* ------------------------------------------------------------------- wire */
+function wireVisible(){
+  return WIRE.filter(function(w){
+    if(wireRegion){
+      if(wireRegion.indexOf('|')>0){
+        var p=wireRegion.split('|');
+        if(w.iso!==p[0]||w.region!==p[1])return false;
+      } else if(w.iso!==wireRegion) return false;
+    }
+    if(wireTopics.size&&!wireTopics.has(w.topic||'other'))return false;
+    return true;
+  });
+}
+function renderWire(){
+  var items=wireVisible(),el=document.getElementById('wireList');
+  document.getElementById('wireCount').textContent='('+items.length+')';
+  if(!items.length){
+    el.innerHTML='<div class="ctl-note">Nothing on the wire for this selection. '
+      +'That is a gap in <b>reporting</b>, not necessarily in events.</div>';
+    return;
+  }
+  el.innerHTML=items.slice(0,60).map(function(w){
+    var place=[w.region,w.iso].filter(Boolean).join(', ');
+    return '<div class="wi sig'+(w.sig||1)+'">'
+      +'<a href="'+esc(w.link)+'" target="_blank" rel="noopener">'+esc(w.title)+'</a>'
+      +'<div class="meta"><span class="tt">'+esc(w.topic||'other')+'</span>'
+      +esc(w.name||'')+(w.date?' \u00b7 '+esc(w.date):'')
+      +(place?' \u00b7 '+esc(place):'')+'</div></div>';}).join('');
+}
+function buildWireControls(){
+  var sel=document.getElementById('wireRegion'),counts={};
+  WIRE.forEach(function(w){
+    if(!w.iso)return;
+    counts[w.iso]=(counts[w.iso]||0)+1;
+    if(w.region)counts[w.iso+'|'+w.region]=(counts[w.iso+'|'+w.region]||0)+1;});
+  /* countries by volume, each followed by its own subregions */
+  var countries=Object.keys(counts).filter(function(k){return k.indexOf('|')<0;})
+    .sort(function(a,b){return counts[b]-counts[a]||a.localeCompare(b);});
+  var opts=[];
+  countries.forEach(function(c){
+    opts.push([c,c,counts[c]]);
+    Object.keys(counts).filter(function(k){return k.indexOf(c+'|')===0;})
+      .sort().forEach(function(k){
+        opts.push([k,'\u00a0\u00a0\u2014 '+k.split('|')[1],counts[k]]);});
+  });
+  sel.innerHTML='<option value="">Everywhere ('+WIRE.length+')</option>'
+    +opts.map(function(o){
+      return '<option value="'+esc(o[0])+'">'+esc(o[1])+' ('+o[2]+')</option>';}).join('');
+  sel.onchange=function(){wireRegion=sel.value;renderWire();};
+  var tp=document.getElementById('wireTopics'),byT={};
+  WIRE.forEach(function(w){var t=w.topic||'other';byT[t]=(byT[t]||0)+1;});
+  tp.innerHTML=WTOPIC.filter(function(t){return byT[t[0]];}).map(function(t){
+    return '<span class="pill" data-k="'+t[0]+'">'+esc(t[1])
+      +'<span class="n">'+byT[t[0]]+'</span></span>';}).join('');
+  tp.onclick=function(e){
+    var b=e.target.closest('.pill'); if(!b)return;
+    var k=b.getAttribute('data-k');
+    if(wireTopics.has(k))wireTopics.delete(k); else wireTopics.add(k);
+    b.classList.toggle('on');renderWire();};
+}
+
+/* ----------------------------------------------------------------- lenses */
+function renderLens(){
+  if(!LENSES||!LENSES.lenses)return;
+  var lens=LENSES.lenses.filter(function(l){return l.key===lensKey;})[0]||LENSES.lenses[0];
+  lensKey=lens.key;
+  var pl=document.getElementById('lensPills');
+  pl.innerHTML=LENSES.lenses.map(function(l){
+    return '<span class="pill'+(l.key===lensKey?' on':'')+'" data-k="'+esc(l.key)+'">'
+      +esc(l.label)+'</span>';}).join('');
+  pl.onclick=function(e){
+    var b=e.target.closest('.pill'); if(!b)return;
+    lensKey=b.getAttribute('data-k'); renderLens();};
+  document.getElementById('lensDesc').textContent=lens.desc||'';
+  var ents=(LENS_STATUS&&LENS_STATUS.entries)||null;
+  document.getElementById('lensBody').innerHTML=(lens.items||[]).map(function(it){
+    var st=ents?ents[it.name]:null,
+        state=st?st.state:(it.url?'unchecked':'find-only'),
+        badge='',cls='';
+    if(state==='dead'){badge='<span class="st st-dead">gone</span>';cls=' dead';}
+    else if(state==='blocked')badge='<span class="st st-blocked">blocks bots</span>';
+    else if(state==='find-only')badge='<span class="st st-find">search</span>';
+    else if(state==='unchecked')badge='<span class="st st-unchecked">unverified</span>';
+    var href=(st&&st.final)||it.url;
+    var head=(href&&state!=='dead')
+      ? '<a href="'+esc(href)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a>'
+      : '<span class="nolink">'+esc(it.name)+'</span>';
+    var find=(!it.url&&it.find)
+      ? '<div class="note"><b>Search:</b> '+esc(it.find)+'</div>':'';
+    return '<div class="li'+cls+'">'+head+badge
+      +'<span class="lvl">'+esc(it.level||'')+'</span>'
+      +'<div class="note">'+esc(it.note||'')+'</div>'+find+'</div>';}).join('');
+  var s2=document.getElementById('lensStatus');
+  if(LENS_STATUS&&LENS_STATUS.tally){
+    var t=LENS_STATUS.tally;
+    s2.innerHTML='Links checked '+esc(String(LENS_STATUS.checked).slice(0,10))+': <b>'
+      +(t.ok||0)+'</b> ok, '+(t.redirect||0)+' redirected, '+(t.blocked||0)
+      +' block bots, <b>'+(t.dead||0)+'</b> gone, '+(t['find-only']||0)
+      +' search-only. Dead links are kept and marked, not deleted.';
+  } else {
+    s2.innerHTML='These links are hand-curated and <b>not yet link-checked</b>. Run the '
+      +'<b>Check lens links</b> workflow to verify them.';
+  }
+}
+function loadWire(){
+  fetch('wire.json?_='+Date.now(),{cache:'no-store'})
+    .then(function(r){if(!r.ok)return Promise.reject('http '+r.status);return r.json();})
+    .then(function(d){
+      WIRE=Array.isArray(d)?d:[];
+      if(!WIRE.length){document.getElementById('wireList').innerHTML=
+        '<div class="ctl-note">The wire is empty.</div>';return;}
+      buildWireControls();renderWire();})
+    .catch(function(){document.getElementById('wireList').innerHTML=
+      '<div class="ctl-note">No <code>wire.json</code> yet. Run the '
+      +'<b>Harvest unearthings wire</b> workflow.</div>';});
+}
+function loadLenses(){
+  fetch('lenses.json?_='+Date.now(),{cache:'no-store'})
+    .then(function(r){if(!r.ok)return Promise.reject('http '+r.status);return r.json();})
+    .then(function(d){
+      LENSES=d;
+      return fetch('lenses_status.json?_='+Date.now(),{cache:'no-store'})
+        .then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});})
+    .then(function(st){LENS_STATUS=st;renderLens();})
+    .catch(function(){document.getElementById('lensBody').innerHTML=
+      '<div class="ctl-note">No <code>lenses.json</code> in this folder.</div>';});
+}
+
+/* ---------------------------------------------------------------- records */
+function load(){
+  var bust='?_='+Date.now();
+  fetch('remains.json.gz'+bust,{cache:'no-store'}).then(parseGz)
+    .catch(function(){
+      return fetch('remains.json'+bust,{cache:'no-store'}).then(function(r){
+        if(!r.ok)return Promise.reject('http '+r.status); return r.json();});
+    })
+    .then(function(d){
+      DATA=d;
+      RECORDS=(d&&d.records)?d.records:(Array.isArray(d)?d:[]);
+      META=(d&&d._meta)?d._meta:{};
+      RECORDS=RECORDS.filter(function(r){return r&&r.lat!=null&&r.lng!=null;});
+      if(!RECORDS.length){
+        showStatus('The record is empty',
+          '<p>The data file loaded but holds no records. That usually means the '
+          +'harvester ran and every source returned nothing &mdash; check the '
+          +'per-source diagnostic in the Actions log.</p>');
+        subtitle(0); return;
+      }
+      buildFilters(); render();
+    })
+    .catch(function(err){
+      showStatus('No data file yet',
+        '<p>This map reads <code>remains.json.gz</code> from the same folder, written '
+        +'by <code>harvest_remains.py</code> and committed by the '
+        +'<code>Harvest live unearthings</code> workflow.</p>'
+        +'<p>Run that workflow once, then reload. The cemetery layers come from '
+        +'<code>Harvest cemeteries</code>, and the wire from '
+        +'<code>Harvest unearthings wire</code>.</p>'
+        +'<p>No placeholder dots are shown here on purpose: an empty map is honest, '
+        +'invented data is not.</p>');
+      subtitle(0);
+      if(window.console)console.warn('remains data load failed:',err);
+    });
+}
+document.getElementById('layUnearth').addEventListener('change',function(){
+  showUnearth=this.checked; layer.redraw();});
+facCheckbox('cem','layCem','nCem');
+facCheckbox('crem','layCrem','nCrem');
+facCheckbox('mort','layMort','nMort');
+
+load(); loadWire(); loadLenses();
+</script>
+</body>
+</html>
