@@ -1,5 +1,5 @@
 {
- "checked": "2026-07-30T02:53:10.518193Z",
+ "checked": "2026-07-30T16:47:46.342743Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,9 +11,10 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "final": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system",
+   "note": "resolves to a different URL",
+   "state": "redirect",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/search-heritage-databases/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -59,9 +60,9 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 0,
-   "note": "The read operation timed out",
-   "state": "dead",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.archsite.org.nz/"
   },
   "Archaeological Resources Protection Act (US)": {
@@ -792,10 +793,10 @@
   }
  },
  "tally": {
-  "blocked": 15,
-  "dead": 11,
+  "blocked": 16,
+  "dead": 9,
   "find-only": 55,
   "ok": 56,
-  "redirect": 19
+  "redirect": 20
  }
 }
