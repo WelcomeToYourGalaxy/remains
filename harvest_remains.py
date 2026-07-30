@@ -54,7 +54,8 @@ RECORD SCHEMA (each fetcher returns a list of these)
 
 Output is remains.json.gz  ({"_meta": {...}, "records": [...]}).
 """
-import json, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
+import json
+import ssl, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
 
 UA = "galaxy-remains-harvester (contact: wheelock.chris@gmail.com)"
 TIMEOUT = 30
@@ -203,14 +204,59 @@ def rate_remains(r):
 # ---------------------------------------------------------------------------
 # HELPERS  (same contract as harvest_projects.py so behaviour matches)
 # ---------------------------------------------------------------------------
+# apps.cr.nps.gov serves an INCOMPLETE certificate chain -- it omits the
+# intermediate, so OpenSSL cannot build a path and every read dies with
+# "unable to get local issuer certificate". Confirmed on the 2026-07-30 run. It is
+# a misconfiguration on their end; nothing local fixes it, and this module is
+# deliberately stdlib-only, so certifi is not available to swap in.
+#
+# The narrow, documented concession: for hosts in this set ONLY, retry once with
+# verification off, and say so loudly in the log every time it happens. These are
+# public read-only government tables fetched anonymously -- nothing is sent, so
+# there are no credentials to leak. The residual risk is being served forged
+# public data, which would surface as an implausible yield in the diagnostic.
+# Every other host on the internet keeps full verification.
+_TLS_BROKEN_HOSTS = {"apps.cr.nps.gov"}
+
+
+def _unverified_ctx():
+    c = ssl.create_default_context()
+    c.check_hostname = False
+    c.verify_mode = ssl.CERT_NONE
+    return c
+
+
+def _tls_fallback_ctx(url, err):
+    """Return an unverified context iff this host is allowlisted AND the failure
+    really was a chain-building failure. Otherwise None, and the error stands."""
+    try:
+        host = urllib.parse.urlparse(url).netloc.split(":")[0].lower()
+    except Exception:
+        return None
+    if host not in _TLS_BROKEN_HOSTS:
+        return None
+    if "CERTIFICATE_VERIFY_FAILED" not in str(err):
+        return None
+    print("  [tls] %s served an incomplete chain -- retrying WITHOUT verification "
+          "(allowlisted host, public read-only data)" % host)
+    return _unverified_ctx()
+
+
 def _get_json(url):
     """GET JSON with ONE retry on transient failures (timeouts, 5xx, 429)."""
     last = None
     for attempt in (0, 1):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-                return json.loads(r.read().decode("utf-8", "replace"))
+            try:
+                with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                    return json.loads(r.read().decode("utf-8", "replace"))
+            except urllib.error.URLError as e:
+                ctx = _tls_fallback_ctx(url, e.reason)
+                if ctx is None:
+                    raise
+                with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
+                    return json.loads(r.read().decode("utf-8", "replace"))
         except urllib.error.HTTPError as e:
             last = e
             if e.code == 429 or e.code >= 500:
@@ -227,8 +273,15 @@ def _get_json(url):
 
 def _get_text(url, limit=4000000):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-        return r.read(limit).decode("utf-8", "replace")
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return r.read(limit).decode("utf-8", "replace")
+    except urllib.error.URLError as e:
+        ctx = _tls_fallback_ctx(url, e.reason)
+        if ctx is None:
+            raise
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
+            return r.read(limit).decode("utf-8", "replace")
 
 
 def _first(row, *names):
@@ -527,7 +580,12 @@ def fetch_nagpra_notices(days=1095, per_page=100, max_pages=12):
     since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
     for term, kind in _NAGPRA_QUERIES:
         for page in range(1, max_pages + 1):
-            parts = [("conditions[term]", '"%s"' % term),
+            # Term is passed UNQUOTED. harvest_projects.py has queried this API in
+            # production for a long time with a bare phrase, and quoting it was an
+            # unverified change on my part. An unquoted search returns a superset,
+            # and the title check below narrows it to exactly the notices we want --
+            # so dropping the quotes can only help.
+            parts = [("conditions[term]", term),
                      ("conditions[type][]", "NOTICE"),
                      ("conditions[publication_date][gte]", since),
                      ("per_page", per_page), ("page", page), ("order", "newest")]
@@ -542,6 +600,9 @@ def fetch_nagpra_notices(days=1095, per_page=100, max_pages=12):
                 if page == 1:
                     print("  nagpra %s failed: %s" % (term, e))
                 break
+            if page == 1:
+                print("  nagpra %-32s api reports %s hit(s)"
+                      % (term, (data or {}).get("count", "?")))
             rows = data.get("results") or []
             if not rows:
                 break
@@ -631,7 +692,9 @@ def fetch_us_burial_reviews(days=365, per_page=100, max_pages=6):
     since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
     for term in _FR_REVIEW_TERMS:
         for page in range(1, max_pages + 1):
-            parts = [("conditions[term]", '"%s"' % term),
+            # Unquoted, for the same reason as the NAGPRA query above; _is_remains()
+            # does the narrowing.
+            parts = [("conditions[term]", term),
                      ("conditions[type][]", "NOTICE"),
                      ("conditions[publication_date][gte]", since),
                      ("per_page", per_page), ("page", page), ("order", "newest")]
@@ -774,9 +837,28 @@ _CEQ_LATLNG_RE = re.compile(r"(-?\d{1,3}\.\d{3,})")
 
 
 def _csv_rows(text):
+    """CSV -> list of dicts, with the DictReader footgun defused.
+
+    csv.DictReader files any fields BEYOND the header row under the key `None`
+    (that is `restkey`, which defaults to None). CEQAnet's export has rows with
+    unescaped commas in the description, so it trips this on nearly every fetch.
+
+    A None key is harmless to read but poisonous to format. On the 2026-07-30 run
+    the line `", ".join(rows[0].keys())` -- a DIAGNOSTIC PRINT, nothing more --
+    raised TypeError and _run() swallowed the whole source: zero records from a
+    feed that was working, because of a log line.
+
+    So name restkey explicitly and fold the overflow into a real string field,
+    leaving no None key lying around for the next formatter to trip over."""
     import csv, io
-    rdr = csv.DictReader(io.StringIO(text))
-    return list(rdr)
+    rdr = csv.DictReader(io.StringIO(text), restkey="_overflow")
+    rows = []
+    for r in rdr:
+        ov = r.pop("_overflow", None)
+        if ov:
+            r["_overflow"] = " ".join(str(x) for x in ov if x is not None)
+        rows.append({(k if k is not None else "_unnamed"): v for k, v in r.items()})
+    return rows
 
 
 def fetch_ceqanet_burials():
@@ -792,7 +874,9 @@ def fetch_ceqanet_burials():
         print("  ceqanet_burials unparseable: %s" % e)
         return out
     if rows:
-        print("  ceqanet fields: %s" % ", ".join(list(rows[0].keys())[:16]))
+        # str() and the None filter are deliberate -- see _csv_rows.
+        print("  ceqanet fields: %s"
+              % ", ".join(str(k) for k in list(rows[0].keys())[:16] if k is not None))
     for r in rows:
         blob = " ".join(str(v) for v in r.values() if v)
         if not _is_remains(blob):
@@ -1631,7 +1715,30 @@ def _finish(items):
         except Exception as e:
             print("  [preserve] skipped: %s" % e)
 
-    # anti-wipe
+    # ------------------------------------------------------------------
+    # ANTI-WIPE, and the harder rule: NEVER write a zero-record file.
+    #
+    # The earlier guard only fired when a file already existed, so a FIRST run
+    # that produced nothing -- e.g. the federations merge job running before the
+    # daily harvest, which carries nothing forward -- happily committed a valid
+    # file containing count:0. The map then reported "the record is empty", which
+    # is a different and much more alarming statement than "no data file yet".
+    #
+    # An empty harvest is never news worth committing. Write nothing and say why.
+    # ------------------------------------------------------------------
+    if not items:
+        print("REFUSING TO WRITE: harvest produced 0 records.")
+        if _remains_exists():
+            print("  an existing %s is left untouched." % REMAINS_GZ)
+        else:
+            print("  no file written. The map will show its 'no data file yet' state,")
+            print("  which is the truth. Check the per-source diagnostic above:")
+            print("    * every source FAILED     -> network or endpoint problem")
+            print("    * every source returned 0 -> filters or query are wrong")
+            print("    * you ran a federations/merge job first -> run the DAILY")
+            print("      'Harvest live unearthings' workflow, which is the job that")
+            print("      actually populates this file.")
+        return
     if len(items) < 4 and _remains_exists():
         try:
             ex = _load_remains()
