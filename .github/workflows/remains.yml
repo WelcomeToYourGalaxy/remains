@@ -58,13 +58,33 @@ jobs:
         run: python harvest_remains.py
 
       - name: Commit refreshed remains.json.gz
+        # A bare `git push` was the bug: this repo has five workflows that all
+        # commit, the wire runs every six hours, and any of them landing between
+        # this job's checkout and its push makes the push non-fast-forward, which
+        # exits 1 and fails the whole run even though the harvest itself was fine.
+        # Every other workflow already had this fetch/merge/retry loop; this one
+        # did not, which is exactly why this was the only one that failed.
+        env:
+          FILE: remains.json.gz
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain remains.json.gz)" ]; then
-            git add remains.json.gz
-            git commit -m "chore(remains): daily harvest $(date -u +%Y-%m-%d)"
-            git push
-          else
-            echo "No change in remains.json.gz -- nothing to commit."
+          if [ -z "$(git status --porcelain $FILE)" ]; then
+            echo "No change in $FILE -- nothing to commit."
+            echo "If you expected records, read the per-source diagnostic above:"
+            echo "  * REFUSING TO WRITE   -> the harvest produced 0 records"
+            echo "  * every source FAILED -> network or endpoint problem"
+            exit 0
           fi
+          git add $FILE
+          git commit -m "chore(remains): daily harvest $(date -u +%Y-%m-%d)"
+          BR="$(git rev-parse --abbrev-ref HEAD)"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BR" || true
+            if git merge -X ours FETCH_HEAD -m "merge remote; keep fresh $FILE" && git push origin HEAD:"$BR"; then
+              echo "pushed"; exit 0
+            fi
+            git merge --abort 2>/dev/null || true
+            echo "push race, retry $i"; sleep 6
+          done
+          echo "push failed after 5 retries"; exit 1

@@ -30,11 +30,23 @@ jobs:
           CHECK_SLEEP: '0.7'
         run: python check_lenses.py
       - name: Commit if changed
-        # A dead link is a maintenance task, not a build failure -- always commit.
+        # Same retry loop as the others -- a dead link is a maintenance task, not
+        # a build failure, and a push race must not turn it into one.
+        env:
+          FILE: lenses_status.json
         run: |
           git config user.name  "lenses-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add lenses_status.json
+          git add $FILE
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "chore: refresh lenses_status.json"
-          git push
+          BR="$(git rev-parse --abbrev-ref HEAD)"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BR" || true
+            if git merge -X ours FETCH_HEAD -m "merge remote; keep fresh $FILE" && git push origin HEAD:"$BR"; then
+              echo "pushed"; exit 0
+            fi
+            git merge --abort 2>/dev/null || true
+            echo "push race, retry $i"; sleep 6
+          done
+          echo "push failed after 5 retries"; exit 1

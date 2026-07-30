@@ -35,6 +35,12 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false          # one bad shard must not kill the others
+      # 3 facilities x 8 shards = 24 jobs, but a free public repo gets 20
+      # concurrent jobs across the WHOLE account -- so an unthrottled matrix
+      # leaves four shards sitting "pending" and starves every other workflow
+      # behind it. 12 at a time finishes in two comfortable waves and leaves
+      # runners free for the daily harvest and the wire.
+      max-parallel: 12
       matrix:
         facility: [cemetery, crematory, mortuary]
         shard: [0, 1, 2, 3, 4, 5, 6, 7]
