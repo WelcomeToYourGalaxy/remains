@@ -36,8 +36,6 @@
   /* ---- panels ---------------------------------------------------------- */
   .panel{background:var(--panel);border:1px solid var(--accent-soft);border-radius:10px;
     backdrop-filter:blur(3px);}
-  #controls{position:fixed;right:14px;bottom:14px;z-index:1001;width:322px;padding:12px 13px;
-    max-height:44vh;overflow-y:auto;}
   #controls::-webkit-scrollbar,.panel ::-webkit-scrollbar,
   details.disc .body::-webkit-scrollbar{width:5px;}
   #controls::-webkit-scrollbar-thumb,.panel ::-webkit-scrollbar-thumb,
@@ -45,7 +43,11 @@
   .pnl-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
     font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;
     letter-spacing:.09em;color:var(--accent-hi);}
-  .collapsed .pnl-body{display:none;}
+  /* MUST out-specify the ID-scoped .pnl-body rules further down
+     (#wirePanel .pnl-body, #lensPanel .pnl-body, #legend .pnl-body). Those are
+     (1,1,0); this was (0,2,0), so the ID won and `display:flex` beat
+     `display:none` -- which is why the wire would not open or close. */
+  .panel.collapsed > .pnl-body{display:none !important;}
   label.chk{display:block;font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
     cursor:pointer;margin:6px 0;line-height:1.45;}
   label.chk input{accent-color:var(--accent);vertical-align:-2px;margin-right:5px;}
@@ -77,9 +79,22 @@
   #entryPanel.open{display:flex;}
   #entryBody{overflow-y:auto;min-height:0;margin-top:8px;}
 
-  #lensPanel{position:fixed;right:14px;top:52px;width:332px;z-index:1000;
-    padding:11px 13px;max-height:52vh;display:flex;flex-direction:column;}
+  /* Right-hand column: lenses at the top, filters pinned to the bottom by
+     margin-top:auto. Both live in one flex column, so opening the filters grows
+     it UPWARD until it meets the lens panel and stops -- it cannot run off the
+     bottom of the screen, and it cannot slide under the lenses. Previously each
+     was independently fixed with its own max-height, so the filters could only
+     scroll internally instead of using the space above it. */
+  #rightcol{position:fixed;right:14px;top:52px;bottom:14px;width:332px;z-index:1001;
+    display:flex;flex-direction:column;gap:9px;pointer-events:none;}
+  #rightcol > .panel{pointer-events:auto;padding:11px 13px;min-height:0;
+    display:flex;flex-direction:column;overflow:hidden;}
+  #lensPanel{flex:0 1 auto;}
   #lensPanel .pnl-body{overflow-y:auto;min-height:0;}
+  #controls{flex:0 1 auto;margin-top:auto;}
+  #controls .pnl-body{overflow-y:auto;min-height:0;}
+  /* collapsed panels must not keep claiming flex space */
+  #rightcol > .panel.collapsed{flex:0 0 auto;}
   .wi{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);}
   .wi:last-child{border-bottom:none;}
   .wi a{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
@@ -248,10 +263,11 @@
   .leaflet-container{outline:none;}
   :focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
-  @media (max-width:1180px){ #midcol{display:none;} #lensPanel{max-height:38vh;} }
+  @media (max-width:1180px){ #midcol{display:none;} }
   @media (max-width:860px){
-    #wirePanel,#lensPanel{display:none;}
-    #controls{width:auto;left:12px;right:12px;bottom:12px;max-height:50vh;}
+    #wirePanel{display:none;}
+    #lensPanel{display:none;}
+    #rightcol{left:12px;right:12px;width:auto;top:auto;height:auto;max-height:56vh;}
     #header .subtitle{font-size:11px;}
   }
 </style>
@@ -265,6 +281,24 @@
 <div id="map"></div>
 
 <div id="status" class="panel"></div>
+
+
+
+<div id="gbLoad">Loading&hellip;</div>
+
+<div id="rightcol">
+
+<div id="lensPanel" class="panel">
+  <div class="pnl-head" onclick="document.getElementById('lensPanel').classList.toggle('collapsed')">
+    <span>Lenses &mdash; who to go to</span><span>&#9662;</span>
+  </div>
+  <div class="pnl-body">
+    <div id="lensPills"></div>
+    <div class="lens-desc" id="lensDesc"></div>
+    <div id="lensBody"></div>
+    <div class="ctl-note" id="lensStatus"></div>
+  </div>
+</div>
 
 <div id="controls" class="panel">
   <div class="pnl-head" onclick="document.getElementById('controls').classList.toggle('collapsed')">
@@ -289,6 +323,8 @@
       Crematoria &mdash; <span id="nCrem">not loaded</span></label>
     <label class="chk"><input type="checkbox" id="layMort">
       Mortuaries &amp; funeral directors &mdash; <span id="nMort">not loaded</span></label>
+    <label class="chk"><input type="checkbox" id="layMus">
+      <b>Museums</b> <span id="nMus" class="qn"></span> &mdash; potential holders, unconfirmed</label>
     <div class="ctl-note">The facility layers are a <b>directory</b> from OpenStreetMap:
       established, signposted burial places. They are drawn plainly and are <b>not
       blurred</b>, because a working cemetery is already on every street map.
@@ -322,7 +358,7 @@
   </div>
 </div>
 
-<div id="gbLoad">Loading&hellip;</div>
+</div>
 
 <div id="midcol">
 
@@ -342,9 +378,14 @@
       <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
     <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
       <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px dashed var(--facility);border-radius:2px;"></span></i>
+      <span><b>Dashed square</b> &mdash; a museum. It is on the map because it is an
+      institution you may have to ask, <b>not</b> because it is known to hold
+      anyone. Most do not.</span></div>
     <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid #b8912f;border-radius:2px;"></span></i>
-      <span><b>Gold outline</b> &mdash; an administrative unit. Click to go a level deeper;
-      the unit you open turns white.</span></div>
+      <span><b>Gold outline</b> &mdash; an administrative unit. Hover lights it;
+      clicking opens it <i>and</i> descends into its own sub-units. The unit you
+      have open turns white.</span></div>
 
     <div class="leg-sec">Shape &mdash; how precise the placement is</div>
     <div class="leg-row"><i><canvas class="lg" data-geo="exact" width="22" height="15"></canvas></i>
@@ -447,7 +488,52 @@
         definition of a record twice over. The refusal is counted in every harvest log,
         so it stays visible rather than silent.
 
-        <b class="h">8. There is one cause of unearthing this map cannot see</b>
+        <b class="h">8. Resources are filed by where they serve, not where they sit</b>
+        Open a unit and it lists the bodies whose remit covers <i>that jurisdiction</i>,
+        deepest first, then the ones covering the whole country, then the ones covering
+        everywhere. The rule is service area, not postal address:
+        <div class="callout">The National NAGPRA Program has an office in Washington DC
+          and administers the statute for the entire United States. Filing it under DC
+          would be true about the building and useless about the law. It sits at the
+          country level. Heritage NSW serves one state, so it sits in New South Wales
+          and nowhere else. A body serving three states is listed in all three.</div>
+        <b>Museums are the deliberate exception</b>, marked <i>located here</i>. A
+        collection is not a service area &mdash; it is a place holding ancestors taken
+        from somewhere else entirely. Pretending it "serves" the jurisdiction it stands
+        in would misdescribe the thing this map exists to make legible, so those are
+        filed where they physically are and labelled as such.
+        <br><br>An empty box means no curated body has that jurisdiction in its remit
+        &mdash; not that the place is unserved.
+
+        <b class="h">9. Why this map cannot show you every project that disturbs graves</b>
+        The obvious thing to want is every development that will disturb a burial
+        ground. You cannot have it, and the reason is worth knowing.
+        <div class="callout">Running the full burial vocabulary across all 267,819
+          projects on the Live Projects map returns <b>six</b> genuine records. Not
+          because the data is bad &mdash; because a project description rarely mentions
+          burials even when the project will disturb them. Disturbance surfaces later:
+          in the environmental statement, the salvage condition, the stop-work order.
+          Never in the title at application time.</div>
+        So there are two feeds here and neither is complete. One catches projects that
+        <i>announce</i> remains. The other crosses every project footprint against the
+        burial-ground layer and flags anything within 250&nbsp;m &mdash; labelled
+        <b>proximity flag, not a finding</b>, because a resurfacing job beside a
+        churchyard touches nobody.
+        <br><br><b>And the second method is blind to the worst cases.</b> Unmarked and
+        undocumented burial grounds are absent from every layer &mdash; that absence is
+        what <i>unmarked</i> means. So it finds projects near <b>recorded</b> graves and
+        misses projects over <b>forgotten</b> ones. The places where a community was
+        never permitted to record its dead are exactly the places this will stay silent
+        about.
+        <br><br>What does work is a third route, and it is not a dataset:
+        <b>somebody says so out loud</b>. A nation objects, a preservation officer
+        files, a council blockades. That is why the wire carries an <i>opposition</i>
+        topic of its own &mdash; opposition is a speech act by a named party, and it
+        lives in comment dockets, interventions, court filings and press, never in the
+        permit record. It is the least structured signal on this map and the one with
+        the most force behind it.
+
+        <b class="h">10. There is one cause of unearthing this map cannot see</b>
         <div class="callout">Every register harvested here is a <b>consent or compliance
           regime</b>: someone applied, someone decided, someone filed. Erosion,
           permafrost thaw and wildfire unearth remains with <b>no permit, no applicant
@@ -459,7 +545,7 @@
         and volunteer networks that do the recording instead &mdash; but treat any
         apparent quiet on a coastline as the map's limit rather than the ground's.
 
-        <b class="h">9. The lenses ship unverified, then get checked in public</b>
+        <b class="h">11. The lenses ship unverified, then get checked in public</b>
         The resource lenses are hand-compiled, and curation rots faster than data. So they
         ship without any claim that every link works, and a scheduled link-checker
         verifies them. Dead links are <b>greyed out and labelled, not deleted</b> &mdash;
@@ -589,17 +675,7 @@
   </div>
 </div>
 
-<div id="lensPanel" class="panel">
-  <div class="pnl-head" onclick="document.getElementById('lensPanel').classList.toggle('collapsed')">
-    <span>Lenses &mdash; who to go to</span><span>&#9662;</span>
-  </div>
-  <div class="pnl-body">
-    <div id="lensPills"></div>
-    <div class="lens-desc" id="lensDesc"></div>
-    <div id="lensBody"></div>
-    <div class="ctl-note" id="lensStatus"></div>
-  </div>
-</div>
+
 
 <script>
 /* The atlas plate, as used on the Live Projects map. Self-contained by design:
@@ -625,7 +701,14 @@ var WINDOWS=[[0,'All ages'],[30,'\u226430d'],[90,'\u226490d'],[180,'\u22646mo'],
 var FACILITIES={
   cem:  ['remains_local_cemetery','Cemetery or burial ground',6],
   crem: ['remains_local_crematory','Crematorium',6],
-  mort: ['remains_local_mortuary','Mortuary or funeral director',7]
+  mort: ['remains_local_mortuary','Mortuary or funeral director',7],
+  /* Museums are the POTENTIAL-HOLDER layer, not a burial layer. An OSM museum tag
+     says nothing about whether that museum holds human remains, and most do not.
+     This is the set of institutions a researcher would have to ask -- the physical
+     counterpart to the `holding` records and the NAGPRA inventories. Shown at a
+     wider zoom than the burial facilities because you want to see the whole
+     institutional field at once, not hunt for it. */
+  mus:  ['remains_local_museum','Museum (may hold remains \u2014 unconfirmed)',5]
 };
 var WTOPIC=[['redress','Return'],['conflict','Conflict & the disappeared'],
             ['development','Development'],['desecration','Desecration & looting'],
@@ -728,8 +811,20 @@ function hexA(hex,a){
 }
 /* Facilities get a deliberately plain, quiet mark: a small grey square. They are
    context, not events, and must never read as an unearthing. */
-function drawFacility(ctx,x,y,z){
+function drawFacility(ctx,x,y,z,ftype){
   var sz=z<8?2:(z<11?2.6:3.4);
+  if(ftype==='mus'){
+    /* Museums are drawn HOLLOW and dashed, deliberately unlike the solid burial
+       facilities. A solid mark would read as "remains are here". The dashes say
+       the opposite: this is an institution to ask, not a finding. */
+    sz=Math.max(sz,3);
+    ctx.strokeStyle='rgba(143,155,171,.85)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([1.6,1.4]);
+    ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);
+    ctx.setLineDash([]);
+    return;
+  }
   ctx.fillStyle='rgba(143,155,171,.72)';
   ctx.fillRect(x-sz/2,y-sz/2,sz,sz);
   if(z>=11){ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;
@@ -774,7 +869,7 @@ var MarkLayer=L.Layer.extend({
         var fr=rows[i];
         if(!b.contains([fr[0],fr[1]]))continue;
         var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
-        drawFacility(ctx,fp.x,fp.y,z); drawn++;
+        drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
         if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
       }
     });
@@ -862,6 +957,13 @@ function facilityHTML(f,id){
   if(f[3])h+='<a class="plink" href="'+esc(f[3])+'" target="_blank" rel="noopener">Website &rarr;</a>';
   return h;
 }
+
+/* ISO2 -> full country name, for every code the wire can emit. Lifted from the
+   projects repo's _WIRE_REGIONS (212 countries, ISO3) reduced through its _A2TO3,
+   then completed by hand: that pair only covered 102 of the 151 codes this wire
+   actually tags, so 49 were missing and would have shown as bare letters. */
+var ISO_NAME={"AE":"United Arab Emirates","AF":"Afghanistan","AL":"Albania","AM":"Armenia","AO":"Angola","AR":"Argentina","AT":"Austria","AU":"Australia","AZ":"Azerbaijan","BA":"Bosnia and Herzegovina","BD":"Bangladesh","BE":"Belgium","BF":"Burkina Faso","BG":"Bulgaria","BI":"Burundi","BO":"Bolivia","BR":"Brazil","BW":"Botswana","BY":"Belarus","CA":"Canada","CD":"DRC (Congo)","CF":"Central African Republic","CG":"Republic of the Congo","CH":"Switzerland","CI":"Côte d'Ivoire","CL":"Chile","CM":"Cameroon","CN":"China","CO":"Colombia","CR":"Costa Rica","CU":"Cuba","CY":"Cyprus","CZ":"Czech Republic","DE":"Germany","DK":"Denmark","DO":"Dominican Republic","DZ":"Algeria","EC":"Ecuador","EE":"Estonia","EG":"Egypt","ER":"Eritrea","ES":"Spain","ET":"Ethiopia","FI":"Finland","FJ":"Fiji","FR":"France","GA":"Gabon","GB":"United Kingdom","GE":"Georgia","GH":"Ghana","GN":"Guinea","GR":"Greece","GT":"Guatemala","HN":"Honduras","HR":"Croatia","HT":"Haiti","HU":"Hungary","ID":"Indonesia","IE":"Ireland","IL":"Israel","IN":"India","IQ":"Iraq","IR":"Iran","IS":"Iceland","IT":"Italy","JM":"Jamaica","JO":"Jordan","JP":"Japan","KE":"Kenya","KH":"Cambodia","KP":"North Korea","KR":"South Korea","KW":"Kuwait","KZ":"Kazakhstan","LA":"Laos","LB":"Lebanon","LK":"Sri Lanka","LR":"Liberia","LT":"Lithuania","LV":"Latvia","LY":"Libya","MA":"Morocco","MD":"Moldova","ME":"Montenegro","MG":"Madagascar","MK":"North Macedonia","ML":"Mali","MM":"Myanmar","MN":"Mongolia","MW":"Malawi","MX":"Mexico","MY":"Malaysia","MZ":"Mozambique","NA":"Namibia","NC":"New Caledonia","NE":"Niger","NG":"Nigeria","NI":"Nicaragua","NL":"Netherlands","NO":"Norway","NP":"Nepal","NZ":"New Zealand","OM":"Oman","PA":"Panama","PE":"Peru","PF":"French Polynesia","PG":"Papua New Guinea","PH":"Philippines","PK":"Pakistan","PL":"Poland","PS":"Palestine","PT":"Portugal","PY":"Paraguay","QA":"Qatar","RO":"Romania","RS":"Serbia","RU":"Russia","RW":"Rwanda","SA":"Saudi Arabia","SB":"Solomon Islands","SD":"Sudan","SE":"Sweden","SG":"Singapore","SI":"Slovenia","SK":"Slovakia","SL":"Sierra Leone","SN":"Senegal","SO":"Somalia","SS":"South Sudan","SV":"El Salvador","SY":"Syria","TD":"Chad","TH":"Thailand","TL":"Timor-Leste","TN":"Tunisia","TR":"Turkey","TW":"Taiwan","TZ":"Tanzania","UA":"Ukraine","UG":"Uganda","US":"United States","UY":"Uruguay","UZ":"Uzbekistan","VE":"Venezuela","VN":"Vietnam","VU":"Vanuatu","XK":"Kosovo","YE":"Yemen","ZA":"South Africa","ZM":"Zambia","ZW":"Zimbabwe"};
+function isoLabel(c){ return ISO_NAME[c]||c; }
 
 /* ------------------------------------------------------------- entry box */
 function recTitle(r){ return (r.kind?(KIND_LABEL[r.kind]||r.kind):'Record'); }
@@ -1060,7 +1162,17 @@ var ADM4_PARTS={"AUS":4,"BLR":2,"BRA":7,"CAN":2,"CHN":7,"CZE":3,"DEU":4,"ESP":2,
 var NUM2A3={"-99":"XKX","004":"AFG","008":"ALB","010":"ATA","012":"DZA","020":"AND","024":"AGO","028":"ATG","031":"AZE","032":"ARG","036":"AUS","040":"AUT","044":"BHS","048":"BHR","050":"BGD","051":"ARM","052":"BRB","056":"BEL","060":"BMU","064":"BTN","068":"BOL","070":"BIH","072":"BWA","076":"BRA","084":"BLZ","090":"SLB","096":"BRN","100":"BGR","104":"MMR","108":"BDI","112":"BLR","116":"KHM","120":"CMR","124":"CAN","132":"CPV","136":"CYM","140":"CAF","144":"LKA","148":"TCD","152":"CHL","156":"CHN","158":"TWN","170":"COL","174":"COM","178":"COG","180":"COD","184":"COK","188":"CRI","191":"HRV","192":"CUB","196":"CYP","203":"CZE","204":"BEN","208":"DNK","212":"DMA","214":"DOM","218":"ECU","222":"SLV","226":"GNQ","231":"ETH","232":"ERI","233":"EST","234":"FRO","242":"FJI","246":"FIN","248":"ALA","250":"FRA","258":"PYF","262":"DJI","266":"GAB","268":"GEO","270":"GMB","275":"PSE","276":"DEU","288":"GHA","292":"GIB","296":"KIR","300":"GRC","304":"GRL","308":"GRD","320":"GTM","324":"GIN","328":"GUY","332":"HTI","336":"VAT","340":"HND","344":"HKG","348":"HUN","352":"ISL","356":"IND","360":"IDN","364":"IRN","368":"IRQ","372":"IRL","376":"ISR","380":"ITA","384":"CIV","388":"JAM","392":"JPN","398":"KAZ","400":"JOR","404":"KEN","408":"PRK","410":"KOR","414":"KWT","417":"KGZ","418":"LAO","422":"LBN","426":"LSO","428":"LVA","430":"LBR","434":"LBY","438":"LIE","440":"LTU","442":"LUX","446":"MAC","450":"MDG","454":"MWI","458":"MYS","462":"MDV","466":"MLI","470":"MLT","474":"MTQ","478":"MRT","480":"MUS","484":"MEX","492":"MCO","496":"MNG","498":"MDA","499":"MNE","500":"MSR","504":"MAR","508":"MOZ","512":"OMN","516":"NAM","520":"NRU","524":"NPL","528":"NLD","540":"NCL","548":"VUT","554":"NZL","558":"NIC","562":"NER","566":"NGA","570":"NIU","578":"NOR","583":"FSM","584":"MHL","585":"PLW","586":"PAK","591":"PAN","598":"PNG","600":"PRY","604":"PER","608":"PHL","616":"POL","620":"PRT","624":"GNB","626":"TLS","630":"PRI","634":"QAT","642":"ROU","643":"RUS","646":"RWA","659":"KNA","660":"AIA","662":"LCA","670":"VCT","674":"SMR","678":"STP","682":"SAU","686":"SEN","688":"SRB","690":"SYC","694":"SLE","702":"SGP","703":"SVK","704":"VNM","705":"SVN","706":"SOM","710":"ZAF","716":"ZWE","720":"YEM","724":"ESP","728":"SSD","729":"SDN","740":"SUR","748":"SWZ","752":"SWE","756":"CHE","760":"SYR","762":"TJK","764":"THA","768":"TGO","776":"TON","780":"TTO","784":"ARE","788":"TUN","792":"TUR","795":"TKM","798":"TUV","800":"UGA","804":"UKR","807":"MKD","818":"EGY","826":"GBR","832":"JEY","834":"TZA","840":"USA","854":"BFA","858":"URY","860":"UZB","862":"VEN","882":"WSM","887":"YEM","894":"ZMB"};
 
 var gbOn=true, gbCache={}, gbLayer=null, gbFeats=null, gbLevel=null, gbISO=null,
-    gbISOName='', gbSelFeat=null, gbMissing={};
+    gbISOName='', gbSelFeat=null, gbHovFeat=null, gbMissing={},
+    gbChain=[];      /* [{lvl,name,feat}] -- how we got here, and what a unit inherits */
+
+/* CGAZ shapeName does not always match the name a resource is filed under.
+   Same reconciliation table the projects map uses: CGAZ spelling -> our spelling,
+   per country. Every unit currently referenced in lenses.json matches CGAZ
+   exactly (verified), so this is here for entries added later. */
+var GB_ALIAS={"ZAF":{"Nothern Cape":"Northern Cape"},"NLD":{"Fryslan":"Friesland"}};
+function gbCanon(iso,name){
+  var a=GB_ALIAS[iso]; return (a&&a[name])||name;
+}
 
 map.createPane('gbDrill');
 map.getPane('gbDrill').style.zIndex=350;
@@ -1075,6 +1187,11 @@ function gbStyle(feat){
   var st = lit?{color:'#b8912f',weight:2.6,opacity:1,fillColor:'#d8b24a',fillOpacity:0.34}
               :{color:'rgba(184,145,47,0.55)',weight:2.2,opacity:1,
                 fillColor:'rgba(216,178,74,0.05)',fillOpacity:0.06};
+  if(gbHovFeat && feat===gbHovFeat){
+    /* hover lights the unit gold without claiming it is selected */
+    st.color='#d8b24a'; st.weight=Math.max(st.weight,3.0); st.opacity=1;
+    st.fillOpacity=Math.max(st.fillOpacity,0.20);
+  }
   if(gbSelFeat && feat===gbSelFeat){
     st.color='#ffffff'; st.weight=3.6; st.opacity=1;
     st.fillOpacity=Math.max(st.fillOpacity,0.28);
@@ -1149,6 +1266,10 @@ function gbDraw(fc,fit){
   if(!gbOn||!fc)return;
   gbLayer=L.geoJSON(fc,{pane:'gbDrill',style:gbStyle,
     onEachFeature:function(feat,lyr){
+      lyr.on('mouseover',function(){ gbHovFeat=feat;
+        try{ lyr.setStyle(gbStyle(feat)); lyr.bringToFront(); }catch(e){} });
+      lyr.on('mouseout',function(){ if(gbHovFeat===feat)gbHovFeat=null;
+        try{ lyr.setStyle(gbStyle(feat)); }catch(e){} });
       lyr.on('click',function(ev){
         /* marks win: if a dot sits under the pointer, let the map handler have it */
         try{ if(layer.pick(map.mouseEventToContainerPoint(ev.originalEvent))) return; }catch(e){}
@@ -1163,7 +1284,7 @@ function gbSelect(feat){ gbSelFeat=feat||null; if(gbLayer)gbLayer.setStyle(gbSty
 
 /* --- world (ADM0) ------------------------------------------------------- */
 function gbWorld(fit){
-  gbLevel=null; gbISO=null; gbISOName=''; gbSelFeat=null;
+  gbLevel=null; gbISO=null; gbISOName=''; gbSelFeat=null; gbHovFeat=null; gbChain=[];
   gbRenderChrome();
   var k='world';
   if(gbCache[k]){ gbDraw(gbCache[k],!!fit); return; }
@@ -1192,7 +1313,11 @@ function gbEnter(iso,name,lvl){
   lvl=lvl||'ADM1';
   if(gbMissing[iso+':'+lvl]){ return; }
   fetchLevel(iso,lvl).then(function(fc){
-    gbISO=iso; gbISOName=name||iso; gbLevel=lvl; gbSelFeat=null;
+    gbISO=iso; gbISOName=name||iso; gbLevel=lvl; gbSelFeat=null; gbHovFeat=null;
+    /* jumping levels by pill drops any deeper chain -- it is no longer true */
+    gbChain=gbChain.filter(function(n){
+      return n.lvl==='ADM0' || GB_LEVELS.indexOf(n.lvl) < GB_LEVELS.indexOf(lvl); });
+    if(!gbChain.length) gbChain=[{lvl:'ADM0',name:gbISOName,feat:null}];
     gbRenderChrome(); gbDraw(fc,true);
   }).catch(function(){
     gbMissing[iso+':'+lvl]=true;
@@ -1201,16 +1326,139 @@ function gbEnter(iso,name,lvl){
     gbRenderChrome();
   });
 }
+/* Clicking a unit does two things at once, which is what the projects map does
+   and what makes the hierarchy feel real: it OPENS the unit (resources + what the
+   harvest puts inside it) and it DRILLS to that unit's children.
+
+   CGAZ carries no parent field -- every feature has only a shapeName -- so the
+   children cannot be selected by attribute. They are selected geometrically: fetch
+   the country's next level and keep the units whose centroid falls inside the
+   polygon you clicked. That is what turns a flat national file into an actual
+   country -> state -> county -> municipal descent. */
+function gbCentroid(g){
+  var n=0,sx=0,sy=0;
+  (function w(c){ if(!c||!c.length)return;
+    if(typeof c[0]==='number'){ sx+=c[0]; sy+=c[1]; n++; return; }
+    for(var i=0;i<c.length;i++)w(c[i]); })(g.coordinates);
+  return n?[sy/n,sx/n]:null;   /* [lat,lng] */
+}
+function gbNextLevel(lvl){
+  var i=GB_LEVELS.indexOf(lvl);
+  return (i>=0&&i<GB_LEVELS.length-1)?GB_LEVELS[i+1]:null;
+}
 function gbUnitClick(feat){
   var pr=feat.properties||{};
+  var nm=pr.shapeName||'Unit';
+
+  /* world view: a country opens its ADM1 and its country-level resources */
   if(gbLevel===null){
     var iso=pr.iso3||'';
-    if(iso) gbEnter(iso, pr.shapeName||iso, 'ADM1');
-    else { gbSelect(feat); openEntry('unit', pr.shapeName||'Unit', unitHTML(feat,'ADM0')); }
+    if(!iso){ gbSelect(feat); openEntry('unit',nm,unitHTML(feat,'ADM0')); return; }
+    gbISO=iso; gbISOName=nm; gbChain=[{lvl:'ADM0',name:nm,feat:feat}];
+    gbSelect(feat);
+    openEntry('unit', nm, unitHTML(feat,'ADM0'));
+    gbEnter(iso,nm,'ADM1');
     return;
   }
+
+  /* inside a country: open the unit, then descend into its own children */
   gbSelect(feat);
-  openEntry('unit', pr.shapeName||'Unit', unitHTML(feat,gbLevel));
+  gbChain=gbChain.filter(function(n){
+    return GB_LEVELS.indexOf(n.lvl) < GB_LEVELS.indexOf(gbLevel) || n.lvl==='ADM0'; });
+  gbChain.push({lvl:gbLevel,name:nm,feat:feat});
+  openEntry('unit', nm, unitHTML(feat,gbLevel));
+
+  var nxt=gbNextLevel(gbLevel);
+  if(!nxt || gbMissing[gbISO+':'+nxt]){ gbRenderChrome(); return; }
+  fetchLevel(gbISO,nxt).then(function(fc){
+    var kids=(fc.features||[]).filter(function(f){
+      var c=f.geometry&&gbCentroid(f.geometry);
+      return c && gbPtIn(c,feat); });
+    if(!kids.length){
+      gbShowLoad(nm+' has no '+GB_LVLSHORT[nxt]+' units in this set');
+      setTimeout(gbHideLoad,2200); gbRenderChrome(); return;
+    }
+    gbLevel=nxt; gbSelFeat=null; gbHovFeat=null;
+    gbRenderChrome();
+    gbDraw({type:'FeatureCollection',features:kids},true);
+  }).catch(function(){
+    gbMissing[gbISO+':'+nxt]=true;
+    gbShowLoad(gbISOName+' publishes no '+GB_LVLSHORT[nxt]);
+    setTimeout(gbHideLoad,2200); gbRenderChrome();
+  });
+}
+
+/* --- resources, attached by SERVICE AREA -------------------------------
+   Built from lenses.json, which carries a `serves` list on every entry:
+   GLOBAL, an ISO3, or ISO3/UnitName. The rule is jurisdiction of service, not
+   physical address -- so a body serving the whole statute sits at the country
+   node even though its office is in one city, and a body serving three states
+   appears in all three. Same model as the projects map's per-unit tree, just
+   expressed as a field on the entry instead of a nested file, so there is one
+   source of truth and nothing to keep in sync. --------------------------- */
+var RES_INDEX=null;
+function buildResIndex(){
+  RES_INDEX={};
+  if(!LENSES||!LENSES.lenses)return;
+  LENSES.lenses.forEach(function(l){
+    (l.items||[]).forEach(function(it){
+      (it.serves||[]).forEach(function(k){
+        (RES_INDEX[k]=RES_INDEX[k]||[]).push({lens:l.label,key:l.key,it:it});
+      });
+    });
+  });
+}
+function resFor(scope){ return (RES_INDEX&&RES_INDEX[scope])||[]; }
+function resBlock(title,note,list){
+  if(!list.length)return '';
+  var byLens={};
+  list.forEach(function(r){ (byLens[r.lens]=byLens[r.lens]||[]).push(r); });
+  var h='<div class="ent-sec">'+esc(title)+'</div>';
+  if(note) h+='<div class="ent-empty" style="margin-bottom:6px;">'+note+'</div>';
+  Object.keys(byLens).forEach(function(ln){
+    h+='<div class="lvl" style="display:block;margin:7px 0 2px;">'+esc(ln)+'</div>';
+    byLens[ln].forEach(function(r){
+      var it=r.it, st=(LENS_STATUS&&LENS_STATUS.entries)?LENS_STATUS.entries[it.name]:null,
+          dead=st&&st.state==='dead', href=(st&&st.final)||it.url;
+      h+='<div class="li'+(dead?' dead':'')+'">'
+        +((href&&!dead)?'<a href="'+esc(href)+'" target="_blank" rel="noopener">'+esc(it.name)+'</a>'
+                       :'<span class="nolink">'+esc(it.name)+'</span>')
+        +(it.located?'<span class="st st-find">located here</span>':'')
+        +(dead?'<span class="st st-dead">gone</span>':'')
+        +'<div class="note">'+esc(it.note||'')+'</div>'
+        +((!it.url&&it.find)?'<div class="note"><b>Search:</b> '+esc(it.find)+'</div>':'')
+        +'</div>';
+    });
+  });
+  return h;
+}
+function unitResourceHTML(){
+  var h='', any=false;
+  var g=resFor('GLOBAL');
+  if(gbISO){
+    var c=resFor(gbISO);
+    /* the chain, deepest first, so the most local jurisdiction reads first */
+    for(var i=gbChain.length-1;i>=0;i--){
+      var node=gbChain[i];
+      if(node.lvl==='ADM0')continue;
+      var list=resFor(gbISO+'/'+gbCanon(gbISO,node.name));
+      if(list.length){ any=true;
+        h+=resBlock(node.name+' \u2014 serves this unit',
+                    'Filed here because this is the jurisdiction they serve.',list); }
+    }
+    if(c.length){ any=true;
+      h+=resBlock(gbISOName+' \u2014 serves the whole country',
+                  'Applies here as well as everywhere else in the country.',c); }
+  }
+  if(g.length){ any=true;
+    h+=resBlock('Applies everywhere',
+                'Not tied to any one jurisdiction.',g); }
+  if(!any) h+='<div class="ent-sec">Resources for this unit</div>'
+             +'<div class="ent-empty">Nothing filed for this jurisdiction yet. '
+             +'Resources are attached by <b>where they serve</b>, not where their '
+             +'office is \u2014 so an empty box here means no curated body has this '
+             +'jurisdiction in its remit, not that the place is unserved.</div>';
+  return h;
 }
 
 /* --- point in polygon, so an opened unit can count what is inside it ---- */
@@ -1255,11 +1503,7 @@ function unitHTML(feat,lvl){
       +'absence of <b>records</b>, not of events &mdash; coverage follows whichever '
       +'registers this jurisdiction publishes.</div>';
   }
-  h+='<div class="ent-sec">Resources for this unit</div>';
-  h+='<div class="ent-empty">Not attached yet. Units are the frame; the curated '
-    +'per-unit resources &mdash; the offices, registers and contacts that apply '
-    +'<i>here</i> &mdash; are the next layer to go on top of them. Until they exist, '
-    +'this panel says so rather than showing an empty list that looks finished.</div>';
+  h+=unitResourceHTML();
   return h;
 }
 
@@ -1280,10 +1524,19 @@ function gbRenderChrome(){
     };
   }
   var cr=document.getElementById('gbCrumb');
-  cr.innerHTML = gbLevel===null
-    ? '<b>World</b> &mdash; click a country to go in.'
-    : '<a onclick="gbWorld(true)">World</a> &rsaquo; <b>'+esc(gbISOName)+'</b> &rsaquo; '
-      +esc(GB_LVLNAME[gbLevel]);
+  if(gbLevel===null){
+    cr.innerHTML='<b>World</b> &mdash; click a country to go in.';
+  } else {
+    var parts=['<a onclick="gbWorld(true)">World</a>'];
+    gbChain.forEach(function(n){
+      parts.push(n.lvl==='ADM0'
+        ? '<a onclick="gbEnter(\''+esc(gbISO)+'\',\''+esc(gbISOName)+'\',\'ADM1\')">'
+          +esc(n.name)+'</a>'
+        : '<b>'+esc(n.name)+'</b>');
+    });
+    parts.push(esc(GB_LVLNAME[gbLevel]));
+    cr.innerHTML=parts.join(' &rsaquo; ');
+  }
 }
 document.getElementById('layGB').addEventListener('change',function(){
   gbOn=this.checked;
@@ -1340,12 +1593,18 @@ function renderWire(){
   var items=wireVisible(),el=document.getElementById('wireList');
   document.getElementById('wireCount').textContent='('+items.length+')';
   if(!items.length){
-    el.innerHTML='<div class="ctl-note">Nothing on the wire for this selection. '
+    var who=wireRegion
+      ? (wireRegion.indexOf('|')>0
+          ? esc(wireRegion.split('|')[1])+', '+esc(isoLabel(wireRegion.split('|')[0]))
+          : esc(isoLabel(wireRegion)))
+      : '';
+    el.innerHTML='<div class="ctl-note">Nothing on the wire'
+      +(who?' for <b>'+who+'</b>':' for this selection')+' right now. '
       +'That is a gap in <b>reporting</b>, not necessarily in events.</div>';
     return;
   }
   el.innerHTML=items.slice(0,60).map(function(w){
-    var place=[w.region,w.iso].filter(Boolean).join(', ');
+    var place=[w.region,isoLabel(w.iso)].filter(Boolean).join(', ');
     return '<div class="wi sig'+(w.sig||1)+'">'
       +'<a href="'+esc(w.link)+'" target="_blank" rel="noopener">'+esc(w.title)+'</a>'
       +'<div class="meta"><span class="tt">'+esc(w.topic||'other')+'</span>'
@@ -1353,24 +1612,50 @@ function renderWire(){
       +(place?' \u00b7 '+esc(place):'')+'</div></div>';}).join('');
 }
 function buildWireControls(){
+  /* The menu lists EVERY country the wire can tag, not just the ones that happen
+     to have an article in this batch -- the old version built its options from the
+     articles themselves, so a country with nothing today vanished from the list and
+     read as "not covered" rather than "nothing today". Countries are named in full;
+     the old version printed the raw ISO code as the label.
+
+     Empties are kept and grouped separately rather than hidden, because "no items
+     right now" and "not in scope" are different facts and the reader should be able
+     to tell which one they are looking at. */
   var sel=document.getElementById('wireRegion'),counts={};
   WIRE.forEach(function(w){
     if(!w.iso)return;
     counts[w.iso]=(counts[w.iso]||0)+1;
     if(w.region)counts[w.iso+'|'+w.region]=(counts[w.iso+'|'+w.region]||0)+1;});
-  /* countries by volume, each followed by its own subregions */
-  var countries=Object.keys(counts).filter(function(k){return k.indexOf('|')<0;})
-    .sort(function(a,b){return counts[b]-counts[a]||a.localeCompare(b);});
-  var opts=[];
-  countries.forEach(function(c){
-    opts.push([c,c,counts[c]]);
-    Object.keys(counts).filter(function(k){return k.indexOf(c+'|')===0;})
-      .sort().forEach(function(k){
-        opts.push([k,'\u00a0\u00a0\u2014 '+k.split('|')[1],counts[k]]);});
-  });
+
+  function optsFor(list){
+    var out=[];
+    list.forEach(function(c){
+      out.push('<option value="'+esc(c)+'">'+esc(isoLabel(c))
+               +' ('+(counts[c]||0)+')</option>');
+      Object.keys(counts).filter(function(k){return k.indexOf(c+'|')===0;})
+        .sort().forEach(function(k){
+          out.push('<option value="'+esc(k)+'">\u00a0\u00a0\u2014 '
+                   +esc(k.split('|')[1])+' ('+counts[k]+')</option>');});
+    });
+    return out.join('');
+  }
+  var all=Object.keys(ISO_NAME);
+  var live=all.filter(function(c){return counts[c];})
+              .sort(function(a,b){return counts[b]-counts[a]
+                     ||isoLabel(a).localeCompare(isoLabel(b));});
+  var idle=all.filter(function(c){return !counts[c];})
+              .sort(function(a,b){return isoLabel(a).localeCompare(isoLabel(b));});
+  /* anything tagged with a code the table does not know still gets an entry --
+     better a bare code than a silently dropped article */
+  var unknown=Object.keys(counts).filter(function(k){
+    return k.indexOf('|')<0 && !ISO_NAME[k];}).sort();
+
   sel.innerHTML='<option value="">Everywhere ('+WIRE.length+')</option>'
-    +opts.map(function(o){
-      return '<option value="'+esc(o[0])+'">'+esc(o[1])+' ('+o[2]+')</option>';}).join('');
+    +(live.length?'<optgroup label="On the wire now">'+optsFor(live)+'</optgroup>':'')
+    +(unknown.length?'<optgroup label="Unrecognised country code">'
+        +optsFor(unknown)+'</optgroup>':'')
+    +(idle.length?'<optgroup label="Nothing right now ('+idle.length+' countries)">'
+        +optsFor(idle)+'</optgroup>':'');
   sel.onchange=function(){wireRegion=sel.value;renderWire();};
   var tp=document.getElementById('wireTopics'),byT={};
   WIRE.forEach(function(w){var t=w.topic||'other';byT[t]=(byT[t]||0)+1;});
@@ -1446,7 +1731,7 @@ function loadLenses(){
       LENSES=d;
       return fetch('lenses_status.json?_='+Date.now(),{cache:'no-store'})
         .then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});})
-    .then(function(st){LENS_STATUS=st;renderLens();})
+    .then(function(st){LENS_STATUS=st;buildResIndex();renderLens();})
     .catch(function(){document.getElementById('lensBody').innerHTML=
       '<div class="ctl-note">No <code>lenses.json</code> in this folder.</div>';});
 }
@@ -1492,6 +1777,7 @@ document.getElementById('layUnearth').addEventListener('change',function(){
 facCheckbox('cem','layCem','nCem');
 facCheckbox('crem','layCrem','nCrem');
 facCheckbox('mort','layMort','nMort');
+facCheckbox('mus','layMus','nMus');
 
 load(); loadWire(); loadLenses(); gbWorld(false);
 </script>

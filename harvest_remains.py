@@ -54,6 +54,9 @@ RECORD SCHEMA (each fetcher returns a list of these)
 
 Output is remains.json.gz  ({"_meta": {...}, "records": [...]}).
 """
+import math
+import os
+import gzip
 import json
 import ssl, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
 
@@ -269,6 +272,20 @@ def _get_json(url):
                 time.sleep(2.0); continue
             raise
     raise last
+
+
+def _get_bytes(url, limit=40000000):
+    """Raw bytes, for gzipped payloads. Same TLS fallback as the text fetcher."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=max(TIMEOUT, 120)) as r:
+            return r.read(limit)
+    except urllib.error.URLError as e:
+        ctx = _tls_fallback_ctx(url, e.reason)
+        if ctx is None:
+            raise
+        with urllib.request.urlopen(req, timeout=max(TIMEOUT, 120), context=ctx) as r:
+            return r.read(limit)
 
 
 def _get_text(url, limit=4000000):
@@ -1779,6 +1796,269 @@ def _finish(items):
 
 
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# CROSS-FEED: projects from the sibling Live Projects map that SAY they involve
+# remains.
+# ---------------------------------------------------------------------------
+# WelcomeToYourGalaxy/local-map tracks ~268,000 pre- and post-permit projects
+# worldwide. Some of them are unearthings, and those belong on this map too.
+#
+# READ THE YIELD HONESTLY. Running the full remains vocabulary across all 268k
+# projects returns about 40 candidates, and roughly half of those are place-name
+# false positives -- "La Grave", "Saint-Nicolas-de-la-Grave". After a strict filter
+# it is TENS of records, not thousands.
+#
+# That is not a defect in either dataset; it IS the finding. A project description
+# rarely mentions burials even when the project will disturb them. Disturbance
+# surfaces later -- in the environmental statement, the salvage condition, the
+# stop-work order -- not in the title at application time. So this feed catches the
+# projects that ANNOUNCE remains, which is a small subset of those that will
+# ENCOUNTER them. The rest are only visible through the permit and notice registers
+# the other fetchers already read.
+#
+# Because the base is huge and the signal thin, this does NOT reuse _is_remains().
+# It requires an explicit multi-word phrase, which is exactly what kills the
+# place-name matches: "grave" alone is a French village, "unmarked grave" is not.
+PROJECTS_GZ = ("https://raw.githubusercontent.com/WelcomeToYourGalaxy/"
+               "local-map/main/projects.json.gz")
+
+# (phrase, kind) -- most specific first, first match wins.
+_XFEED_PHRASES = [
+    ("ancestral remains",       "reinterment"),
+    ("repatriation of remains", "repatriation"),
+    ("remains repatriation",    "repatriation"),
+    ("human remains",           "discovery"),
+    ("skeletal remains",        "discovery"),
+    ("unmarked grave",          "discovery"),
+    ("unmarked burial",         "discovery"),
+    ("mass grave",              "mass-grave"),
+    # A memorial TO a burial ground is a commemorative act, not a removal. Kept
+    # as `review` so it still appears -- the ground is real and someone is working
+    # on it -- but posture stays "watch" rather than accusing anyone of harm.
+    ("burial ground memorial",  "review"),
+    ("burial ground",           "removed-ground"),
+    ("burial site",             "harm-permit"),
+    ("exhumation",              "exhumation"),
+    ("exhume",                  "exhumation"),
+    ("disinterment",            "exhumation"),
+    ("burial removal",          "exhumation"),
+    ("cemetery relocation",     "exhumation"),
+    ("grave relocation",        "exhumation"),
+    ("reburial",                "reinterment"),
+]
+# Looks like a hit, but is routine cemetery estate work rather than an unearthing.
+# A cemetery extended into an empty paddock disturbs nobody.
+_XFEED_REJECT = (
+    "cemetery expansion", "cemetery extension", "expansion of the cemetery",
+    "bushfire risk reduction", "cemetery upgrade", "cemetery landscaping",
+    "crematorium construction", "new cemetery", "cemetery repairs",
+)
+
+
+def fetch_projects_crossfeed(limit=400):
+    """Projects from the sibling repo whose own text announces remains."""
+    out = []
+    try:
+        raw = _get_bytes(PROJECTS_GZ)
+        data = json.loads(gzip.decompress(raw).decode("utf-8", "replace"))
+    except Exception as e:
+        print("  projects_crossfeed failed: %s" % e)
+        return out
+    recs = data.get("projects") if isinstance(data, dict) else data
+    if not isinstance(recs, list):
+        print("  projects_crossfeed: unexpected shape")
+        return out
+    scanned = rejected = 0
+    for r in recs:
+        if len(out) >= limit:
+            break
+        scanned += 1
+        blob = " ".join(str(r.get(k) or "") for k in ("name", "desc", "type", "status"))
+        low = blob.lower()
+        if any(bad in low for bad in _XFEED_REJECT):
+            rejected += 1
+            continue
+        kind = None
+        for phrase, k in _XFEED_PHRASES:
+            if phrase in low:
+                kind = k
+                break
+        if kind is None:
+            continue
+        lat, lng = r.get("lat"), r.get("lng")
+        if lat is None or lng is None:
+            continue
+        # Their `precise` flag says whether the point is a real location or an area
+        # centroid. Either way _place() coarsens the grave-identifying kinds.
+        geo = GEO_EXACT if r.get("precise") else GEO_AREA
+        rec = {
+            "name": (r.get("name") or "Untitled project")[:150],
+            "kind": kind,
+            "posture": KINDS[kind][1],
+            "trigger": "permit",
+            "country": "",
+            "region": r.get("state") or "",
+            "count": None,
+            "held_by": "",
+            "actor": r.get("company") or "",
+            "status": r.get("status") or "",
+            "url": r.get("url") or "",
+            "date": r.get("date") or "",
+            "deadline": r.get("deadline") or "",
+            "desc": ("From the Live Projects map (%s). %s"
+                     % (r.get("source") or "unknown source",
+                        r.get("desc") or "")).strip()[:600],
+            "source": "projects_crossfeed",
+        }
+        _place(rec, lat, lng, geo)
+        rec["impact"] = rate_remains(rec)
+        out.append(rec)
+    print("  projects_crossfeed: scanned %d, rejected %d as cemetery estate work, "
+          "kept %d" % (scanned, rejected, len(out)))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# SPATIAL INTERSECTION: projects sitting on top of a known burial ground.
+# ---------------------------------------------------------------------------
+# The cross-feed above only catches projects whose TEXT announces remains -- six
+# out of 268,000. This is the other half of the answer: cross every project
+# footprint against the burial-ground layer this repo already harvests, and flag
+# the ones close enough that the question has to be asked.
+#
+# THREE THINGS THIS IS NOT, and the map says all three:
+#
+# 1. It is not a finding. Output is kind="review", posture="watch". Proximity to a
+#    cemetery is a reason to look, not evidence that anyone has been disturbed. A
+#    road resurfacing next to a churchyard touches nobody.
+#
+# 2. It is not coverage. The burial layer is OpenStreetMap-derived and radically
+#    incomplete outside western Europe and North America. A project with no hit is
+#    not a project with no graves.
+#
+# 3. It is structurally blind to the worst cases, and this is the important one.
+#    Unmarked and undocumented burial grounds are absent from every layer -- that
+#    absence is what "unmarked" MEANS. So this method finds projects near RECORDED
+#    graves and misses projects over FORGOTTEN ones. The places where a community
+#    was never allowed to record its dead are exactly the places this will stay
+#    silent about. Design note 11 says so on the map itself.
+#
+# Cost control: a naive 268,000 x ~1,000,000 comparison is 2.7e11 distance checks.
+# Instead the burial points go into a dict keyed by rounded lat/lng cell, and each
+# project only tests the nine cells around it -- linear in projects.
+XSPATIAL_METRES = int(os.environ.get("XSPATIAL_METRES", "250"))
+XSPATIAL_CAP = int(os.environ.get("XSPATIAL_CAP", "1200"))
+_CEM_FILE = "remains_local_cemetery.json.gz"
+
+
+def _cell(lat, lng, deg):
+    return (int(math.floor(lat / deg)), int(math.floor(lng / deg)))
+
+
+def _metres(lat1, lng1, lat2, lng2):
+    """Equirectangular approximation -- ample at a few hundred metres."""
+    dlat = (lat2 - lat1) * 111320.0
+    dlng = (lng2 - lng1) * 111320.0 * math.cos(math.radians((lat1 + lat2) / 2.0))
+    return math.sqrt(dlat * dlat + dlng * dlng)
+
+
+def _load_burial_points():
+    """Burial-ground points from the committed facility layer, or None."""
+    if not os.path.exists(_CEM_FILE):
+        return None
+    try:
+        with gzip.open(_CEM_FILE, "rt", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception as e:
+        print("  xspatial: could not read %s (%s)" % (_CEM_FILE, e))
+        return None
+    rows = data.get("rows") if isinstance(data, dict) else data
+    out = []
+    for r in (rows or []):
+        try:
+            out.append((float(r[0]), float(r[1]), (r[2] if len(r) > 2 else "") or ""))
+        except Exception:
+            continue
+    return out
+
+
+def fetch_projects_on_burial_ground():
+    """Projects within XSPATIAL_METRES of a burial ground in the facility layer."""
+    out = []
+    pts = _load_burial_points()
+    if pts is None:
+        print("  xspatial: %s not present yet -- run 'Harvest cemeteries' first. "
+              "This source activates on its own once the layer is committed."
+              % _CEM_FILE)
+        return out
+    if not pts:
+        print("  xspatial: burial layer is empty; nothing to intersect")
+        return out
+    deg = XSPATIAL_METRES / 111320.0 * 1.5      # cell a little wider than the radius
+    grid = {}
+    for (la, ln, nm) in pts:
+        grid.setdefault(_cell(la, ln, deg), []).append((la, ln, nm))
+    try:
+        raw = _get_bytes(PROJECTS_GZ)
+        data = json.loads(gzip.decompress(raw).decode("utf-8", "replace"))
+    except Exception as e:
+        print("  xspatial failed to read projects: %s" % e)
+        return out
+    recs = data.get("projects") if isinstance(data, dict) else data
+    scanned = 0
+    for r in (recs or []):
+        if len(out) >= XSPATIAL_CAP:
+            break
+        lat, lng = r.get("lat"), r.get("lng")
+        if lat is None or lng is None:
+            continue
+        scanned += 1
+        try:
+            lat, lng = float(lat), float(lng)
+        except Exception:
+            continue
+        ci, cj = _cell(lat, lng, deg)
+        best = None
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                for (la, ln, nm) in grid.get((ci + di, cj + dj), ()):
+                    d = _metres(lat, lng, la, ln)
+                    if d <= XSPATIAL_METRES and (best is None or d < best[0]):
+                        best = (d, nm)
+        if best is None:
+            continue
+        dist, cemname = best
+        rec = {
+            "name": (r.get("name") or "Untitled project")[:150],
+            "kind": "review",
+            "posture": KINDS["review"][1],
+            "trigger": "proximity",
+            "country": "",
+            "region": r.get("state") or "",
+            "count": None,
+            "held_by": "",
+            "actor": r.get("company") or "",
+            "status": r.get("status") or "",
+            "url": r.get("url") or "",
+            "date": r.get("date") or "",
+            "deadline": r.get("deadline") or "",
+            "desc": ("PROXIMITY FLAG, not a finding: this project sits about %d m from "
+                     "%s in the burial-ground layer. Nobody has said graves are "
+                     "affected -- this is a reason to check the environmental "
+                     "statement and the salvage conditions. From the Live Projects "
+                     "map (%s)."
+                     % (int(round(dist)), (cemname or "a recorded burial ground"),
+                        r.get("source") or "unknown source"))[:600],
+            "source": "projects_on_burial_ground",
+        }
+        _place(rec, lat, lng, GEO_EXACT if r.get("precise") else GEO_AREA)
+        rec["impact"] = 2
+        out.append(rec)
+    print("  xspatial: %d burial points, %d located projects tested, %d within %d m"
+          % (len(pts), scanned, len(out), XSPATIAL_METRES))
+    return out
+
 def main():
     if os.environ.get("FED_MERGE") == "1":
         print("MODE: merge federation shard parts")
@@ -1827,7 +2107,9 @@ def main():
                    ("mexico_cnb", fetch_mexico_cnb),
                    ("nps_nagpra_grid", fetch_nps_nagpra_grid),
                    ("uk_moj_licences", fetch_uk_moj_licences),
-                   ("icmp", fetch_icmp)):
+                   ("icmp", fetch_icmp),
+                   ("projects_crossfeed", fetch_projects_crossfeed),
+                   ("projects_on_burial_ground", fetch_projects_on_burial_ground)):
         items += _run(nm, fn)
     items += _carry_sources(_is_fed, "federation sources")
     _finish(items)

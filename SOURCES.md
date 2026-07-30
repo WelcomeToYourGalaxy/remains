@@ -155,6 +155,93 @@ so that is treated as failure and the tile is recursively quarter-split down to 
 floor. Cemeteries are far denser than courthouses, so the grid is 2.5° with a
 0.3125° floor and 24 shards.
 
+### Cross-feed from the Live Projects map
+
+`WelcomeToYourGalaxy/local-map` tracks ~268,000 pre- and post-permit projects
+worldwide. `fetch_projects_crossfeed()` reads its `projects.json.gz` and keeps the
+ones whose own text announces remains.
+
+**The yield is tens of records, not thousands, and that is the finding.** Running the
+full remains vocabulary over all 268k projects returns about 40 candidates, roughly
+half of them place-name false positives — "La Grave", "Saint-Nicolas-de-la-Grave". A
+project description rarely mentions burials even when the project will disturb them:
+disturbance surfaces later, in the environmental statement, the salvage condition or
+the stop-work order, not in the title at application time. So this feed catches the
+projects that *announce* remains, which is a small subset of those that will
+*encounter* them. The rest are only visible through the permit and notice registers
+the other fetchers already read.
+
+Because the base is huge and the signal thin, this fetcher does **not** reuse
+`_is_remains()`. It requires an explicit multi-word phrase, which is what kills the
+place-name matches: "grave" alone is a French village, "unmarked grave" is not. Two
+further guards: routine cemetery estate work is rejected outright (an extension into
+an empty paddock disturbs nobody), and a *memorial to* a burial ground is filed as
+`review`/watch rather than as an accusation of harm.
+
+Verified against the real 268k file: 6 records kept, 8 rejected as estate work, zero
+place-name false positives, and the placement audit changes nothing — the gate is
+already correct on everything it emits.
+
+### Projects sitting on a burial ground → spatial intersection
+
+`fetch_projects_on_burial_ground()` crosses every located project in the sibling
+repo against the burial-ground layer this repo harvests, and flags anything within
+`XSPATIAL_METRES` (default 250, env-overridable).
+
+Cost: a naive 268,000 × ~1,000,000 comparison is 2.7 × 10¹¹ distance checks. Instead
+the burial points go into a dict keyed by rounded lat/lng cell and each project tests
+only the nine cells around it — linear in projects. Measured: 200,000 burial points
+against 20,000 projects in 1.2 s.
+
+Three things it is not, and the map says all three:
+
+1. **Not a finding.** Output is `review`/`watch`, impact 2, and the description leads
+   with *PROXIMITY FLAG, not a finding*. A resurfacing job beside a churchyard
+   disturbs nobody.
+2. **Not coverage.** The burial layer is OSM-derived and thin outside western Europe
+   and North America. No hit is not no graves.
+3. **Blind to the worst cases.** Unmarked burial grounds are absent from every layer —
+   that absence is what *unmarked* means. It finds projects near **recorded** graves
+   and misses projects over **forgotten** ones. Design note 9.
+
+It returns nothing, with an explanation, until `remains_local_cemetery.json.gz`
+exists — then it activates on its own.
+
+### Museums in the facility layer
+
+A fourth facility type, and a different kind of layer from the other three. Cemeteries,
+crematoria and mortuaries receive the dead by arrangement; a museum may be holding
+ancestors it was never given permission to hold. It is the potential-holder layer —
+the physical counterpart to the `holding` records.
+
+An OSM `tourism=museum` tag says nothing about whether that museum holds remains, and
+most do not, so the layer is **not a claim** — it is the set of institutions a
+researcher would have to ask. Museums draw hollow and dashed rather than solid,
+because a solid mark would read as *remains are here*.
+
+The archaeological refusal had to be scoped for this: it rejects any `historic=*`
+outright, which is correct for burial grounds but would have deleted most museums,
+since a museum in a listed building carries `historic=building`. Museums are now
+refused only on burial-site *values* (`historic=tomb`) and lifecycle prefixes.
+
+### Two new wire topics: opposition, and the trade
+
+`opposition` requires **both** a named objector (tribe, first nation, iwi, traditional
+owner, THPO, land council, descendant community…) **and** ancestors at stake (burial,
+grave, remains, sacred site, wāhi tapu…). Both halves are needed because either alone
+misclassifies badly: "tribe" catches a nation's own housing project, "opposes" catches
+every planning row on earth. Verified against both traps — "Fort Nelson First Nation
+Aggregate Pit" does *not* classify as opposition, and neither does "tribe opposes casino
+over water quality".
+
+`trade` covers the live market: auctions and online listings, customs and INTERPOL
+seizures, smuggling. Small volume, high signal, and the only feed covering a
+present-tense harm rather than a historical one. Sourcing is press-driven rather than
+register-driven, so coverage is patchy by nature.
+
+Both sit **above** `development` and `desecration` in the rule order, because a nation
+objecting to a pipeline is an opposition story that happens to mention a pipeline.
+
 ### Administrative units → fetched live, nothing stored
 
 Every government level worldwide, from **`WelcomeToYourGalaxy/cgaz-boundaries`** —
@@ -199,13 +286,62 @@ on), falling back per file to `raw.githubusercontent.com`, which serves the same
 files with `access-control-allow-origin: *`. So the layer still works if Pages is
 off or mid-build.
 
-**Opening a unit** shows what the harvest already puts inside it — a real
-point-in-polygon test against the record set, holes included, not a bbox
-approximation. Curated per-unit resources are the next layer to go on top; until
-they exist the panel says so rather than showing an empty list that looks
-finished.
+**Opening a unit** does two things. It shows what the harvest puts inside it — a
+real point-in-polygon test against the record set, holes included, not a bbox
+approximation — and it descends into that unit's own sub-units.
+
+CGAZ carries no parent field; every feature has only a `shapeName`. So children
+cannot be selected by attribute. They are selected **geometrically**: fetch the
+country's next level and keep the units whose centroid falls inside the polygon you
+clicked. That is what turns a flat national file into a real country → state →
+county → municipal descent.
+
+### Resources are attached by service area
+
+Every entry in `lenses.json` carries a `serves` list — `GLOBAL`, an ISO3, or
+`ISO3/UnitName` for one ADM1 unit. Opening a unit shows the bodies whose remit
+covers that jurisdiction, deepest first, then the country, then everywhere.
+
+**The rule is jurisdiction of service, not physical address.** The National NAGPRA
+Program has an office in Washington DC and administers the statute for the whole
+United States, so it sits at the country level; filing it under DC would be true
+about the building and useless about the law. Heritage NSW serves one state and
+sits in New South Wales alone. A body serving three states is listed in all three
+— the Sámi Parliaments appear under Norway, Sweden and Finland.
+
+Same model as the projects map's per-unit tree, expressed as a field on the entry
+rather than a second nested file, so there is one source of truth and nothing to
+keep in sync.
+
+**Museums are the deliberate exception**, flagged `located: true` and labelled
+*located here* in the panel. A collection is not a service area — it is a place
+holding ancestors taken from elsewhere. Pretending it "serves" the jurisdiction it
+stands in would misdescribe the thing this map exists to make legible.
+
+Current spread: 40 distinct service areas across 156 entries — 47 global, 30 at US
+federal level, and ten ADM1 units (New South Wales, Western Australia, Victoria,
+England, Scotland, Wales, Hawaii, Alaska, Illinois, Massachusetts). **All ten were
+verified to match CGAZ's `shapeName` exactly**; `GB_ALIAS` reconciles any that
+don't as entries are added.
 
 ### The wire → `wire.json`
+
+The region menu lists **every one of the 151 countries the wire can tag**, named in
+full, not only the ones with an article in the current batch. It used to build its
+options from the articles themselves, so a country with nothing that day disappeared
+from the list and read as *not covered* rather than *nothing today* — and it labelled
+each option with the bare ISO code.
+
+Countries with no items are kept and grouped separately (`Nothing right now`) rather
+than hidden, because "no items" and "not in scope" are different facts and the reader
+should be able to tell which one they're looking at. An article tagged with a code the
+table doesn't know gets its own group instead of being silently dropped.
+
+The name table came from the projects repo's `_WIRE_REGIONS` (212 countries, ISO3)
+reduced through its `_A2TO3` — but that pair only covers 102 of the 151 codes this
+wire emits, so the remaining 49 were completed by hand.
+
+
 
 Google News RSS across 39 locales in 21 languages, plus GDELT DOC 2.0 — both
 transports already proven in the projects repo's wire. An item must contain a
@@ -333,7 +469,7 @@ if it were wide open.
 
 ---
 
-## 5. Lenses — tranche 3
+## 5. Lenses — tranche 4
 
 **156 entries across 12 lenses. 101 carry a URL; 55 carry a search string.**
 

@@ -11,10 +11,26 @@ write them in the SAME flat JSON shape the projects map's facility layer uses
 
 Only lat/lng/name are required; the rest are filled when OSM has them.
 
-Output:
-    cemetery  -> remains_local_cemetery.json      (landuse=cemetery, amenity=grave_yard)
-    crematory -> remains_local_crematory.json     (amenity=crematorium)
-    mortuary  -> remains_local_mortuary.json      (amenity=mortuary, shop=funeral_directors)
+Output (gzipped -- see WHY GZIP below):
+    cemetery  -> remains_local_cemetery.json.gz   (landuse=cemetery, amenity=grave_yard)
+    crematory -> remains_local_crematory.json.gz  (amenity=crematorium)
+    mortuary  -> remains_local_mortuary.json.gz   (amenity=mortuary, shop=funeral_directors)
+
+-----------------------------------------------------------------------------
+WHY GZIP
+-----------------------------------------------------------------------------
+A worldwide cemetery sweep is on the order of half a million to a million features.
+At roughly 76 bytes per row that is 45-75 MB of raw JSON: under GitHub's 100 MB
+hard push limit, but over its 50 MB warning, and a punishing fetch for a browser
+that cannot draw a single dot until the whole file has arrived. Gzip takes it to
+roughly 11-19 MB.
+
+The map inflates it client-side with the same dual-path loader it uses for
+remains.json.gz, which handles BOTH hosting behaviours: GitHub Pages serves a .gz
+file with Content-Encoding: gzip so fetch() has already inflated the body, while a
+plain static host sends the raw bytes. It tries JSON first, then gunzips.
+
+Shard artifacts stay uncompressed -- they are transient and never pushed.
 
 -----------------------------------------------------------------------------
 LEGAL BASIS  --  why this layer is fine to publish, and where it stops
@@ -77,7 +93,7 @@ Tunables (env):
     CONTACT        contact string for the User-Agent
 """
 
-import os, sys, time, json, glob, urllib.request, urllib.parse
+import os, sys, time, json, glob, gzip, urllib.request, urllib.parse
 
 CONTACT     = os.environ.get("CONTACT", "wheelock.chris@gmail.com")
 UA          = "remains-map-cemeteries/1.0 (+%s)" % CONTACT
@@ -112,7 +128,24 @@ SETS = {
                   'node["shop"="funeral_directors"](%s);'
                   'way["shop"="funeral_directors"](%s);'
                   'relation["shop"="funeral_directors"](%s);'),
+    # Museums are a DIFFERENT KIND OF LAYER and it matters that the map says so.
+    # The other three are places that receive the dead by arrangement. A museum is
+    # a place that may be holding ancestors it was never given permission to hold.
+    # It is the potential-holder layer -- the physical counterpart to the `holding`
+    # records and to the NAGPRA inventories.
+    #
+    # An OSM museum tag says nothing about whether that museum holds human remains,
+    # and most do not. So this layer is explicitly NOT a claim: it is the set of
+    # institutions a researcher would have to ask. The map labels it that way.
+    "museum":    ('node["tourism"="museum"](%s);'
+                  'way["tourism"="museum"](%s);'
+                  'relation["tourism"="museum"](%s);'),
 }
+# Types that are burial grounds, and so subject to the archaeological refusal.
+# Museums are exempt: a museum in a listed building carries historic=* and is still
+# a museum, not a grave. Applying the burial-site refusal to it would delete the
+# holder layer almost entirely.
+_BURIAL_TYPES = ("cemetery", "crematory", "mortuary")
 
 # Tags that mean "this is an archaeological or unadvertised burial site".
 # Any element carrying one of these is dropped, even if it also carries a
@@ -126,15 +159,25 @@ _LIFECYCLE = ("was:", "demolished:", "removed:", "abandoned:", "disused:",
               "razed:", "destroyed:", "former:", "proposed:", "construction:")
 
 
-def _reject_archaeological(tags):
-    """True if this element must not be published in the facility layer."""
+def _reject_archaeological(tags, ftype=None):
+    """True if this element must not be published in the facility layer.
+
+    `ftype` scopes the rule. For burial types the refusal is broad: any historic=*
+    at all is enough, because the cost of publishing one unadvertised grave is worse
+    than the cost of dropping a handful of legitimate old cemeteries.
+
+    For MUSEUMS that same breadth would be wrong -- a museum in a listed building
+    carries historic=* and is still a museum. So museums are refused only on the
+    burial-site VALUES and on lifecycle prefixes, never on the mere presence of
+    historic=*. A demolished museum is still not a facility."""
+    burial = (ftype is None) or (ftype in _BURIAL_TYPES)
     for k, v in tags.items():
         kl, vl = k.lower(), str(v).lower()
         if any(kl.startswith(p) for p in _LIFECYCLE):
             return True                      # an unearthing event, not a facility
         if kl in _ARCH_KEYS and vl in _ARCH_VALUES:
             return True
-        if kl == "historic":
+        if burial and kl == "historic":
             return True                      # any historic=* burial feature
         if kl == "archaeological_site":
             return True
@@ -195,11 +238,11 @@ def _overpass(q, label=""):
     return None
 
 
-def _collect(data, out, stats):
+def _collect(data, out, stats, ftype=None):
     for el in (data.get("elements") or []):
         try:
             tg = el.get("tags") or {}
-            if _reject_archaeological(tg):
+            if _reject_archaeological(tg, ftype):
                 stats["refused"] += 1
                 continue
             c = el.get("center") or {}
@@ -220,27 +263,52 @@ def _collect(data, out, stats):
             continue
 
 
-def _fetch_recursive(sel, s, w, n, e, deadline, out, label, stats):
+def _fetch_recursive(sel, s, w, n, e, deadline, out, label, stats, ftype=None):
     """Query a box; on timeout, quarter-split recursively to OSM_MIN_DEG."""
     if deadline and time.time() > deadline:
         return (0, 1, 0)
     data = _overpass(_query(sel, s, w, n, e), label)
     if data is not None:
-        _collect(data, out, stats)
+        _collect(data, out, stats, ftype)
         return (1, 0, 0)
     if (n - s) <= OSM_MIN_DEG * 1.5:
         return (0, 1, 0)                   # smallest box, still failing -> give up
     ok = gu = 0; sp = 1
     for (qs, qw, qn, qe) in _quarters(s, w, n, e):
         a, g, s2 = _fetch_recursive(sel, qs, qw, qn, qe, deadline, out,
-                                    label + "/q", stats)
+                                    label + "/q", stats, ftype)
         ok += a; gu += g; sp += s2
         time.sleep(0.5)
     return (ok, gu, sp)
 
 
 def _outfile(ftype, tag=""):
-    return "remains_local_%s%s.json" % (ftype, tag)
+    """Shard parts stay plain JSON (transient artifacts); the merged file is gzipped
+    (it is what gets committed and what the browser fetches)."""
+    if tag:
+        return "remains_local_%s%s.json" % (ftype, tag)
+    return "remains_local_%s.json.gz" % ftype
+
+
+def _read_rows(path):
+    op = gzip.open if path.endswith(".gz") else open
+    with op(path, "rt", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write_rows(path, rows):
+    if path.endswith(".gz"):
+        with gzip.open(path, "wt", encoding="utf-8") as f:
+            json.dump(rows, f, ensure_ascii=False, separators=(",", ":"))
+        stale = path[:-3]
+        if os.path.exists(stale):
+            try:
+                os.remove(stale)      # never leave an uncompressed twin to be pushed
+            except OSError:
+                pass
+    else:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(rows, f, ensure_ascii=False, separators=(",", ":"))
 
 
 def harvest(ftype):
@@ -263,7 +331,7 @@ def harvest(ftype):
         if time.time() > t_end:
             skipped += 1; continue
         label = "%s %.1f,%.1f" % (ftype, s, w)
-        a, g, sp = _fetch_recursive(sel, s, w, n, e, t_end, out, label, stats)
+        a, g, sp = _fetch_recursive(sel, s, w, n, e, t_end, out, label, stats, ftype)
         if a > 0: ok += 1
         if sp > 0: split += 1
         gaveup += g
@@ -271,8 +339,7 @@ def harvest(ftype):
 
     merged = _dedup(out)
     fn = _outfile(ftype, tag)
-    with open(fn, "w", encoding="utf-8") as f:
-        json.dump(merged, f, ensure_ascii=False, separators=(",", ":"))
+    _write_rows(fn, merged)
     print("  %s: %d facilities (%d tiles ok, %d split, %d leaves gave up, "
           "%d skipped, %d refused as archaeological) -> %s"
           % (ftype, len(merged), ok, split, gaveup, skipped, stats["refused"], fn))
@@ -295,11 +362,11 @@ def _dedup(rows):
 def merge(ftype):
     """Fold shard parts into one file. Never overwrites a healthy file with a
     thinner one -- same anti-wipe rule the other harvesters use."""
-    parts = sorted(glob.glob(_outfile(ftype, "_part*")))
+    parts = sorted(glob.glob("remains_local_%s_part*.json" % ftype))
     rows = []
     for p in parts:
         try:
-            rows += json.load(open(p, encoding="utf-8"))
+            rows += _read_rows(p)
             print("  merge: read %s" % p)
         except Exception as e:
             print("  merge: %s unreadable: %s" % (p, e))
@@ -307,7 +374,7 @@ def merge(ftype):
     fn = _outfile(ftype)
     if os.path.exists(fn):
         try:
-            prior = json.load(open(fn, encoding="utf-8"))
+            prior = _read_rows(fn)
             if len(merged) < len(prior) * 0.6:
                 print("  merge: %d rows is far thinner than the existing %d -- "
                       "keeping the existing file" % (len(merged), len(prior)))
@@ -317,9 +384,14 @@ def merge(ftype):
     if not merged:
         print("  merge: nothing to write for %s" % ftype)
         return []
-    with open(fn, "w", encoding="utf-8") as f:
-        json.dump(merged, f, ensure_ascii=False, separators=(",", ":"))
-    print("  merge: %s -> %d facilities from %d parts" % (fn, len(merged), len(parts)))
+    _write_rows(fn, merged)
+    sz = os.path.getsize(fn) / 1e6
+    print("  merge: %s -> %d facilities from %d parts (%.1f MB gz)"
+          % (fn, len(merged), len(parts), sz))
+    if sz > 45:
+        print("  WARNING: %s is %.1f MB compressed. GitHub warns over 50 MB and "
+              "rejects over 100 MB -- if this keeps growing, split the set by "
+              "continent." % (fn, sz))
     return merged
 
 
