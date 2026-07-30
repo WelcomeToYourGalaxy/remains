@@ -30,23 +30,40 @@ jobs:
           CHECK_SLEEP: '0.7'
         run: python check_lenses.py
       - name: Commit if changed
-        # Same retry loop as the others -- a dead link is a maintenance task, not
-        # a build failure, and a push race must not turn it into one.
+        # Do NOT merge. These jobs REGENERATE the file wholesale, so there is
+        # nothing to reconcile -- and `git merge -X ours` cannot help anyway:
+        # -X ours resolves conflicting hunks INSIDE a file, and does nothing for a
+        # modify/delete TREE conflict. That is exactly what happens when the file
+        # was deleted on the remote while this job rebuilt it, which is what broke
+        # the 2026-07-30 run: five identical CONFLICT (modify/delete) retries, then
+        # exit 1, with a perfectly good 1,887-record harvest thrown away.
+        #
+        # So: take the remote exactly as it is, drop our freshly built file on top,
+        # commit that. Survives deletes, concurrent edits and unrelated commits.
         env:
-          FILE: lenses_status.json
+          FILES: "lenses_status.json"
         run: |
-          git config user.name  "lenses-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add $FILE
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "chore: refresh lenses_status.json"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain -- $FILES)" ]; then
+            echo "No change in $FILES -- nothing to commit."
+            exit 0
+          fi
+          KEEP="$(mktemp -d)"
+          for f in $FILES; do [ -f "$f" ] && cp "$f" "$KEEP/$(basename "$f")"; done
           BR="$(git rev-parse --abbrev-ref HEAD)"
           for i in 1 2 3 4 5; do
             git fetch origin "$BR" || true
-            if git merge -X ours FETCH_HEAD -m "merge remote; keep fresh $FILE" && git push origin HEAD:"$BR"; then
-              echo "pushed"; exit 0
+            git reset --hard "origin/$BR"
+            for f in $FILES; do
+              [ -f "$KEEP/$(basename "$f")" ] && cp "$KEEP/$(basename "$f")" "$f"
+            done
+            git add -- $FILES
+            if git diff --staged --quiet; then
+              echo "identical to remote -- nothing to push"; exit 0
             fi
-            git merge --abort 2>/dev/null || true
-            echo "push race, retry $i"; sleep 6
+            git commit -m "chore: refresh lenses_status.json"
+            if git push origin HEAD:"$BR"; then echo "pushed"; exit 0; fi
+            echo "push race, retry $i"; sleep $((i * 5))
           done
           echo "push failed after 5 retries"; exit 1

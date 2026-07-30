@@ -155,7 +155,38 @@ def _sig(text):
 
 # Which face of the subject an item shows -- lets the map filter the wire the same
 # way it filters the dots.
+# Topic order matters: the FIRST rule that matches wins, so the most specific
+# subjects go first. "opposition" and "trade" both sit above "development" and
+# "desecration" because a tribe objecting to a pipeline is an opposition story that
+# happens to mention a pipeline, not a development story -- and a seizure of
+# trafficked remains is a trade story that happens to mention looting.
 _TOPIC_RULES = (
+    # WHO IS SAYING NO. This is the topic with the most cultural power in the
+    # subject and the least structured data behind it: opposition is a speech act
+    # by a named party, and it lives in comment dockets, interventions, court
+    # filings and press -- never in the permit record. See the note in
+    # harvest_remains.py on why a project record cannot tell you who opposes it.
+    #
+    # Both halves must be present. "Tribe" alone catches a tribe's own housing
+    # project; "opposes" alone catches every planning row on earth. The pairing is
+    # what makes it a claim about ancestors rather than about development.
+    ("opposition", (
+        # objection verbs
+        "oppose", "opposes", "opposed", "opposition", "objection", "objects to",
+        "protest", "blockade", "occupation", "injunction", "sued", "lawsuit",
+        "intervene", "halt work", "stop-work", "stop work order",
+        "cease and desist", "walked off", "refuse consent", "withhold consent",
+        "se opone", "oposicion", "recurso", "demanda",
+    )),
+    ("trade", (
+        # the live market in human remains: auctions, listings, seizures
+        "sold at auction", "auction of human", "auctioned", "auction house",
+        "listed for sale", "for sale online", "ebay", "etsy", "skull collector",
+        "bone trade", "trade in human remains", "seized", "seizure", "confiscat",
+        "customs", "border force", "repatriated after seizure", "smuggl",
+        "interpol", "stolen works of art", "illicit trade", "black market",
+        "trafficking in human remains",
+    )),
     ("redress", ("repatriat", "reburial", "reburied", "returned to", "restitucion",
                  "ruckfuhrung", "restitution", "identified the remains",
                  "handed back", "brought home")),
@@ -176,11 +207,41 @@ _TOPIC_RULES = (
 )
 
 
+# A named Indigenous or community body. Required alongside an objection verb for
+# the "opposition" topic to fire -- see the comment on _TOPIC_RULES.
+_OBJECTOR_TERMS = (
+    "tribe", "tribal", "tribes", "first nation", "first nations", "band council",
+    "pueblo", "nation of", "indigenous", "aboriginal", "traditional owner",
+    "traditional custodian", "native american", "native hawaiian", "iwi", "hapu",
+    "maori", "sami", "saami", "adivasi", "quilombola", "comunidad indigena",
+    "pueblo indigena", "thpo", "historic preservation officer", "elders",
+    "land council", "native title", "registered aboriginal party",
+    "descendant community", "descendants of", "ancestral",
+)
+# Ancestors must actually be at stake. Opposition to a mine over water quality is
+# a real fight, but it is not this map's fight.
+_ANCESTOR_TERMS = (
+    "burial", "burials", "grave", "graves", "cemetery", "remains", "ancestor",
+    "ancestors", "ancestral", "sacred site", "sacred sites", "wahi tapu",
+    "songline", "interment", "human remains", "bones", "funerary",
+)
+
+
+def _has(text, terms):
+    return any(x in text for x in terms)
+
+
 def _topic(text):
     t = _fold(text)
     for name, terms in _TOPIC_RULES:
-        if any(x in t for x in terms):
-            return name
+        if not _has(t, terms):
+            continue
+        if name == "opposition":
+            # needs a named objector AND ancestors at stake, or it is not this
+            # topic -- otherwise every planning dispute lands here
+            if not (_has(t, _OBJECTOR_TERMS) and _has(t, _ANCESTOR_TERMS)):
+                continue
+        return name
     return "other"
 
 

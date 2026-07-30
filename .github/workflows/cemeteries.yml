@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       fac_type:
-        description: 'cemetery | crematory | mortuary | all'
+        description: 'cemetery | crematory | mortuary | museum | all'
         default: 'all'
         required: false
 
@@ -35,14 +35,14 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false          # one bad shard must not kill the others
-      # 3 facilities x 8 shards = 24 jobs, but a free public repo gets 20
+      # 4 facilities x 8 shards = 32 jobs, but a free public repo gets 20
       # concurrent jobs across the WHOLE account -- so an unthrottled matrix
       # leaves four shards sitting "pending" and starves every other workflow
       # behind it. 12 at a time finishes in two comfortable waves and leaves
       # runners free for the daily harvest and the wire.
       max-parallel: 12
       matrix:
-        facility: [cemetery, crematory, mortuary]
+        facility: [cemetery, crematory, mortuary, museum]
         shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@v4
@@ -99,7 +99,7 @@ jobs:
         # So: take the remote exactly as it is, drop our freshly built file on top,
         # commit that. Survives deletes, concurrent edits and unrelated commits.
         env:
-          FILES: "remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz"
+          FILES: "remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz remains_local_museum.json.gz"
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
