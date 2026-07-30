@@ -1,0 +1,62 @@
+# .github/workflows/remains.yml
+# Daily harvest of the "Live unearthings" layer -> remains.json.gz (committed to repo root).
+# Repo: WelcomeToYourGalaxy/remains
+#
+# Four workflows live in this repo and they are all distinct:
+#   remains.yml              this one -- the unearthings/decisions dot layer (daily)
+#   remains_federations.yml  the open-data portal sweep, sharded (twice weekly)
+#   cemeteries.yml           the global OSM cemetery/crematorium/mortuary directory (weekly)
+#   wire.yml                 the topic news wire (every 6 hours)
+#   lenses.yml               link-checks the curated resource lenses (weekly)
+#
+# harvest_remains.py FETCHES the ~2,200-portal registries from the projects repo
+# (WelcomeToYourGalaxy/local-map, harvest_projects.py) rather than vendoring a copy,
+# so the two never drift. Only list literals are parsed, never executed. If that
+# fetch fails the federation sources skip and every other source still runs.
+name: Harvest live unearthings
+
+on:
+  schedule:
+    - cron: "42 7 * * *"        # daily, 07:42 UTC (offset from the projects repo's 06:17)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: harvest-remains
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # harvest_remains.py is pure stdlib -- nothing to install.
+
+      - name: Run harvester
+        env:
+          # Nominatim politeness budget for this run (1 req/sec, hard-capped).
+          # NAGPRA notices are geocoded to the holding institution's city; raise this
+          # only if the diagnostic reports the budget exhausted.
+          GEO_BUDGET: "200"
+          # Override only if the projects repo moves or is renamed.
+          # SIBLING_HARVESTER_URL: ""
+        run: python harvest_remains.py
+
+      - name: Commit refreshed remains.json.gz
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain remains.json.gz)" ]; then
+            git add remains.json.gz
+            git commit -m "chore(remains): daily harvest $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "No change in remains.json.gz -- nothing to commit."
+          fi
