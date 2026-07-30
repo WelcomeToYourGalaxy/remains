@@ -47,6 +47,14 @@ jobs:
           GEO_BUDGET: "200"
           # Override only if the projects repo moves or is renamed.
           # SIBLING_HARVESTER_URL: ""
+          #
+          # The NPS National NAGPRA grids (Inventories, Unclaimed Lists) carry counts
+          # of individuals still held per institution -- nothing else does. Their JSON
+          # endpoint is undocumented, so fetch_nps_nagpra_grid() PROBES for it at run
+          # time and prints what it finds. If run 1 reports no endpoint, open the
+          # network tab on apps.cr.nps.gov/nagprapublic/Home/Inventory, copy the URL
+          # the grid actually calls, and set it here (comma-separated for both grids).
+          # NPS_GRID_PATHS: ""
         run: python harvest_remains.py
 
       - name: Commit refreshed remains.json.gz

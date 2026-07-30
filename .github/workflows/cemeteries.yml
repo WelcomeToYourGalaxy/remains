@@ -9,6 +9,11 @@
 #
 # Cemeteries are far denser than the projects repo's courthouses, so this runs 24
 # shards over a 2.5-degree grid with a tighter recursive-split floor.
+#
+# Output is GZIPPED. A worldwide sweep is 45-75 MB of raw JSON -- past GitHub's 50 MB
+# warning and a punishing browser fetch -- so the merged files are committed as
+# .json.gz and the map inflates them client-side. Shard artifacts stay plain JSON;
+# they are transient and never pushed.
 name: Harvest cemeteries
 
 on:
@@ -80,7 +85,7 @@ jobs:
         run: |
           git config user.name  "cemeteries-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add remains_local_cemetery.json remains_local_crematory.json remains_local_mortuary.json 2>/dev/null || true
+          git add remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "chore: refresh cemetery directory (global OSM sweep)"
           BR="$(git rev-parse --abbrev-ref HEAD)"
