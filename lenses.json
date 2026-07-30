@@ -1,137 +1,1199 @@
 {
-  "_meta": {
-    "tranche": 1,
-    "compiled": "2026-07-29",
-    "note": "Curated resource lenses for the unearthings map. Every entry names a real body or instrument. URLs are NOT live-checked in this file -- check_lenses.py verifies them and writes lenses_status.json, which the map reads to grey out anything that no longer resolves. An entry with no url carries a 'find' string instead: the search that reaches it. That is deliberate; a guessed URL would be worse than no URL.",
-    "coverage_warning": "Weighted toward jurisdictions that have statutory repatriation and heritage-permit regimes, because those are the ones that publish. Absence of a country here is absence of a published regime, not absence of the problem."
-  },
-  "lenses": [
+ "_meta": {
+  "tranche": 3,
+  "compiled": "2026-07-29",
+  "note": "Curated resource lenses for the unearthings map. Every entry names a real body or instrument. URLs are NOT live-checked in this file -- check_lenses.py verifies them and writes lenses_status.json, which the map reads to grey out anything that no longer resolves. An entry with no url carries a \"find\" string instead: the search that reaches it. That is deliberate; a guessed URL that 404s is worse than an honest search string, because it looks authoritative.",
+  "coverage_warning": "Weighted toward jurisdictions that have statutory repatriation and heritage-permit regimes, because those are the ones that publish. Absence of a country here is absence of a published regime, not absence of the problem.",
+  "blind_spot": "Erosion, permafrost thaw and wildfire unearth human remains with no permit, no applicant and no accountable party. Every register this map harvests is a consent or compliance regime, so none of them can see that. The climate lens is a partial answer; the dot layer has no answer at all, and that gap is structural rather than a matter of adding another feed."
+ },
+ "lenses": [
+  {
+   "key": "return",
+   "label": "Repatriation & return",
+   "accent": "#6f9e8c",
+   "desc": "Who is obliged to give ancestors back, under what process, and where the paperwork lands. Start here if remains are already in an institution and the question is how they come home.",
+   "items": [
     {
-      "key": "return",
-      "label": "Repatriation & return",
-      "accent": "#6f9e8c",
-      "desc": "Who is obliged to give ancestors back, under what process, and where the paperwork lands. Start here if remains are already in an institution and the question is how they come home.",
-      "items": [
-        {"name": "National NAGPRA Program (US)", "url": "https://www.nps.gov/subjects/nagpra/", "note": "The compliance hub: law, regulations, notice templates, grants.", "kind": "regulator", "level": "federal"},
-        {"name": "National NAGPRA public databases", "url": "https://www.nps.gov/subjects/nagpra/databases.htm", "note": "Inventories, Summaries, Federal Register notices, Notices in Newspapers, Unclaimed Lists, Grants. The Inventories and Unclaimed tables carry counts of individuals still held.", "kind": "database", "level": "federal"},
-        {"name": "NAGPRA notices index", "url": "https://home1.nps.gov/nagpra/NOTICES/INDEX.HTM", "note": "Notice process, templates, and the published-notice databases.", "kind": "database", "level": "federal"},
-        {"name": "Federal Register", "url": "https://www.federalregister.gov/", "note": "Statutory venue for every US NAGPRA notice. Free API; this map harvests it directly.", "kind": "primary", "level": "federal"},
-        {"name": "Indigenous Repatriation Program (Australia)", "url": "https://www.arts.gov.au/", "note": "Commonwealth program returning ancestral remains from Australian and overseas collections.", "kind": "regulator", "level": "national"},
-        {"name": "Karanga Aotearoa Repatriation Programme, Te Papa (NZ)", "url": "https://www.tepapa.govt.nz/", "note": "Crown-mandated repatriation of Māori and Moriori ancestral remains.", "kind": "regulator", "level": "national"},
-        {"name": "ICOM Code of Ethics for Museums", "url": "https://icom.museum/", "note": "The international professional floor for holding and returning human remains.", "kind": "standard", "level": "international"},
-        {"name": "UK guidance on the care of human remains in museums", "find": "DCMS Guidance for the Care of Human Remains in Museums", "note": "Sets what English and Welsh museums must do; underpins claims against them.", "kind": "standard", "level": "national"},
-        {"name": "German Museums Association guidance on human remains", "find": "Deutscher Museumsbund Empfehlungen menschliche Überreste", "note": "The reference standard for German collections, including colonial-era acquisitions.", "kind": "standard", "level": "national"},
-        {"name": "Dutch committee on colonial collections", "find": "Commissie Koloniale Collecties Netherlands restitution", "note": "Advises on return of objects and remains taken under colonial rule.", "kind": "regulator", "level": "national"}
-      ]
+     "name": "National NAGPRA Program (US)",
+     "url": "https://www.nps.gov/subjects/nagpra/",
+     "note": "The compliance hub: law, regulations, notice templates, grants.",
+     "kind": "regulator",
+     "level": "federal"
     },
     {
-      "key": "consult",
-      "label": "Whom you must consult",
-      "accent": "#c9a227",
-      "desc": "Before a permit, before a dig, before a return: the parties with a legal right to be at the table. Failing to consult them is the most common way a project is stopped.",
-      "items": [
-        {"name": "NATHPO — Tribal Historic Preservation Officers (US)", "url": "https://www.nathpo.org/", "note": "The THPO network. A THPO holds SHPO-equivalent authority on tribal lands.", "kind": "network", "level": "tribal"},
-        {"name": "NCSHPO — State Historic Preservation Officers (US)", "url": "https://ncshpo.org/", "note": "Directory of every SHPO; the Section 106 counterparty in each state.", "kind": "network", "level": "state"},
-        {"name": "Native American Consultation Database (US)", "find": "NPS Native American Consultation Database NACD", "note": "Consultation contacts for federally recognised Tribes, Alaska Native corporations and Native Hawaiian organizations.", "kind": "database", "level": "federal"},
-        {"name": "AIATSIS (Australia)", "url": "https://aiatsis.gov.au/", "note": "Research and collections institute; also the reference point for ethical research protocols.", "kind": "institute", "level": "national"},
-        {"name": "Heritage NSW — Aboriginal cultural heritage", "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects", "note": "Registered Aboriginal Parties, consultation requirements, and the AHIP process this map harvests.", "kind": "regulator", "level": "state"},
-        {"name": "National Native Title Tribunal (Australia)", "url": "http://www.nntt.gov.au/", "note": "Establishes who holds native title or an ILUA over the ground in question.", "kind": "tribunal", "level": "national"},
-        {"name": "Native Land Digital", "url": "https://native-land.ca/", "note": "Community-maintained map of territories, treaties and languages. Orientation, not legal authority — its own makers say so.", "kind": "community", "level": "international"}
-      ]
+     "name": "National NAGPRA public databases",
+     "url": "https://www.nps.gov/subjects/nagpra/databases.htm",
+     "note": "Inventories, Summaries, Federal Register notices, Notices in Newspapers, Unclaimed Lists, Grants. The Inventories and Unclaimed tables carry counts of individuals still held.",
+     "kind": "database",
+     "level": "federal"
     },
     {
-      "key": "regulators",
-      "label": "Heritage regulators & permit registers",
-      "accent": "#b5462f",
-      "desc": "The offices that issue permission to disturb, and the registers where that permission is recorded. This is where a dig becomes legal, so it is where it can be contested.",
-      "items": [
-        {"name": "Heritage NSW — apply for an AHIP", "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects/apply-for-ahip", "note": "s.90 permits to harm Aboriginal objects and places. Applications now run through AHIMS online.", "kind": "regulator", "level": "state"},
-        {"name": "AHIP Boundaries dataset (NSW)", "url": "https://data.nsw.gov.au/data/dataset/aboriginal-heritage-impact-permit-boundaries", "note": "CC-BY polygon layer of permits issued, varied, surrendered or revoked. Harvested by this map. DCCEEW notes some permits are missing; the AHIP Public Register is authoritative.", "kind": "primary", "level": "state"},
-        {"name": "WA Department of Planning, Lands and Heritage", "find": "DPLH Aboriginal Heritage Inquiry System section 18 consent register", "note": "The WA equivalent of an AHIP. Check reuse terms before harvesting.", "kind": "regulator", "level": "state"},
-        {"name": "Heritage New Zealand Pouhere Taonga", "url": "https://www.heritage.org.nz/", "note": "Archaeological authorities under the HNZPTA — permission to modify or destroy an archaeological site, kōiwi tangata included.", "kind": "regulator", "level": "national"},
-        {"name": "Historic England", "url": "https://historicengland.org.uk/", "note": "Advice and consent regime for burial archaeology in England.", "kind": "regulator", "level": "national"},
-        {"name": "Historic Environment Scotland", "url": "https://www.historicenvironment.scot/", "note": "Scottish consents; note Scotland's separate human-remains call-off procedure.", "kind": "regulator", "level": "national"},
-        {"name": "National Monuments Service (Ireland)", "url": "https://www.archaeology.ie/", "note": "Issues excavation licences; consent is required to disturb any burial.", "kind": "regulator", "level": "national"},
-        {"name": "Advisory Council on Historic Preservation (US)", "url": "https://www.achp.gov/", "note": "Runs Section 106. The route by which a federal project's effect on burials becomes a formal, challengeable finding.", "kind": "regulator", "level": "federal"},
-        {"name": "Parks Canada — archaeology and heritage", "url": "https://parks.canada.ca/", "note": "Federal lands permits; provinces run their own heritage-permit systems alongside.", "kind": "regulator", "level": "federal"}
-      ]
+     "name": "NAGPRA notices index",
+     "url": "https://home1.nps.gov/nagpra/NOTICES/INDEX.HTM",
+     "note": "Notice process, templates, and the published-notice databases.",
+     "kind": "database",
+     "level": "federal"
     },
     {
-      "key": "forensic",
-      "label": "Forensic recovery & the disappeared",
-      "accent": "#7d3350",
-      "desc": "When the grave is a crime scene. The teams that exhume, identify and return victims of state violence, war and enforced disappearance — and the bodies that hold them to standards.",
-      "items": [
-        {"name": "ICMP — International Commission on Missing Persons", "url": "https://www.icmp.int/", "note": "The fullest institutional record of conflict-grave exhumation anywhere. Publishes reports rather than open data.", "kind": "institution", "level": "international"},
-        {"name": "EAAF — Equipo Argentino de Antropología Forense", "url": "https://eaaf.org/", "note": "The team that invented much of this field. Works across Latin America and beyond.", "kind": "ngo", "level": "international"},
-        {"name": "FAFG — Fundación de Antropología Forense de Guatemala", "url": "https://fafg.org/", "note": "Exhumation and identification of victims of the Guatemalan internal armed conflict.", "kind": "ngo", "level": "national"},
-        {"name": "UBPD (Colombia)", "url": "https://ubpdbusquedadesaparecidos.co/", "note": "Unidad de Búsqueda de Personas dadas por Desaparecidas — the state search unit. Datasets appear on datos.gov.co.", "kind": "regulator", "level": "national"},
-        {"name": "Comisión Nacional de Búsqueda (Mexico)", "find": "Comisión Nacional de Búsqueda registro fosas clandestinas", "note": "Clandestine-grave registry. Publication is intermittent and aggregate.", "kind": "regulator", "level": "national"},
-        {"name": "ICRC — missing persons and the dead", "url": "https://www.icrc.org/", "note": "Sets the humanitarian standard for handling the dead in armed conflict, including proper burial and traceability.", "kind": "standard", "level": "international"},
-        {"name": "UN Committee on Enforced Disappearances", "url": "https://www.ohchr.org/", "note": "Treaty body under the Convention against Enforced Disappearance; takes urgent actions and country reports.", "kind": "treaty-body", "level": "international"},
-        {"name": "Forensic Architecture", "url": "https://forensic-architecture.org/", "note": "Spatial and open-source investigation of state violence, including grave sites.", "kind": "ngo", "level": "international"}
-      ]
+     "name": "Federal Register",
+     "url": "https://www.federalregister.gov/",
+     "note": "Statutory venue for every US NAGPRA notice. Free API; this map harvests it directly.",
+     "kind": "primary",
+     "level": "federal"
     },
     {
-      "key": "law",
-      "label": "The instruments themselves",
-      "accent": "#8a6f3f",
-      "desc": "Read the statute, not the summary. These are the texts that create the duty, the offence, and the standing to sue.",
-      "items": [
-        {"name": "NAGPRA and 43 CFR Part 10 (US)", "url": "https://www.nps.gov/subjects/nagpra/the-law.htm", "note": "The Act plus the 2024 revised regulations that put duty-of-care and deference to Tribes on a firmer footing.", "kind": "statute", "level": "federal"},
-        {"name": "NHPA §106 and §304 (US)", "url": "https://www.achp.gov/", "note": "§106 creates the review; §304 is why site locations may lawfully be withheld — the legal basis for this map's blurring rule.", "kind": "statute", "level": "federal"},
-        {"name": "Archaeological Resources Protection Act (US)", "find": "Archaeological Resources Protection Act 16 USC 470aa confidentiality", "note": "§9 withholds site location from disclosure; the criminal provisions cover looting on federal and tribal land.", "kind": "statute", "level": "federal"},
-        {"name": "Ley 20/2022 de Memoria Democrática (Spain)", "url": "https://www.boe.es/", "note": "Art. 17 creates the state map of the disappeared AND requires 'preservación especial' of the zones it names — a state publishing grave locations while treating them as needing protection.", "kind": "statute", "level": "national"},
-        {"name": "Burial Act 1857 s.25 (England & Wales)", "url": "https://www.legislation.gov.uk/", "note": "Removal of human remains requires a Ministry of Justice licence. Issued in volume; not published as open data.", "kind": "statute", "level": "national"},
-        {"name": "National Parks and Wildlife Act 1974 s.90 (NSW)", "url": "https://legislation.nsw.gov.au/", "note": "Creates the AHIP, the offence of harming Aboriginal objects, and the stop-work and interim protection orders.", "kind": "statute", "level": "state"},
-        {"name": "Aboriginal Heritage Act (Western Australia)", "url": "https://www.legislation.wa.gov.au/", "note": "The s.18 consent regime. Amended repeatedly since Juukan Gorge — check which version is in force.", "kind": "statute", "level": "state"},
-        {"name": "Heritage New Zealand Pouhere Taonga Act 2014", "url": "https://www.legislation.govt.nz/", "note": "Makes it an offence to modify an archaeological site without authority, whether or not the site is recorded.", "kind": "statute", "level": "national"},
-        {"name": "UNDRIP Article 12", "url": "https://www.un.org/development/desa/indigenouspeoples/", "note": "The right to repatriation of human remains, stated at international level. Persuasive rather than directly enforceable in most courts.", "kind": "declaration", "level": "international"},
-        {"name": "Vermillion Accord on Human Remains", "url": "https://worldarch.org/", "note": "The 1989 professional agreement that respect for the dead and for descendant wishes outranks research interest.", "kind": "standard", "level": "international"}
-      ]
+     "name": "Indigenous Repatriation Program (Australia)",
+     "url": "https://www.arts.gov.au/",
+     "note": "Commonwealth program returning ancestral remains from Australian and overseas collections.",
+     "kind": "regulator",
+     "level": "national"
     },
     {
-      "key": "records",
-      "label": "Records & archives to pry loose",
-      "accent": "#a89b84",
-      "desc": "The paper trail. Accession registers, excavation reports and historic environment records are where an institution's own account of how it acquired remains survives.",
-      "items": [
-        {"name": "FOIA.gov (US)", "url": "https://www.foia.gov/", "note": "Route to agency records. Expect §304 / ARPA §9 withholding on site locations — that is lawful, and it is not a reason to stop.", "kind": "tool", "level": "federal"},
-        {"name": "Excavations.ie", "url": "https://excavations.ie/", "note": "Summary reports for Irish excavations, searchable by county and year.", "kind": "database", "level": "national"},
-        {"name": "Archaeology Data Service (UK)", "url": "https://archaeologydataservice.ac.uk/", "note": "Holds OASIS records and grey-literature excavation reports — often the only public account of a burial dig.", "kind": "archive", "level": "national"},
-        {"name": "Heritage Gateway (England)", "url": "https://www.heritagegateway.org.uk/", "note": "Cross-search of Historic Environment Records held by local authorities.", "kind": "database", "level": "national"},
-        {"name": "AHIMS (NSW)", "url": "https://www.environment.nsw.gov.au/topics/heritage/search-heritage-databases/aboriginal-heritage-information-management-system", "note": "The NSW register of recorded Aboriginal sites, assessment reports and site-impact recordings.", "kind": "database", "level": "state"},
-        {"name": "ArchSite (New Zealand)", "url": "https://www.archsite.org.nz/", "note": "The national archaeological site recording scheme.", "kind": "database", "level": "national"},
-        {"name": "NCTR — National Centre for Truth and Reconciliation (Canada)", "url": "https://nctr.ca/", "note": "Residential school records, including the Missing Children and Unmarked Burials work.", "kind": "archive", "level": "national"}
-      ]
+     "name": "Karanga Aotearoa Repatriation Programme, Te Papa (NZ)",
+     "url": "https://www.tepapa.govt.nz/",
+     "note": "Crown-mandated repatriation of Māori and Moriori ancestral remains.",
+     "kind": "regulator",
+     "level": "national"
     },
     {
-      "key": "watch",
-      "label": "Monitoring & imagery",
-      "accent": "#6f8ea8",
-      "desc": "Watching ground you cannot stand on. Satellite and historic aerial imagery is how looting pits, new access roads and cleared cemeteries get documented without disclosing a site to anyone.",
-      "items": [
-        {"name": "EAMENA", "url": "https://eamena.org/", "note": "Endangered Archaeology in the Middle East and North Africa. Records disturbance and looting with geometry; access is account-gated.", "kind": "database", "level": "international"},
-        {"name": "Copernicus Data Space", "url": "https://dataspace.copernicus.eu/", "note": "Free Sentinel-1 and Sentinel-2 imagery. Sentinel-2 at 10 m will show clearance and new roads, not individual pits.", "kind": "imagery", "level": "international"},
-        {"name": "USGS EarthExplorer", "url": "https://earthexplorer.usgs.gov/", "note": "Landsat plus declassified historic imagery — useful for proving a cemetery existed before it was built over.", "kind": "imagery", "level": "international"},
-        {"name": "ASOR Cultural Heritage Initiatives", "url": "https://www.asor.org/", "note": "Documentation of heritage damage in conflict zones, notably Syria and Iraq.", "kind": "ngo", "level": "international"},
-        {"name": "NCAP — National Collection of Aerial Photography", "url": "https://ncap.org.uk/", "note": "Historic aerial photography; often the best evidence of a burial ground's former extent.", "kind": "archive", "level": "national"}
-      ]
+     "name": "ICOM Code of Ethics for Museums",
+     "url": "https://icom.museum/",
+     "note": "The international professional floor for holding and returning human remains.",
+     "kind": "standard",
+     "level": "international"
     },
     {
-      "key": "allies",
-      "label": "Watchdogs, press & allies",
-      "accent": "#c48f6a",
-      "desc": "The people already doing this work. Investigations, coalitions and professional bodies whose findings you can cite and whose staff will often talk to you.",
-      "items": [
-        {"name": "Association on American Indian Affairs", "url": "https://www.indian-affairs.org/", "note": "Long-running repatriation advocacy and technical support to Tribes.", "kind": "ngo", "level": "national"},
-        {"name": "ProPublica — The Repatriation Project", "url": "https://www.propublica.org/series/the-repatriation-project", "note": "Investigation of which US institutions still hold Native American remains, with a searchable database.", "kind": "journalism", "level": "national"},
-        {"name": "International Coalition of Sites of Conscience", "url": "https://www.sitesofconscience.org/", "note": "Network of memory sites and the practice of turning sites of atrocity into public account.", "kind": "network", "level": "international"},
-        {"name": "Memoria Abierta (Argentina)", "url": "https://memoriaabierta.org.ar/", "note": "Alliance of human-rights organisations mapping sites of state terrorism.", "kind": "ngo", "level": "national"},
-        {"name": "Survival International", "url": "https://www.survivalinternational.org/", "note": "Campaigns with Indigenous and uncontacted peoples, including against extraction on their ground.", "kind": "ngo", "level": "international"},
-        {"name": "Society for American Archaeology", "url": "https://www.saa.org/", "note": "Professional ethics principles; useful when a consultant's conduct is the issue.", "kind": "professional", "level": "international"},
-        {"name": "World Archaeological Congress", "url": "https://worldarch.org/", "note": "Keeper of the Vermillion Accord and the Tamaki Makau-rau Accord on display of human remains.", "kind": "professional", "level": "international"}
-      ]
+     "name": "UK guidance on the care of human remains in museums",
+     "find": "DCMS Guidance for the Care of Human Remains in Museums",
+     "note": "Sets what English and Welsh museums must do; underpins claims against them.",
+     "kind": "standard",
+     "level": "national"
+    },
+    {
+     "name": "German Museums Association guidance on human remains",
+     "find": "Deutscher Museumsbund Empfehlungen menschliche Überreste",
+     "note": "The reference standard for German collections, including colonial-era acquisitions.",
+     "kind": "standard",
+     "level": "national"
+    },
+    {
+     "name": "Dutch committee on colonial collections",
+     "find": "Commissie Koloniale Collecties Netherlands restitution",
+     "note": "Advises on return of objects and remains taken under colonial rule.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Restitution of human remains, France (loi 2023-1194)",
+     "find": "loi 2023 restitution restes humains collections publiques France",
+     "note": "France legislated a general procedure for returning human remains from public collections. Replaces the previous need for a bespoke statute per case.",
+     "kind": "statute",
+     "level": "national"
+    },
+    {
+     "name": "Belgian restitution of remains from the Congo",
+     "find": "Belgium restitution human remains Congo AfricaMuseum provenance",
+     "note": "Belgium legislated on returning colonial-era collections; human remains are handled separately from objects.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Bååstede and Sámi repatriation (Norway/Sweden)",
+     "find": "Baastede Sami repatriation human remains Norway Sweden museum",
+     "note": "The Nordic route: state museums returning Sámi ancestral remains and objects to Sámi institutions.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Ainu remains repatriation (Japan)",
+     "find": "Ainu human remains repatriation Hokkaido University government policy",
+     "note": "Japan runs a government process for returning Ainu remains held by universities, with a national ossuary at Upopoy as the default destination.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Museums Association (UK) — ethics",
+     "url": "https://www.museumsassociation.org/",
+     "note": "Sets and updates the professional line UK museums are held to on holding, displaying and returning human remains.",
+     "kind": "professional",
+     "level": "national"
     }
-  ]
+   ]
+  },
+  {
+   "key": "consult",
+   "label": "Whom you must consult",
+   "accent": "#c9a227",
+   "desc": "Before a permit, before a dig, before a return: the parties with a legal right to be at the table. Failing to consult them is the most common way a project is stopped.",
+   "items": [
+    {
+     "name": "NATHPO — Tribal Historic Preservation Officers (US)",
+     "url": "https://www.nathpo.org/",
+     "note": "The THPO network. A THPO holds SHPO-equivalent authority on tribal lands.",
+     "kind": "network",
+     "level": "tribal"
+    },
+    {
+     "name": "NCSHPO — State Historic Preservation Officers (US)",
+     "url": "https://ncshpo.org/",
+     "note": "Directory of every SHPO; the Section 106 counterparty in each state.",
+     "kind": "network",
+     "level": "state"
+    },
+    {
+     "name": "Native American Consultation Database (US)",
+     "find": "NPS Native American Consultation Database NACD",
+     "note": "Consultation contacts for federally recognised Tribes, Alaska Native corporations and Native Hawaiian organizations.",
+     "kind": "database",
+     "level": "federal"
+    },
+    {
+     "name": "AIATSIS (Australia)",
+     "url": "https://aiatsis.gov.au/",
+     "note": "Research and collections institute; also the reference point for ethical research protocols.",
+     "kind": "institute",
+     "level": "national"
+    },
+    {
+     "name": "Heritage NSW — Aboriginal cultural heritage",
+     "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects",
+     "note": "Registered Aboriginal Parties, consultation requirements, and the AHIP process this map harvests.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "National Native Title Tribunal (Australia)",
+     "url": "http://www.nntt.gov.au/",
+     "note": "Establishes who holds native title or an ILUA over the ground in question.",
+     "kind": "tribunal",
+     "level": "national"
+    },
+    {
+     "name": "Native Land Digital",
+     "url": "https://native-land.ca/",
+     "note": "Community-maintained map of territories, treaties and languages. Orientation, not legal authority — its own makers say so.",
+     "kind": "community",
+     "level": "international"
+    },
+    {
+     "name": "National Congress of American Indians",
+     "url": "https://www.ncai.org/",
+     "note": "The oldest and largest inter-tribal body in the US; policy positions on repatriation and consultation carry weight.",
+     "kind": "network",
+     "level": "tribal"
+    },
+    {
+     "name": "Assembly of First Nations (Canada)",
+     "url": "https://afn.ca/",
+     "note": "National advocacy body for First Nations; the entry point for national-level positions on burials and residential-school sites.",
+     "kind": "network",
+     "level": "national"
+    },
+    {
+     "name": "Inuit Tapiriit Kanatami",
+     "url": "https://www.itk.ca/",
+     "note": "National Inuit representative organisation. Inuit land claims mean a different consultation route from First Nations.",
+     "kind": "network",
+     "level": "national"
+    },
+    {
+     "name": "Registered Aboriginal Parties (Victoria, Australia)",
+     "find": "Registered Aboriginal Party Victoria First Peoples State Relations map",
+     "note": "Victoria formally appoints RAPs with decision-making power over cultural heritage in a defined area. Check which RAP covers the ground before anything else.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "Sámi Parliaments (Norway, Sweden, Finland)",
+     "find": "Sametinget Sami Parliament repatriation cultural heritage",
+     "note": "Three separate parliaments across three states; a cross-border case needs all the relevant ones.",
+     "kind": "assembly",
+     "level": "national"
+    },
+    {
+     "name": "Office of Hawaiian Affairs",
+     "url": "https://www.oha.org/",
+     "note": "The state agency for Native Hawaiian interests; a necessary party in most Hawaiian burial matters.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "Island Burial Councils (Hawaiʻi)",
+     "find": "Hawaii Island Burial Council SHPD iwi kupuna burial treatment plan",
+     "note": "Hawaiʻi runs a distinct regime: island-level councils decide the treatment of previously identified iwi kūpuna. Nothing else in the US works this way.",
+     "kind": "regulator",
+     "level": "state"
+    }
+   ]
+  },
+  {
+   "key": "regulators",
+   "label": "Heritage regulators & permit registers",
+   "accent": "#b5462f",
+   "desc": "The offices that issue permission to disturb, and the registers where that permission is recorded. This is where a dig becomes legal, so it is where it can be contested.",
+   "items": [
+    {
+     "name": "Heritage NSW — apply for an AHIP",
+     "url": "https://www.environment.nsw.gov.au/topics/heritage/permits-agreements-aboriginal-places-objects/apply-for-ahip",
+     "note": "s.90 permits to harm Aboriginal objects and places. Applications now run through AHIMS online.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "AHIP Boundaries dataset (NSW)",
+     "url": "https://data.nsw.gov.au/data/dataset/aboriginal-heritage-impact-permit-boundaries",
+     "note": "CC-BY polygon layer of permits issued, varied, surrendered or revoked. Harvested by this map. DCCEEW notes some permits are missing; the AHIP Public Register is authoritative.",
+     "kind": "primary",
+     "level": "state"
+    },
+    {
+     "name": "WA Department of Planning, Lands and Heritage",
+     "find": "DPLH Aboriginal Heritage Inquiry System section 18 consent register",
+     "note": "The WA equivalent of an AHIP. Check reuse terms before harvesting.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "Heritage New Zealand Pouhere Taonga",
+     "url": "https://www.heritage.org.nz/",
+     "note": "Archaeological authorities under the HNZPTA — permission to modify or destroy an archaeological site, kōiwi tangata included.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Historic England",
+     "url": "https://historicengland.org.uk/",
+     "note": "Advice and consent regime for burial archaeology in England.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Historic Environment Scotland",
+     "url": "https://www.historicenvironment.scot/",
+     "note": "Scottish consents; note Scotland's separate human-remains call-off procedure.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "National Monuments Service (Ireland)",
+     "url": "https://www.archaeology.ie/",
+     "note": "Issues excavation licences; consent is required to disturb any burial.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Advisory Council on Historic Preservation (US)",
+     "url": "https://www.achp.gov/",
+     "note": "Runs Section 106. The route by which a federal project's effect on burials becomes a formal, challengeable finding.",
+     "kind": "regulator",
+     "level": "federal"
+    },
+    {
+     "name": "Parks Canada — archaeology and heritage",
+     "url": "https://parks.canada.ca/",
+     "note": "Federal lands permits; provinces run their own heritage-permit systems alongside.",
+     "kind": "regulator",
+     "level": "federal"
+    },
+    {
+     "name": "INRAP (France)",
+     "url": "https://www.inrap.fr/",
+     "note": "The national preventive-archaeology operator. In France a development that hits burials usually routes through INRAP or a licensed equivalent.",
+     "kind": "operator",
+     "level": "national"
+    },
+    {
+     "name": "Rijksdienst voor het Cultureel Erfgoed (Netherlands)",
+     "url": "https://www.cultureelerfgoed.nl/",
+     "note": "Dutch heritage agency; sets the excavation-certification regime under the Erfgoedwet.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "INAH (Mexico)",
+     "url": "https://www.inah.gob.mx/",
+     "note": "Holds exclusive authority over archaeological remains in Mexico. Any excavation touching pre-Hispanic burials needs INAH consent.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "SAHRA (South Africa)",
+     "url": "https://sahra.org.za/",
+     "note": "Permits under the National Heritage Resources Act, including the specific permit regime for graves and burial grounds.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Archaeological Survey of India",
+     "url": "https://asi.nic.in/",
+     "note": "Central authority for protected monuments and excavation licensing.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Riksantikvarieämbetet (Sweden)",
+     "url": "https://www.raa.se/",
+     "note": "Swedish National Heritage Board; runs the permit regime and the Fornsök site register.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Riksantikvaren (Norway)",
+     "url": "https://www.riksantikvaren.no/",
+     "note": "Norwegian Directorate for Cultural Heritage; automatic protection means burials are protected whether or not they are recorded.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "IPHAN (Brazil)",
+     "find": "IPHAN patrimonio arqueologico licenciamento endosso",
+     "note": "Brazilian federal heritage institute. Archaeological endorsement is a condition of environmental licensing, which is how burials surface in IBAMA files.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Ministerio de Cultura CIRA (Peru)",
+     "find": "Peru Ministerio de Cultura CIRA certificado inexistencia restos arqueologicos",
+     "note": "A CIRA certifies that no archaeological remains exist on a site. Its absence, or a contested one, is often where a Peruvian project can be challenged.",
+     "kind": "regulator",
+     "level": "national"
+    }
+   ]
+  },
+  {
+   "key": "forensic",
+   "label": "Forensic recovery & the disappeared",
+   "accent": "#7d3350",
+   "desc": "When the grave is a crime scene. The teams that exhume, identify and return victims of state violence, war and enforced disappearance — and the bodies that hold them to standards.",
+   "items": [
+    {
+     "name": "ICMP — International Commission on Missing Persons",
+     "url": "https://www.icmp.int/",
+     "note": "The fullest institutional record of conflict-grave exhumation anywhere. Publishes reports rather than open data.",
+     "kind": "institution",
+     "level": "international"
+    },
+    {
+     "name": "EAAF — Equipo Argentino de Antropología Forense",
+     "url": "https://eaaf.org/",
+     "note": "The team that invented much of this field. Works across Latin America and beyond.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "FAFG — Fundación de Antropología Forense de Guatemala",
+     "url": "https://fafg.org/",
+     "note": "Exhumation and identification of victims of the Guatemalan internal armed conflict.",
+     "kind": "ngo",
+     "level": "national"
+    },
+    {
+     "name": "UBPD (Colombia)",
+     "url": "https://ubpdbusquedadesaparecidos.co/",
+     "note": "Unidad de Búsqueda de Personas dadas por Desaparecidas — the state search unit. Datasets appear on datos.gov.co.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Comisión Nacional de Búsqueda (Mexico)",
+     "find": "Comisión Nacional de Búsqueda registro fosas clandestinas",
+     "note": "Clandestine-grave registry. Publication is intermittent and aggregate.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "ICRC — missing persons and the dead",
+     "url": "https://www.icrc.org/",
+     "note": "Sets the humanitarian standard for handling the dead in armed conflict, including proper burial and traceability.",
+     "kind": "standard",
+     "level": "international"
+    },
+    {
+     "name": "UN Committee on Enforced Disappearances",
+     "url": "https://www.ohchr.org/",
+     "note": "Treaty body under the Convention against Enforced Disappearance; takes urgent actions and country reports.",
+     "kind": "treaty-body",
+     "level": "international"
+    },
+    {
+     "name": "Forensic Architecture",
+     "url": "https://forensic-architecture.org/",
+     "note": "Spatial and open-source investigation of state violence, including grave sites.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "Committee on Missing Persons in Cyprus",
+     "find": "Committee on Missing Persons Cyprus exhumation identification bicommunal",
+     "note": "A bicommunal body exhuming and identifying the missing from both communities. One of the few such programmes run jointly by former adversaries.",
+     "kind": "institution",
+     "level": "international"
+    },
+    {
+     "name": "Missing Persons Institute (Bosnia and Herzegovina)",
+     "find": "Missing Persons Institute Bosnia Herzegovina exhumation",
+     "note": "The state institute; works alongside ICMP rather than in place of it.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Mass Graves Directorate (Iraq)",
+     "find": "Iraq Mass Graves Directorate Martyrs Foundation exhumation Yazidi",
+     "note": "State body responsible for locating and exhuming mass graves, including Yazidi sites in Sinjar.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Servicio Médico Legal (Chile)",
+     "find": "Servicio Medico Legal Chile unidad especial identificacion forense detenidos desaparecidos",
+     "note": "Runs Chile’s forensic identification of the disappeared, after the earlier misidentification scandal forced the process to be rebuilt.",
+     "kind": "regulator",
+     "level": "national"
+    },
+    {
+     "name": "Banco Nacional de Datos Genéticos (Argentina)",
+     "find": "Banco Nacional de Datos Geneticos Argentina identificacion",
+     "note": "The genetic archive that makes Argentine identifications possible decades on. The model much of the field copied.",
+     "kind": "institution",
+     "level": "national"
+    },
+    {
+     "name": "INTERPOL Disaster Victim Identification",
+     "find": "INTERPOL DVI guide disaster victim identification standards",
+     "note": "The international standard for identification procedure. Cited well beyond disaster contexts because it is the clearest published protocol.",
+     "kind": "standard",
+     "level": "international"
+    },
+    {
+     "name": "Ukraine exhumation and identification",
+     "find": "Ukraine exhumation identification war dead prosecutor general forensic",
+     "note": "An active, fast-moving programme documented mostly through prosecutorial and ICRC channels rather than a standing register.",
+     "kind": "regulator",
+     "level": "national"
+    }
+   ]
+  },
+  {
+   "key": "law",
+   "label": "The instruments themselves",
+   "accent": "#8a6f3f",
+   "desc": "Read the statute, not the summary. These are the texts that create the duty, the offence, and the standing to sue.",
+   "items": [
+    {
+     "name": "NAGPRA and 43 CFR Part 10 (US)",
+     "url": "https://www.nps.gov/subjects/nagpra/the-law.htm",
+     "note": "The Act plus the 2024 revised regulations that put duty-of-care and deference to Tribes on a firmer footing.",
+     "kind": "statute",
+     "level": "federal"
+    },
+    {
+     "name": "NHPA §106 and §304 (US)",
+     "url": "https://www.achp.gov/",
+     "note": "§106 creates the review; §304 is why site locations may lawfully be withheld — the legal basis for this map's blurring rule.",
+     "kind": "statute",
+     "level": "federal"
+    },
+    {
+     "name": "Archaeological Resources Protection Act (US)",
+     "find": "Archaeological Resources Protection Act 16 USC 470aa confidentiality",
+     "note": "§9 withholds site location from disclosure; the criminal provisions cover looting on federal and tribal land.",
+     "kind": "statute",
+     "level": "federal"
+    },
+    {
+     "name": "Ley 20/2022 de Memoria Democrática (Spain)",
+     "url": "https://www.boe.es/",
+     "note": "Art. 17 creates the state map of the disappeared AND requires 'preservación especial' of the zones it names — a state publishing grave locations while treating them as needing protection.",
+     "kind": "statute",
+     "level": "national"
+    },
+    {
+     "name": "Burial Act 1857 s.25 (England & Wales)",
+     "url": "https://www.legislation.gov.uk/",
+     "note": "Removal of human remains requires a Ministry of Justice licence. Issued in volume; not published as open data.",
+     "kind": "statute",
+     "level": "national"
+    },
+    {
+     "name": "National Parks and Wildlife Act 1974 s.90 (NSW)",
+     "url": "https://legislation.nsw.gov.au/",
+     "note": "Creates the AHIP, the offence of harming Aboriginal objects, and the stop-work and interim protection orders.",
+     "kind": "statute",
+     "level": "state"
+    },
+    {
+     "name": "Aboriginal Heritage Act (Western Australia)",
+     "url": "https://www.legislation.wa.gov.au/",
+     "note": "The s.18 consent regime. Amended repeatedly since Juukan Gorge — check which version is in force.",
+     "kind": "statute",
+     "level": "state"
+    },
+    {
+     "name": "Heritage New Zealand Pouhere Taonga Act 2014",
+     "url": "https://www.legislation.govt.nz/",
+     "note": "Makes it an offence to modify an archaeological site without authority, whether or not the site is recorded.",
+     "kind": "statute",
+     "level": "national"
+    },
+    {
+     "name": "UNDRIP Article 12",
+     "url": "https://www.un.org/development/desa/indigenouspeoples/",
+     "note": "The right to repatriation of human remains, stated at international level. Persuasive rather than directly enforceable in most courts.",
+     "kind": "declaration",
+     "level": "international"
+    },
+    {
+     "name": "Vermillion Accord on Human Remains",
+     "url": "https://worldarch.org/",
+     "note": "The 1989 professional agreement that respect for the dead and for descendant wishes outranks research interest.",
+     "kind": "standard",
+     "level": "international"
+    },
+    {
+     "name": "Convention against Enforced Disappearance (ICPPED)",
+     "url": "https://www.ohchr.org/",
+     "note": "Creates a right to know the fate of the disappeared and a duty to search. The treaty basis for most state search units.",
+     "kind": "treaty",
+     "level": "international"
+    },
+    {
+     "name": "Valletta Convention (archaeological heritage)",
+     "url": "https://www.coe.int/",
+     "note": "Council of Europe treaty requiring states to protect archaeological heritage and to build it into planning. Widely ratified across Europe.",
+     "kind": "treaty",
+     "level": "international"
+    },
+    {
+     "name": "Faro Convention (heritage and society)",
+     "url": "https://www.coe.int/",
+     "note": "Frames heritage as a matter of community rights rather than expert custody — useful where a community’s standing is being denied.",
+     "kind": "treaty",
+     "level": "international"
+    },
+    {
+     "name": "UNESCO 1970 Convention (illicit transfer)",
+     "url": "https://www.unesco.org/",
+     "note": "The instrument behind restitution claims for trafficked material, including remains that entered the market.",
+     "kind": "treaty",
+     "level": "international"
+    },
+    {
+     "name": "Rome Statute",
+     "url": "https://www.icc-cpi.int/",
+     "note": "Enforced disappearance as a crime against humanity; also the destruction of cultural and religious property as a war crime.",
+     "kind": "treaty",
+     "level": "international"
+    },
+    {
+     "name": "36 CFR Part 800 (Section 106 regulations)",
+     "find": "36 CFR 800 protection of historic properties section 106 regulations",
+     "note": "The procedural detail Section 106 actually runs on — timelines, who must be consulted, and what counts as an adverse effect. Where compliance arguments are won or lost.",
+     "kind": "regulation",
+     "level": "federal"
+    },
+    {
+     "name": "Hawaiʻi HRS Chapter 6E and burial rules",
+     "find": "Hawaii Revised Statutes 6E burial sites HAR 13-300 iwi kupuna",
+     "note": "Creates the burial councils and the inadvertent-discovery procedure. Stronger protection for previously identified burials than most US states offer.",
+     "kind": "statute",
+     "level": "state"
+    }
+   ]
+  },
+  {
+   "key": "records",
+   "label": "Records & archives to pry loose",
+   "accent": "#a89b84",
+   "desc": "The paper trail. Accession registers, excavation reports and historic environment records are where an institution's own account of how it acquired remains survives.",
+   "items": [
+    {
+     "name": "FOIA.gov (US)",
+     "url": "https://www.foia.gov/",
+     "note": "Route to agency records. Expect §304 / ARPA §9 withholding on site locations — that is lawful, and it is not a reason to stop.",
+     "kind": "tool",
+     "level": "federal"
+    },
+    {
+     "name": "Excavations.ie",
+     "url": "https://excavations.ie/",
+     "note": "Summary reports for Irish excavations, searchable by county and year.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "Archaeology Data Service (UK)",
+     "url": "https://archaeologydataservice.ac.uk/",
+     "note": "Holds OASIS records and grey-literature excavation reports — often the only public account of a burial dig.",
+     "kind": "archive",
+     "level": "national"
+    },
+    {
+     "name": "Heritage Gateway (England)",
+     "url": "https://www.heritagegateway.org.uk/",
+     "note": "Cross-search of Historic Environment Records held by local authorities.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "AHIMS (NSW)",
+     "url": "https://www.environment.nsw.gov.au/topics/heritage/search-heritage-databases/aboriginal-heritage-information-management-system",
+     "note": "The NSW register of recorded Aboriginal sites, assessment reports and site-impact recordings.",
+     "kind": "database",
+     "level": "state"
+    },
+    {
+     "name": "ArchSite (New Zealand)",
+     "url": "https://www.archsite.org.nz/",
+     "note": "The national archaeological site recording scheme.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "NCTR — National Centre for Truth and Reconciliation (Canada)",
+     "url": "https://nctr.ca/",
+     "note": "Residential school records, including the Missing Children and Unmarked Burials work.",
+     "kind": "archive",
+     "level": "national"
+    },
+    {
+     "name": "Fornsök (Sweden)",
+     "find": "Fornsok Riksantikvarieambetet fornlamningsregister search",
+     "note": "Public search of the Swedish site register, burials included.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "Askeladden / Kulturminnesøk (Norway)",
+     "find": "Askeladden Kulturminnesok Norway cultural heritage database",
+     "note": "Norway’s heritage register, with a public-facing search layer.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "Fund og Fortidsminder (Denmark)",
+     "find": "Fund og Fortidsminder Slots- og Kulturstyrelsen database",
+     "note": "Danish register of finds and monuments.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "Archis (Netherlands)",
+     "find": "Archis RCE archeologisch informatiesysteem Netherlands",
+     "note": "The Dutch archaeological information system; excavation documentation is deposited here.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "Atlas des patrimoines / Patriarche (France)",
+     "find": "Atlas des patrimoines Patriarche carte archeologique nationale",
+     "note": "France’s national archaeological map. Access to the sensitive layers is restricted — which is itself the same reasoning this map applies.",
+     "kind": "database",
+     "level": "national"
+    },
+    {
+     "name": "National NAGPRA Summaries database",
+     "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary",
+     "note": "Which Tribes and Native Hawaiian organizations should have received a summary of a collection, and when. Establishes whether consultation was even attempted.",
+     "kind": "database",
+     "level": "federal"
+    },
+    {
+     "name": "National NAGPRA newspaper notices",
+     "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID",
+     "note": "Notices of intended disposition published in newspapers before January 2024, when the requirement moved to the Federal Register. The only route to that earlier window.",
+     "kind": "database",
+     "level": "federal"
+    },
+    {
+     "name": "National NAGPRA grants database",
+     "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant",
+     "note": "Every NAGPRA grant awarded since 1994, filterable by state. Shows which institutions and Tribes have been funded to do this work — and which have not.",
+     "kind": "database",
+     "level": "federal"
+    }
+   ]
+  },
+  {
+   "key": "watch",
+   "label": "Monitoring & imagery",
+   "accent": "#6f8ea8",
+   "desc": "Watching ground you cannot stand on. Satellite and historic aerial imagery is how looting pits, new access roads and cleared cemeteries get documented without disclosing a site to anyone.",
+   "items": [
+    {
+     "name": "EAMENA",
+     "url": "https://eamena.org/",
+     "note": "Endangered Archaeology in the Middle East and North Africa. Records disturbance and looting with geometry; access is account-gated.",
+     "kind": "database",
+     "level": "international"
+    },
+    {
+     "name": "Copernicus Data Space",
+     "url": "https://dataspace.copernicus.eu/",
+     "note": "Free Sentinel-1 and Sentinel-2 imagery. Sentinel-2 at 10 m will show clearance and new roads, not individual pits.",
+     "kind": "imagery",
+     "level": "international"
+    },
+    {
+     "name": "USGS EarthExplorer",
+     "url": "https://earthexplorer.usgs.gov/",
+     "note": "Landsat plus declassified historic imagery — useful for proving a cemetery existed before it was built over.",
+     "kind": "imagery",
+     "level": "international"
+    },
+    {
+     "name": "ASOR Cultural Heritage Initiatives",
+     "url": "https://www.asor.org/",
+     "note": "Documentation of heritage damage in conflict zones, notably Syria and Iraq.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "NCAP — National Collection of Aerial Photography",
+     "url": "https://ncap.org.uk/",
+     "note": "Historic aerial photography; often the best evidence of a burial ground's former extent.",
+     "kind": "archive",
+     "level": "national"
+    },
+    {
+     "name": "Global Forest Watch",
+     "url": "https://www.globalforestwatch.org/",
+     "note": "Near-real-time clearance alerts. Not a burial tool, but clearance is what precedes a dig, and the alerts are dated.",
+     "kind": "imagery",
+     "level": "international"
+    },
+    {
+     "name": "Sentinel Hub EO Browser",
+     "find": "Sentinel Hub EO Browser free satellite imagery",
+     "note": "Browser-based Sentinel and Landsat comparison with a time slider — the quickest way to date a change on the ground.",
+     "kind": "imagery",
+     "level": "international"
+    },
+    {
+     "name": "Planet NICFI basemaps",
+     "find": "Planet NICFI Basemaps free access tropical imagery",
+     "note": "Free high-resolution tropical basemaps for non-commercial use. Resolution enough to see access tracks.",
+     "kind": "imagery",
+     "level": "international"
+    },
+    {
+     "name": "National Library of Scotland georeferenced maps",
+     "url": "https://maps.nls.uk/",
+     "note": "Historic Ordnance Survey sheets aligned to modern coordinates. Often the single best evidence that a burial ground existed where something has since been built — and how far it extended.",
+     "kind": "archive",
+     "level": "national"
+    }
+   ]
+  },
+  {
+   "key": "allies",
+   "label": "Watchdogs, press & allies",
+   "accent": "#c48f6a",
+   "desc": "The people already doing this work. Investigations, coalitions and professional bodies whose findings you can cite and whose staff will often talk to you.",
+   "items": [
+    {
+     "name": "Association on American Indian Affairs",
+     "url": "https://www.indian-affairs.org/",
+     "note": "Long-running repatriation advocacy and technical support to Tribes.",
+     "kind": "ngo",
+     "level": "national"
+    },
+    {
+     "name": "ProPublica — The Repatriation Project",
+     "url": "https://www.propublica.org/series/the-repatriation-project",
+     "note": "Investigation of which US institutions still hold Native American remains, with a searchable database.",
+     "kind": "journalism",
+     "level": "national"
+    },
+    {
+     "name": "International Coalition of Sites of Conscience",
+     "url": "https://www.sitesofconscience.org/",
+     "note": "Network of memory sites and the practice of turning sites of atrocity into public account.",
+     "kind": "network",
+     "level": "international"
+    },
+    {
+     "name": "Memoria Abierta (Argentina)",
+     "url": "https://memoriaabierta.org.ar/",
+     "note": "Alliance of human-rights organisations mapping sites of state terrorism.",
+     "kind": "ngo",
+     "level": "national"
+    },
+    {
+     "name": "Survival International",
+     "url": "https://www.survivalinternational.org/",
+     "note": "Campaigns with Indigenous and uncontacted peoples, including against extraction on their ground.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "Society for American Archaeology",
+     "url": "https://www.saa.org/",
+     "note": "Professional ethics principles; useful when a consultant's conduct is the issue.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "World Archaeological Congress",
+     "url": "https://worldarch.org/",
+     "note": "Keeper of the Vermillion Accord and the Tamaki Makau-rau Accord on display of human remains.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "IWGIA",
+     "url": "https://www.iwgia.org/",
+     "note": "Documentation and advocacy on Indigenous rights worldwide; annual country reporting is citable.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "Cultural Survival",
+     "url": "https://www.culturalsurvival.org/",
+     "note": "Indigenous-led advocacy and community media; good route to local voices on a specific site.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "ICOMOS",
+     "url": "https://www.icomos.org/",
+     "note": "Advises UNESCO on heritage; its national committees will sometimes comment on a contested development.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "Blue Shield International",
+     "find": "Blue Shield International cultural property protection armed conflict",
+     "note": "Protection of cultural property in armed conflict, working with militaries and heritage bodies.",
+     "kind": "ngo",
+     "level": "international"
+    },
+    {
+     "name": "Digital Benin and colonial provenance projects",
+     "find": "Digital Benin provenance colonial collections database",
+     "note": "The model for making a dispersed looted collection legible across institutions. Objects rather than remains, but the method transfers.",
+     "kind": "database",
+     "level": "international"
+    },
+    {
+     "name": "European Association of Archaeologists",
+     "find": "European Association of Archaeologists EAA statement human remains ethics",
+     "note": "Pan-European professional body; its statements are the citable European counterpart to the SAA and WAC positions.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "Society for Historical Archaeology",
+     "find": "Society for Historical Archaeology ethics burial descendant communities",
+     "note": "Focused on the historic period, which is where most contested cemetery removals in settler states actually sit.",
+     "kind": "professional",
+     "level": "international"
+    }
+   ]
+  },
+  {
+   "key": "holders",
+   "label": "Who is holding them",
+   "accent": "#9c7fa8",
+   "desc": "Before anything else: find out whether a named institution holds ancestors from a place. These are the collections and the disclosure databases that let you check, rather than ask and wait.",
+   "items": [
+    {
+     "name": "National NAGPRA Inventories database",
+     "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory",
+     "note": "Counts of individuals and associated funerary objects reported by each US museum and federal agency and still pending consultation or notice. The single most direct answer to \"who still has them\".",
+     "kind": "database",
+     "level": "federal"
+    },
+    {
+     "name": "National NAGPRA Unclaimed Lists",
+     "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList",
+     "note": "Human remains and cultural items reported as unclaimed by federal agencies and DHHL. Filterable by agency and state.",
+     "kind": "database",
+     "level": "federal"
+    },
+    {
+     "name": "ProPublica Repatriation Database",
+     "find": "ProPublica repatriation NAGPRA database search institution",
+     "note": "Searchable by institution and by tribe, built from the federal filings. Often faster to read than the government tables it derives from.",
+     "kind": "journalism",
+     "level": "federal"
+    },
+    {
+     "name": "Field Museum repatriation catalogues",
+     "url": "https://repatriation.fieldmuseum.org/",
+     "note": "A museum publishing its own searchable catalogue of ancestral remains not yet culturally affiliated — the disclosure standard others are measured against.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Smithsonian National Museum of Natural History",
+     "url": "https://naturalhistory.si.edu/",
+     "note": "Holds one of the largest collections of human remains anywhere and operates under its own statute (the NMAI Act) rather than NAGPRA.",
+     "kind": "collection",
+     "level": "federal"
+    },
+    {
+     "name": "Natural History Museum, London",
+     "url": "https://www.nhm.ac.uk/",
+     "note": "Large documented human-remains collection; UK law permits deaccession of remains under 1,000 years old.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Peabody Museum, Harvard",
+     "url": "https://peabody.harvard.edu/",
+     "note": "A repeated focus of US repatriation reporting; useful as a worked example of how slowly a large collection moves.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Charité Human Remains Project (Berlin)",
+     "find": "Charite Human Remains Project provenance colonial skulls Berlin",
+     "note": "Provenance research on colonial-era remains in German collections, including returns to Namibia and Australia.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Iziko Museums / UCT human remains (South Africa)",
+     "find": "Iziko Museums South Africa human remains restitution UCT skeletal collection",
+     "note": "South African institutions publicly reckoning with skeletal collections assembled under colonialism and apartheid.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Musée du quai Branly (France)",
+     "url": "https://www.quaibranly.fr/",
+     "note": "Holds a large documented collection of human remains; the reference case for how the 2023 French restitution law is applied in practice.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "Australian Museum",
+     "url": "https://australian.museum/",
+     "note": "Publishes its repatriation programme and provenance work; a useful comparison point for what disclosure looks like when a museum chooses it.",
+     "kind": "collection",
+     "level": "institution"
+    },
+    {
+     "name": "University anatomical collections",
+     "find": "university anatomical museum human remains provenance audit collection",
+     "note": "Medical and anatomy schools hold remains that sit outside the museum sector entirely, and outside most repatriation policy. Often the last place anyone thinks to ask.",
+     "kind": "collection",
+     "level": "institution"
+    }
+   ]
+  },
+  {
+   "key": "remedies",
+   "label": "How it actually gets stopped",
+   "accent": "#c0705a",
+   "desc": "The mechanisms that halt or reverse a disturbance: stop-work powers, complaint bodies with real leverage over funders and companies, and the litigators who use them. Knowing the register is not the same as being able to stop the digger.",
+   "items": [
+    {
+     "name": "ACHP — Section 106 objections and foreclosure",
+     "url": "https://www.achp.gov/",
+     "note": "A federal agency that starts work before finishing Section 106 has foreclosed the process. That is a specific, chargeable failure, not a general grievance.",
+     "kind": "regulator",
+     "level": "federal"
+    },
+    {
+     "name": "Stop-work and interim protection orders (NSW)",
+     "find": "NSW National Parks Wildlife Act stop work order interim protection order Aboriginal object",
+     "note": "Part 6A of the NPW Act lets the regulator stop work and impose interim protection and remediation directions — the fastest statutory brake in the jurisdictions this map covers well.",
+     "kind": "remedy",
+     "level": "state"
+    },
+    {
+     "name": "Native American Rights Fund",
+     "url": "https://www.narf.org/",
+     "note": "Litigates repatriation and sacred-sites cases. The obvious first call for a US tribal claim.",
+     "kind": "legal",
+     "level": "national"
+    },
+    {
+     "name": "ELAW — Environmental Law Alliance Worldwide",
+     "url": "https://elaw.org/",
+     "note": "Connects community lawyers across jurisdictions and supplies technical and scientific backup to local counsel.",
+     "kind": "legal",
+     "level": "international"
+    },
+    {
+     "name": "World Bank Inspection Panel",
+     "url": "https://www.inspectionpanel.org/",
+     "note": "If a Bank-financed project harms a burial ground, affected people can file directly. ESS8 covers cultural heritage, and non-compliance is findable.",
+     "kind": "complaint",
+     "level": "international"
+    },
+    {
+     "name": "IFC/MIGA Compliance Advisor Ombudsman",
+     "url": "https://www.cao-ombudsman.org/",
+     "note": "The equivalent channel for private-sector arms of the World Bank Group; handles both dispute resolution and compliance investigation.",
+     "kind": "complaint",
+     "level": "international"
+    },
+    {
+     "name": "OECD National Contact Points",
+     "url": "https://mneguidelines.oecd.org/",
+     "note": "A specific instance can be filed against a multinational in its home state over conduct abroad. Slow, non-binding, and still uncomfortable enough to move companies.",
+     "kind": "complaint",
+     "level": "international"
+    },
+    {
+     "name": "UN Special Rapporteur on the Rights of Indigenous Peoples",
+     "url": "https://www.ohchr.org/",
+     "note": "Accepts communications on individual cases and can send an urgent appeal to a state while a project is live.",
+     "kind": "complaint",
+     "level": "international"
+    },
+    {
+     "name": "INTERPOL Stolen Works of Art database",
+     "url": "https://www.interpol.int/",
+     "note": "Where trafficked material — including remains that entered the market — gets flagged internationally.",
+     "kind": "database",
+     "level": "international"
+    },
+    {
+     "name": "NAGPRA Review Committee",
+     "find": "NAGPRA Review Committee dispute findings recommendation",
+     "note": "Hears disputes over cultural affiliation and repatriation and issues findings. Non-binding, but a finding is a public, citable statement that an institution is out of step.",
+     "kind": "remedy",
+     "level": "federal"
+    },
+    {
+     "name": "NAGPRA civil penalties",
+     "find": "NAGPRA civil penalty allegation failure to comply museum National Park Service",
+     "note": "A museum that fails to comply can be assessed a civil penalty on an allegation from anyone. Rarely used, and the process is public.",
+     "kind": "remedy",
+     "level": "federal"
+    },
+    {
+     "name": "National NAGPRA grants programme",
+     "find": "National NAGPRA consultation documentation repatriation grants apply",
+     "note": "Money to do the work: consultation and documentation grants for Tribes, NHOs and museums, plus repatriation grants for the physical return.",
+     "kind": "funding",
+     "level": "federal"
+    }
+   ]
+  },
+  {
+   "key": "practice",
+   "label": "Competence & standards",
+   "accent": "#8ba05f",
+   "desc": "Who is qualified to do this, and what competent practice requires. This is the lens that turns \"the consultant’s report was inadequate\" from an assertion into a finding — and it is what you need before hiring anyone to survey or excavate on your side.",
+   "items": [
+    {
+     "name": "Chartered Institute for Archaeologists (CIfA)",
+     "url": "https://www.archaeologists.net/",
+     "note": "Accredits individuals and Registered Organisations in the UK and beyond, and publishes the Standards and Guidance documents that define adequate excavation, watching brief and post-excavation practice. A named accredited person can be held to them.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "BABAO",
+     "url": "https://www.babao.org.uk/",
+     "note": "British Association for Biological Anthropology and Osteoarchaeology. Its ethics and practice guidance is the working reference for how excavated human remains should be treated, recorded and stored.",
+     "kind": "professional",
+     "level": "national"
+    },
+    {
+     "name": "APABE (Advisory Panel on the Archaeology of Burials in England)",
+     "find": "APABE guidance treatment human remains archaeology England",
+     "note": "Joint Church of England and Historic England panel. Its guidance is what English practice is measured against, including reburial and retention decisions.",
+     "kind": "standard",
+     "level": "national"
+    },
+    {
+     "name": "Register of Professional Archaeologists (US)",
+     "find": "Register of Professional Archaeologists RPA grievance code of conduct",
+     "note": "A US register with an enforceable code and a grievance procedure. Whether a consultant is on it, and whether anyone has filed against them, is public.",
+     "kind": "professional",
+     "level": "federal"
+    },
+    {
+     "name": "American Association of Biological Anthropologists",
+     "find": "American Association of Biological Anthropologists ethics human remains statement",
+     "note": "Professional ethics for the discipline that handles skeletal remains, including its own reckoning with how its collections were assembled.",
+     "kind": "professional",
+     "level": "international"
+    },
+    {
+     "name": "Australian consulting archaeology standards",
+     "find": "Australian Association of Consulting Archaeologists code of ethics standards",
+     "note": "Sets the practice floor for the consultants who write the cultural heritage assessments behind AHIPs and s.18 consents.",
+     "kind": "professional",
+     "level": "national"
+    },
+    {
+     "name": "Ground-penetrating radar guidance for burial survey",
+     "find": "ground penetrating radar guidance unmarked graves survey limitations",
+     "note": "GPR finds soil disturbance, not bodies. Knowing that distinction is what stops both over-claiming and dismissal — it has been central to the residential-school reporting.",
+     "kind": "standard",
+     "level": "international"
+    },
+    {
+     "name": "Ethics of ancient DNA and destructive sampling",
+     "find": "ancient DNA ethics guidelines destructive sampling human remains consent descendant communities",
+     "note": "Destructive analysis consumes the remains. Published community guidelines now set expectations for descendant consent before sampling, and they are cited in journal review.",
+     "kind": "standard",
+     "level": "international"
+    }
+   ]
+  },
+  {
+   "key": "climate",
+   "label": "Erosion, thaw & fire",
+   "accent": "#4f8f92",
+   "desc": "The driver with no permit and no applicant. Coasts, thawing ground and wildfire expose remains with nobody to serve notice on — which makes this the one cause of unearthing that every register on this map is structurally blind to. Records here come from monitoring projects and volunteers, not from consent regimes.",
+   "items": [
+    {
+     "name": "SCAPE Trust and SCHARP (Scotland)",
+     "find": "SCAPE Trust SCHARP Scotland coastal heritage at risk eroding burials",
+     "note": "The model for community-led recording of eroding coastal sites, burials included. Volunteers monitor and report; the trust triages what can be rescued.",
+     "kind": "ngo",
+     "level": "national"
+    },
+    {
+     "name": "CITiZAN (England)",
+     "find": "CITiZAN coastal intertidal zone archaeological network England erosion",
+     "note": "Volunteer recording of England’s eroding coastal and intertidal archaeology.",
+     "kind": "ngo",
+     "level": "national"
+    },
+    {
+     "name": "Climate Heritage Network",
+     "url": "https://climateheritage.org/",
+     "note": "Connects heritage bodies working on climate risk; the route to who is already doing this in a given country.",
+     "kind": "network",
+     "level": "international"
+    },
+    {
+     "name": "NOAA Sea Level Rise Viewer",
+     "url": "https://coast.noaa.gov/slr/",
+     "note": "Maps inundation scenarios against the present coast. Useful for showing that a burial ground is on a trajectory, not merely at risk today.",
+     "kind": "imagery",
+     "level": "federal"
+    },
+    {
+     "name": "Alaska erosion and burial exposure",
+     "find": "Alaska coastal erosion village relocation cemetery graves exposed permafrost",
+     "note": "Where erosion, thaw and community relocation intersect most acutely, and where cemeteries are being lost with no mechanism to record it.",
+     "kind": "regulator",
+     "level": "state"
+    },
+    {
+     "name": "Permafrost thaw and archaeological remains",
+     "find": "permafrost thaw archaeology human remains loss Arctic",
+     "note": "Thaw destroys organic preservation that has held for millennia, and does it faster than any survey programme can respond.",
+     "kind": "standard",
+     "level": "international"
+    },
+    {
+     "name": "Wildfire and heritage damage assessment",
+     "find": "wildfire heritage damage assessment archaeological sites burn severity",
+     "note": "Fire strips cover and exposes features, then the emergency earthworks that follow do the real damage. Post-fire assessment is where that gets caught.",
+     "kind": "standard",
+     "level": "international"
+    }
+   ]
+  }
+ ]
 }

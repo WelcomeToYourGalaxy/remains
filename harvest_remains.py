@@ -429,6 +429,46 @@ def _is_remains(text):
     return bool(_REMAINS_RE.search(t))
 
 
+# ---------------------------------------------------------------------------
+# POLICY REFUSAL: site registers are not events, and must not be published here
+# ---------------------------------------------------------------------------
+# Discovered while evaluating New Zealand (2026-07): ArchSite holds ~80,000 recorded
+# archaeological site locations, and NZ district councils publish "Archaeological &
+# Waahi Tapu Sites" layers on CKAN. The federation sweep, searching for burial and
+# cemetery terms, would find exactly those layers.
+#
+# The blurring gate is NOT sufficient protection for them. Coarsening one grave to a
+# 5 km cell hides it in the noise; coarsening a register of thousands of sites still
+# discloses which cells contain them, and for wahi tapu -- sacred places, held
+# deliberately un-public by the communities they belong to -- that disclosure is the
+# harm. A register is also not an unearthing: nothing has happened, nobody has
+# applied, there is no decision and no accountable actor. It fails this map's own
+# definition of a record twice over.
+#
+# So these are refused at DATASET level, before any point is read. This is the first
+# category rejected because the data should not be published rather than because it
+# could not be obtained.
+_SITE_REGISTER_RE = re.compile(
+    r"("
+    r"wahi\s*tapu|wāhi\s*tapu|waahi\s*tapu|"          # NZ sacred places
+    r"site\s+record(?:ing)?\s+scheme|archsite|"
+    r"sacred\s+site|secret\s+site|restricted\s+site|"
+    r"archaeolog\w*\s+(?:site|sites)\s+(?:register|registry|inventory|schedule|list|layer|dataset)|"
+    r"(?:register|registry|inventory|schedule)\s+of\s+archaeolog|"
+    r"heritage\s+(?:site|sites)\s+(?:register|registry|inventory|schedule)|"
+    r"known\s+archaeolog\w*\s+sites|recorded\s+archaeolog\w*\s+sites|"
+    r"sitios\s+arqueológicos|patrimonio\s+arqueológico\s+inventario|"
+    r"carte\s+archéologique|fundstellen|denkmalliste|"
+    r"tumuli\s+(?:register|inventory)|barrow\s+(?:register|inventory)"
+    r")", re.I)
+
+
+def _is_site_register(text):
+    """True if this dataset is a REGISTER OF SITE LOCATIONS rather than a record of
+    something being done. Refused on policy, not on access. See the note above."""
+    return bool(_SITE_REGISTER_RE.search(text or ""))
+
+
 _WORDNUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
             "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
             "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
@@ -1137,7 +1177,11 @@ def fetch_ckan_remains(per_ds=400):
             for term in _REMAINS_TERMS[:12]:
                 for ds in _ckan_datasets(base, term, rows=20):
                     title = str(ds.get("title") or ds.get("name") or "")
-                    if not _is_remains(title + " " + str(ds.get("notes") or "")):
+                    blob = title + " " + str(ds.get("notes") or "")
+                    if _is_site_register(blob):
+                        _REFUSED[0] += 1
+                        continue                    # policy refusal, not a miss
+                    if not _is_remains(blob):
                         continue
                     for res in (ds.get("resources") or []):
                         if "geojson" not in str(res.get("format") or "").lower():
@@ -1169,6 +1213,9 @@ def fetch_ods_remains(per_ds=400):
             continue
         for term in _REMAINS_TERMS[:10]:
             for ds in _ods_datasets(base, term, rows=20):
+                if _is_site_register(ds["title"] + " " + ds["notes"]):
+                    _REFUSED[0] += 1
+                    continue                        # policy refusal, not a miss
                 if not _is_remains(ds["title"] + " " + ds["notes"]):
                     continue
                 for lat, lng, pr in _geojson_points(ds["geojson"], per=per_ds):
@@ -1193,6 +1240,9 @@ def fetch_geonode_remains(per_ds=400):
             continue
         for term in _REMAINS_TERMS[:8]:
             for ds in _geonode_datasets(base, term, rows=15):
+                if _is_site_register(ds["title"] + " " + ds["notes"]):
+                    _REFUSED[0] += 1
+                    continue                        # policy refusal, not a miss
                 if not _is_remains(ds["title"] + " " + ds["notes"]):
                     continue
                 for lat, lng, pr in _geojson_points(ds["geojson"], per=per_ds):
@@ -1270,15 +1320,155 @@ def fetch_mexico_cnb():
     return []
 
 
-def fetch_nps_nagpra_grid():
-    """NPS National NAGPRA public tables (apps.cr.nps.gov/nagprapublic) -- the
-    Inventories, Notices and Unclaimed Lists grids, which carry per-institution
-    counts of individuals still held. The pages are DataTables grids with export
-    buttons, so a JSON endpoint exists behind them, but it was not discoverable
-    from the rendered page. Federal Register covers the notices in the meantime;
-    the Inventories and Unclaimed tables have no substitute and are the single
-    highest-value pending source on this list."""
+# ---------------------------------------------------------------------------
+# NPS National NAGPRA public grids -- DISCOVERY fetcher
+# ---------------------------------------------------------------------------
+# apps.cr.nps.gov/nagprapublic serves its Inventories and Unclaimed Lists as
+# DataTables grids with export buttons, so a JSON endpoint exists behind them. It is
+# not documented and was not visible in the rendered page from the build sandbox.
+#
+# Rather than leave a dead stub or guess a URL into the source, this PROBES at run
+# time -- in Actions, which has the open-web access the sandbox lacks. It reads the
+# grid page, pulls any ajax/url target out of the markup, adds a short list of
+# conventional ASP.NET MVC candidates, and tries each one. A candidate counts as
+# found only if it returns JSON whose rows carry recognisable columns. Whatever
+# happens is printed, so run 1 either wires the source or tells you exactly what to
+# put in _NPS_EXTRA.
+#
+# This matters because these two tables carry COUNTS OF INDIVIDUALS STILL HELD per
+# institution, which nothing else on this map does -- the Federal Register only shows
+# remains once an institution has decided to move them. An institution that has never
+# filed a notice is invisible everywhere except here.
+#
+# Records land as kind="holding" (posture "watch"), plotted at the institution. That
+# is a category the taxonomy has always defined and no source has filled.
+_NPS_BASE = "https://apps.cr.nps.gov/nagprapublic"
+_NPS_GRIDS = [("Inventory", "inventories"), ("UnclaimedList", "unclaimed lists")]
+# Add a known-good path here (from the browser network tab) to skip discovery.
+_NPS_EXTRA = [p for p in os.environ.get("NPS_GRID_PATHS", "").split(",") if p.strip()]
+_NPS_AJAX_RE = re.compile(
+    r"""["']((?:/|https?://)[^"'<>\s]*?(?:nagprapublic|Home)/[A-Za-z0-9_]*"""
+    r"""(?:Data|List|Grid|Json|Get|Load|Read|Table|Search)[A-Za-z0-9_]*)["']""", re.I)
+
+
+def _nps_candidates(grid):
+    """Paths worth trying for one grid, most-likely first. Discovery from the page
+    markup comes first; the conventional guesses are only a fallback."""
+    found = []
+    try:
+        html = _get_text(_NPS_BASE + "/Home/" + grid, limit=3000000)
+        for m in _NPS_AJAX_RE.finditer(html):
+            u = m.group(1)
+            if u.startswith("/"):
+                u = "https://apps.cr.nps.gov" + u
+            if u not in found:
+                found.append(u)
+        if found:
+            print("  nps_nagpra_grid: %s page advertises %d candidate(s)"
+                  % (grid, len(found)))
+    except Exception as e:
+        print("  nps_nagpra_grid: could not read the %s page (%s)" % (grid, e))
+    conventional = ["%s/Home/%s%s" % (_NPS_BASE, verb, grid)
+                    for verb in ("Get", "Load", "Read", "Search")]
+    conventional += ["%s/Home/%s%s" % (_NPS_BASE, grid, suf)
+                     for suf in ("Data", "List", "Json", "Grid")]
+    conventional += ["%s/api/%s" % (_NPS_BASE, grid)]
+    return found + [c for c in conventional if c not in found]
+
+
+def _nps_rows(payload):
+    """DataTables payloads vary: a bare list, or {data:[...]}, or {aaData:[...]}."""
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for k in ("data", "aaData", "Data", "rows", "results", "items"):
+            v = payload.get(k)
+            if isinstance(v, list):
+                return v
     return []
+
+
+_NPS_COLS = ("museum", "institution", "agency", "holder", "state", "individual",
+             "remains", "count", "mni", "funerary", "name")
+
+
+def _nps_looks_right(rows):
+    if not rows or not isinstance(rows[0], dict):
+        return False
+    keys = " ".join(str(k).lower() for k in rows[0].keys())
+    return sum(1 for c in _NPS_COLS if c in keys) >= 2
+
+
+def _nps_probe(grid):
+    for url in _NPS_EXTRA + _nps_candidates(grid):
+        for sep in ("?", "&"):
+            q = url + (sep if "?" not in url or sep == "&" else "?")
+            q += urllib.parse.urlencode({"draw": 1, "start": 0, "length": 5000})
+            try:
+                rows = _nps_rows(_get_json(q))
+            except Exception:
+                continue
+            if _nps_looks_right(rows):
+                print("  nps_nagpra_grid: FOUND %s -> %s (%d rows, cols: %s)"
+                      % (grid, q[:110], len(rows),
+                         ", ".join(list(rows[0].keys())[:8])))
+                return q, rows
+            break                    # url reachable but wrong shape; try the next
+    return None, []
+
+
+def fetch_nps_nagpra_grid():
+    out = []
+    for grid, label in _NPS_GRIDS:
+        url, rows = _nps_probe(grid)
+        if not rows:
+            _flag("nps_nagpra_grid: no endpoint found for %s -- open the network tab "
+                  "on %s/Home/%s and set NPS_GRID_PATHS to what the grid calls"
+                  % (label, _NPS_BASE, grid))
+            continue
+        shown = False
+        for r in rows:
+            if not shown:
+                print("  nps %s fields: %s" % (grid, ", ".join(list(r.keys())[:14])))
+                shown = True
+            inst = str(_first(r, "Museum", "museum", "Institution", "institution",
+                              "MuseumName", "Agency", "agency", "Holder",
+                              "FederalAgency", "Name", "name") or "").strip()
+            if not inst:
+                continue
+            st_raw = str(_first(r, "State", "state", "StateCode", "ST") or "").strip()
+            region = _ST_ABBR.get(st_raw.upper(), st_raw if st_raw in STATE_CENTROID
+                                  else "")
+            n = None
+            for k in ("Individuals", "individuals", "MNI", "NumberOfIndividuals",
+                      "HumanRemains", "CountIndividuals", "Count", "Total"):
+                v = r.get(k)
+                if v not in (None, "", "-"):
+                    try:
+                        n = int(float(str(v).replace(",", "")))
+                        break
+                    except (TypeError, ValueError):
+                        pass
+            rec = {"name": ("%s \u2014 %s" % (inst, label))[:150],
+                   "kind": "holding", "posture": KINDS["holding"][1],
+                   "trigger": "law", "country": "United States", "region": region,
+                   "count": n, "held_by": inst[:120], "actor": inst[:120],
+                   "status": ("Reported to National NAGPRA; %s"
+                              % ("pending consultation or notice" if grid == "Inventory"
+                                 else "reported unclaimed")),
+                   "url": "%s/Home/%s" % (_NPS_BASE, grid),
+                   "date": "", "deadline": "", "source": "nps_nagpra_grid"}
+            latlng, geo = None, GEO_ADMIN
+            if region in STATE_CENTROID:
+                latlng, geo = STATE_CENTROID[region], GEO_ADMIN
+            if latlng is None:
+                continue              # no state, no defensible placement
+            _place(rec, latlng[0], latlng[1], geo)
+            rec["desc"] = (("Reported as held by this institution and not yet "
+                            "repatriated. ") + GEO_NOTE[rec["geo"]])[:200]
+            rec["impact"] = rate_remains(rec)
+            out.append(rec)
+    return out
 
 
 def fetch_uk_moj_licences():
@@ -1309,6 +1499,7 @@ def dedup(items):
 
 _SRC_COUNTS = {}
 _RUN_FLAGS = []
+_REFUSED = [0]      # datasets refused on policy (site registers)
 
 
 def _flag(msg):
@@ -1345,6 +1536,8 @@ def _print_diagnostics():
     if zero:
         print("  ZERO-YIELD (review): " + ", ".join(zero))
     print("  geocoder calls used: %d / %d" % (_GEO_CALLS[0], _GEO_MAX))
+    print("  refused on policy:   %d dataset(s) that are site registers, not events"
+          % _REFUSED[0])
     if _RUN_FLAGS:
         print("  FLAGS (%d):" % len(_RUN_FLAGS))
         for m in _RUN_FLAGS:
