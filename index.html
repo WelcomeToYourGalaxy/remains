@@ -6,6 +6,7 @@
 <title>Live Global Unearthings Map</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Uncial+Antiqua&family=DM+Sans:wght@400;500;700&display=swap');
 
@@ -35,11 +36,12 @@
   /* ---- panels ---------------------------------------------------------- */
   .panel{background:var(--panel);border:1px solid var(--accent-soft);border-radius:10px;
     backdrop-filter:blur(3px);}
-  #controls{position:fixed;top:118px;right:16px;z-index:1001;width:306px;padding:12px 13px;
-    max-height:calc(100vh - 190px);overflow-y:auto;}
-  #controls::-webkit-scrollbar,#leftcol ::-webkit-scrollbar{width:5px;}
-  #controls::-webkit-scrollbar-thumb,#leftcol ::-webkit-scrollbar-thumb{
-    background:var(--accent-soft);border-radius:3px;}
+  #controls{position:fixed;right:14px;bottom:14px;z-index:1001;width:322px;padding:12px 13px;
+    max-height:44vh;overflow-y:auto;}
+  #controls::-webkit-scrollbar,.panel ::-webkit-scrollbar,
+  details.disc .body::-webkit-scrollbar{width:5px;}
+  #controls::-webkit-scrollbar-thumb,.panel ::-webkit-scrollbar-thumb,
+  details.disc .body::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:3px;}
   .pnl-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
     font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;
     letter-spacing:.09em;color:var(--accent-hi);}
@@ -52,12 +54,32 @@
     border-radius:7px;padding:6px 9px;outline:none;}
   select:focus{border-color:var(--accent);}
   select option{background:#1a1611;color:var(--ink);}
-  /* left column holds the key, the wire and the lenses */
-  #leftcol{position:fixed;bottom:18px;left:18px;z-index:1000;width:344px;
-    max-height:calc(100vh - 108px);display:flex;flex-direction:column;gap:9px;overflow:hidden;}
-  #leftcol > .panel{padding:11px 13px;flex:0 0 auto;}
-  #legend .pnl-body{max-height:46vh;overflow-y:auto;}
-  #wireList{max-height:29vh;overflow-y:auto;margin-top:8px;}
+  /* ---- panel layout ---------------------------------------------------
+     wire    : the whole left side, floor to ceiling
+     legend  : to its right, up top
+     entry   : directly beneath the legend, appears when a mark is opened
+     lenses  : top right
+     filters : bottom right
+     All fixed and independently scrollable, so the map stays one continuous
+     surface underneath instead of being boxed in on every side. --------- */
+  #wirePanel{position:fixed;left:14px;top:66px;bottom:14px;width:302px;z-index:1000;
+    padding:11px 13px;display:flex;flex-direction:column;}
+  #wirePanel .pnl-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
+  #wirePanel.collapsed{bottom:auto;}
+  #wireList{flex:1 1 auto;overflow-y:auto;margin-top:8px;min-height:0;}
+
+  #midcol{position:fixed;left:330px;top:66px;bottom:14px;width:374px;z-index:1000;
+    display:flex;flex-direction:column;gap:9px;pointer-events:none;}
+  #midcol > .panel{pointer-events:auto;padding:11px 13px;min-height:0;}
+  #legend{flex:0 1 auto;display:flex;flex-direction:column;overflow:hidden;}
+  #legend .pnl-body{overflow-y:auto;min-height:0;}
+  #entryPanel{flex:1 1 auto;display:none;flex-direction:column;overflow:hidden;}
+  #entryPanel.open{display:flex;}
+  #entryBody{overflow-y:auto;min-height:0;margin-top:8px;}
+
+  #lensPanel{position:fixed;right:14px;top:52px;width:332px;z-index:1000;
+    padding:11px 13px;max-height:52vh;display:flex;flex-direction:column;}
+  #lensPanel .pnl-body{overflow-y:auto;min-height:0;}
   .wi{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);}
   .wi:last-child{border-bottom:none;}
   .wi a{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
@@ -69,7 +91,7 @@
   .wi .tt{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-right:5px;
     background:rgba(255,255,255,.07);color:var(--muted);}
-  #lensBody{max-height:32vh;overflow-y:auto;margin-top:8px;}
+  #lensBody{margin-top:8px;}
   .lens-desc{font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
     line-height:1.5;margin:7px 0 9px;}
   .li{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);}
@@ -171,6 +193,32 @@
     color:var(--accent-hi);text-decoration:none;border-bottom:1px dotted var(--accent-soft);}
   .plink:hover{color:#fff;}
 
+  /* ---- entry box: what a mark opens into, instead of a map popup ------ */
+  .ent-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .ent-close{font-family:'DM Sans',sans-serif;font-size:17px;line-height:1;color:var(--dim);
+    cursor:pointer;background:none;border:none;padding:0 2px;}
+  .ent-close:hover{color:var(--ink);}
+  .ent-kicker{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.09em;color:var(--dim);}
+  #entryBody .pk{font-size:16px;}
+  #entryBody .kv,#entryBody .geo-note,#entryBody .tag,#entryBody .plink{
+    font-family:'DM Sans',sans-serif;}
+  .ent-empty{font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--dim);line-height:1.55;}
+  .ent-sec{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--dim);margin:12px 0 5px;}
+
+  /* ---- administrative-unit drilldown chrome --------------------------- */
+  .gb-crumb{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+    line-height:1.55;margin:6px 2px 0;}
+  .gb-crumb a{color:var(--accent-hi);text-decoration:none;cursor:pointer;
+    border-bottom:1px dotted var(--accent-soft);}
+  .gb-crumb a:hover{color:#fff;}
+  .gb-crumb b{color:var(--ink);font-weight:600;}
+  #gbLoad{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:1003;
+    font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--accent-hi);
+    background:rgba(22,19,14,0.95);border:1px solid var(--accent-soft);border-radius:8px;
+    padding:6px 12px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.5);}
+
   /* ---- states -------------------------------------------------------- */
   #status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1002;
     max-width:430px;padding:20px 24px;text-align:left;display:none;}
@@ -200,9 +248,10 @@
   .leaflet-container{outline:none;}
   :focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
-  @media (max-width:900px){
-    #leftcol{display:none;}
-    #controls{width:auto;left:12px;right:12px;top:auto;bottom:12px;max-height:52vh;}
+  @media (max-width:1180px){ #midcol{display:none;} #lensPanel{max-height:38vh;} }
+  @media (max-width:860px){
+    #wirePanel,#lensPanel{display:none;}
+    #controls{width:auto;left:12px;right:12px;bottom:12px;max-height:50vh;}
     #header .subtitle{font-size:11px;}
   }
 </style>
@@ -222,6 +271,15 @@
     <span>Layers &amp; filters</span><span>&#9662;</span>
   </div>
   <div class="pnl-body">
+    <div class="ctl-title">Administrative units</div>
+    <label class="chk"><input type="checkbox" id="layGB" checked>
+      <b>Boundaries</b> &mdash; <span id="gbLevelLabel">countries</span></label>
+    <div id="gbLevels"></div>
+    <div class="gb-crumb" id="gbCrumb"></div>
+    <div class="ctl-note">Click a country to open its regions, then keep going down.
+      Levels come from the CGAZ set, so the depth available differs by country &mdash;
+      some publish four levels, some only one.</div>
+
     <div class="ctl-title">Layers</div>
     <label class="chk"><input type="checkbox" id="layUnearth" checked>
       <b>Unearthings &amp; decisions</b> &mdash; <span id="nUnearth">&hellip;</span></label>
@@ -264,7 +322,9 @@
   </div>
 </div>
 
-<div id="leftcol">
+<div id="gbLoad">Loading&hellip;</div>
+
+<div id="midcol">
 
 <div id="legend" class="panel">
   <div class="pnl-head" onclick="document.getElementById('legend').classList.toggle('collapsed')">
@@ -282,6 +342,9 @@
       <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
     <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
       <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid #b8912f;border-radius:2px;"></span></i>
+      <span><b>Gold outline</b> &mdash; an administrative unit. Click to go a level deeper;
+      the unit you open turns white.</span></div>
 
     <div class="leg-sec">Shape &mdash; how precise the placement is</div>
     <div class="leg-row"><i><canvas class="lg" data-geo="exact" width="22" height="15"></canvas></i>
@@ -502,6 +565,19 @@
   </div>
 </div>
 
+<div id="entryPanel" class="panel">
+  <div class="ent-head">
+    <div>
+      <div class="ent-kicker" id="entryKicker">Entry</div>
+      <div class="pnl-head" style="cursor:default;" id="entryTitle">Opened entry</div>
+    </div>
+    <button class="ent-close" onclick="closeEntry()" title="Close">&times;</button>
+  </div>
+  <div id="entryBody"></div>
+</div>
+
+</div>
+
 <div id="wirePanel" class="panel">
   <div class="pnl-head" onclick="document.getElementById('wirePanel').classList.toggle('collapsed')">
     <span>The wire <span id="wireCount" style="opacity:.6;font-weight:400;"></span></span><span>&#9662;</span>
@@ -513,7 +589,7 @@
   </div>
 </div>
 
-<div id="lensPanel" class="panel collapsed">
+<div id="lensPanel" class="panel">
   <div class="pnl-head" onclick="document.getElementById('lensPanel').classList.toggle('collapsed')">
     <span>Lenses &mdash; who to go to</span><span>&#9662;</span>
   </div>
@@ -523,8 +599,6 @@
     <div id="lensBody"></div>
     <div class="ctl-note" id="lensStatus"></div>
   </div>
-</div>
-
 </div>
 
 <script>
@@ -736,11 +810,15 @@ var MarkLayer=L.Layer.extend({
 });
 var layer=new MarkLayer().addTo(map);
 
+/* A mark opens the ENTRY BOX docked under the map key, not a floating popup.
+   Popups cover the thing you just clicked and vanish when you touch the map;
+   a docked panel stays put while you keep reading and comparing. */
 map.on('click',function(e){
-  var h=layer.pick(e.containerPoint); if(!h)return;
-  var html=h.rec?popupHTML(h.rec):facilityHTML(h.fac,h.facType);
-  var ll=h.rec?[h.rec.lat,h.rec.lng]:[h.fac[0],h.fac[1]];
-  L.popup({maxWidth:320,autoPanPadding:[26,26]}).setLatLng(ll).setContent(html).openOn(map);
+  var h=layer.pick(e.containerPoint);
+  if(!h) return;                 /* boundary clicks are handled by the gb layer */
+  if(h.rec) openEntry('record', recTitle(h.rec), popupHTML(h.rec));
+  else      openEntry('facility', h.fac[2]||'Unnamed burial ground',
+                      facilityHTML(h.fac,h.facType));
 });
 map.on('mousemove',function(e){
   map.getContainer().style.cursor=layer.pick(e.containerPoint)?'pointer':'';
@@ -783,6 +861,21 @@ function facilityHTML(f,id){
     +'OpenStreetMap contributors (ODbL); verify before relying on it.</div>';
   if(f[3])h+='<a class="plink" href="'+esc(f[3])+'" target="_blank" rel="noopener">Website &rarr;</a>';
   return h;
+}
+
+/* ------------------------------------------------------------- entry box */
+function recTitle(r){ return (r.kind?(KIND_LABEL[r.kind]||r.kind):'Record'); }
+function openEntry(kind,title,html){
+  document.getElementById('entryKicker').textContent =
+    kind==='record'?'Opened record':kind==='facility'?'Opened facility':'Opened unit';
+  document.getElementById('entryTitle').textContent = title||'Entry';
+  document.getElementById('entryBody').innerHTML = html||'';
+  document.getElementById('entryPanel').classList.add('open');
+}
+function closeEntry(){
+  document.getElementById('entryPanel').classList.remove('open');
+  document.getElementById('entryBody').innerHTML='';
+  if(typeof gbSelect==='function') gbSelect(null);
 }
 
 /* ---------------------------------------------------------------- filters */
@@ -920,6 +1013,284 @@ function showStatus(title,body){
   el.innerHTML='<h2>'+title+'</h2>'+body;
   el.style.display='block';
 }
+/* =========================================================================
+   ADMINISTRATIVE UNITS  --  every government level, worldwide
+   =========================================================================
+   Countries come from world-atlas (a topojson keyed by UN numeric code, mapped
+   to ISO3 below). Everything under that comes from the CGAZ set published at
+   BOUNDARY_BASE: ISO3.geojson is ADM1, and a trailing 2/3/4 gives the deeper
+   levels. Large countries are split into ISO3<digit>_<n>.geojson shards, which
+   is what ADM3_PARTS / ADM4_PARTS enumerate.
+
+   Depth is NOT uniform: some countries publish four levels, some only one. The
+   level pills disable themselves when a fetch comes back 404 rather than
+   pretending the level exists.
+
+   Gold styling matches the projects map exactly, so the two atlases read as one
+   family. The layer sits in its own pane at zIndex 350 -- above the atlas plate
+   (250), below the marks (400) -- so a unit outline never covers a dot.
+
+   These units are the frame resources get attached to later. Opening one shows
+   what the harvest already puts inside it; the curated per-unit resources are
+   the next layer on top, and the panel says so rather than looking finished. */
+var BOUNDARY_BASE='https://welcometoyourgalaxy.github.io/cgaz-boundaries/';
+/* Fallback. Pages is the primary because it is CDN-cached and the projects map
+   already runs on it; raw.githubusercontent.com serves the same files with
+   access-control-allow-origin: *, so it works cross-origin if Pages is off or
+   still building. Tried in order, per file, cached either way. */
+var BOUNDARY_RAW='https://raw.githubusercontent.com/WelcomeToYourGalaxy/cgaz-boundaries/main/';
+function gbFetchFile(name){
+  return fetch(BOUNDARY_BASE+name)
+    .then(function(r){ if(!r.ok)throw new Error(r.status); return r.json(); })
+    .catch(function(){
+      return fetch(BOUNDARY_RAW+name).then(function(r){
+        if(!r.ok)throw new Error(r.status); return r.json(); });
+    });
+}
+var WORLD_TOPO='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
+var GB_LEVELS=['ADM1','ADM2','ADM3','ADM4'];
+var GB_LVLNAME={ADM1:'regions / states / provinces',ADM2:'districts / municipalities',
+                ADM3:'municipalities / communes / wards',ADM4:'local units'};
+var GB_LVLSHORT={ADM1:'ADM1',ADM2:'ADM2',ADM3:'ADM3',ADM4:'ADM4'};
+var GB_LVLDIGIT={ADM2:'2',ADM3:'3',ADM4:'4'};
+var ADM3_PARTS={IND:2,CHN:2};
+var ADM4_PARTS={"AUS":4,"BLR":2,"BRA":7,"CAN":2,"CHN":7,"CZE":3,"DEU":4,"ESP":2,"FRA":5,
+                "GBR":3,"IND":6,"IRL":3,"ITA":2,"JPN":2,"MEX":2,"POL":3,"RUS":8,"TUR":2,
+                "UKR":2,"USA":6};
+var NUM2A3={"-99":"XKX","004":"AFG","008":"ALB","010":"ATA","012":"DZA","020":"AND","024":"AGO","028":"ATG","031":"AZE","032":"ARG","036":"AUS","040":"AUT","044":"BHS","048":"BHR","050":"BGD","051":"ARM","052":"BRB","056":"BEL","060":"BMU","064":"BTN","068":"BOL","070":"BIH","072":"BWA","076":"BRA","084":"BLZ","090":"SLB","096":"BRN","100":"BGR","104":"MMR","108":"BDI","112":"BLR","116":"KHM","120":"CMR","124":"CAN","132":"CPV","136":"CYM","140":"CAF","144":"LKA","148":"TCD","152":"CHL","156":"CHN","158":"TWN","170":"COL","174":"COM","178":"COG","180":"COD","184":"COK","188":"CRI","191":"HRV","192":"CUB","196":"CYP","203":"CZE","204":"BEN","208":"DNK","212":"DMA","214":"DOM","218":"ECU","222":"SLV","226":"GNQ","231":"ETH","232":"ERI","233":"EST","234":"FRO","242":"FJI","246":"FIN","248":"ALA","250":"FRA","258":"PYF","262":"DJI","266":"GAB","268":"GEO","270":"GMB","275":"PSE","276":"DEU","288":"GHA","292":"GIB","296":"KIR","300":"GRC","304":"GRL","308":"GRD","320":"GTM","324":"GIN","328":"GUY","332":"HTI","336":"VAT","340":"HND","344":"HKG","348":"HUN","352":"ISL","356":"IND","360":"IDN","364":"IRN","368":"IRQ","372":"IRL","376":"ISR","380":"ITA","384":"CIV","388":"JAM","392":"JPN","398":"KAZ","400":"JOR","404":"KEN","408":"PRK","410":"KOR","414":"KWT","417":"KGZ","418":"LAO","422":"LBN","426":"LSO","428":"LVA","430":"LBR","434":"LBY","438":"LIE","440":"LTU","442":"LUX","446":"MAC","450":"MDG","454":"MWI","458":"MYS","462":"MDV","466":"MLI","470":"MLT","474":"MTQ","478":"MRT","480":"MUS","484":"MEX","492":"MCO","496":"MNG","498":"MDA","499":"MNE","500":"MSR","504":"MAR","508":"MOZ","512":"OMN","516":"NAM","520":"NRU","524":"NPL","528":"NLD","540":"NCL","548":"VUT","554":"NZL","558":"NIC","562":"NER","566":"NGA","570":"NIU","578":"NOR","583":"FSM","584":"MHL","585":"PLW","586":"PAK","591":"PAN","598":"PNG","600":"PRY","604":"PER","608":"PHL","616":"POL","620":"PRT","624":"GNB","626":"TLS","630":"PRI","634":"QAT","642":"ROU","643":"RUS","646":"RWA","659":"KNA","660":"AIA","662":"LCA","670":"VCT","674":"SMR","678":"STP","682":"SAU","686":"SEN","688":"SRB","690":"SYC","694":"SLE","702":"SGP","703":"SVK","704":"VNM","705":"SVN","706":"SOM","710":"ZAF","716":"ZWE","720":"YEM","724":"ESP","728":"SSD","729":"SDN","740":"SUR","748":"SWZ","752":"SWE","756":"CHE","760":"SYR","762":"TJK","764":"THA","768":"TGO","776":"TON","780":"TTO","784":"ARE","788":"TUN","792":"TUR","795":"TKM","798":"TUV","800":"UGA","804":"UKR","807":"MKD","818":"EGY","826":"GBR","832":"JEY","834":"TZA","840":"USA","854":"BFA","858":"URY","860":"UZB","862":"VEN","882":"WSM","887":"YEM","894":"ZMB"};
+
+var gbOn=true, gbCache={}, gbLayer=null, gbFeats=null, gbLevel=null, gbISO=null,
+    gbISOName='', gbSelFeat=null, gbMissing={};
+
+map.createPane('gbDrill');
+map.getPane('gbDrill').style.zIndex=350;
+
+function gbShowLoad(t){var el=document.getElementById('gbLoad');
+  el.textContent=t; el.style.display=t?'block':'none';}
+function gbHideLoad(){gbShowLoad('');}
+
+/* --- gold, exactly as the projects map draws it ------------------------- */
+function gbStyle(feat){
+  var lit = (gbLevel!==null);
+  var st = lit?{color:'#b8912f',weight:2.6,opacity:1,fillColor:'#d8b24a',fillOpacity:0.34}
+              :{color:'rgba(184,145,47,0.55)',weight:2.2,opacity:1,
+                fillColor:'rgba(216,178,74,0.05)',fillOpacity:0.06};
+  if(gbSelFeat && feat===gbSelFeat){
+    st.color='#ffffff'; st.weight=3.6; st.opacity=1;
+    st.fillOpacity=Math.max(st.fillOpacity,0.28);
+  }
+  return st;
+}
+
+/* --- antimeridian: a far-eastern unit (Chukotka, Fiji, NZ) can be a
+   MultiPolygon with pieces on BOTH sides of 180 without any single ring
+   spanning it, so a per-ring test never fires and the unit renders as a
+   globe-spanning streak that also swallows clicks. Shift the minority side
+   (by point count) across, keeping it contiguous. Same fix as the projects
+   map, and gbNormLng is its click-side companion. ---------------------- */
+function gbUnwrapAntimeridian(fc){
+  if(!fc||!fc.features)return fc;
+  function scan(c,st){ if(!c||!c.length)return;
+    if(typeof c[0]==='number'){var x=c[0];if(x<st.lo)st.lo=x;if(x>st.hi)st.hi=x;
+      if(x<0)st.nn++;else st.np++;return;}
+    for(var i=0;i<c.length;i++)scan(c[i],st); }
+  function apply(c,shiftNeg){ if(!c||!c.length)return;
+    if(typeof c[0]==='number'){ if(shiftNeg){if(c[0]<0)c[0]+=360;}
+      else{if(c[0]>0)c[0]-=360;} return; }
+    for(var i=0;i<c.length;i++)apply(c[i],shiftNeg); }
+  fc.features.forEach(function(f){
+    if(!f.geometry||!f.geometry.coordinates)return;
+    var st={lo:Infinity,hi:-Infinity,nn:0,np:0};
+    scan(f.geometry.coordinates,st);
+    if(st.hi>170&&st.lo<-170) apply(f.geometry.coordinates,st.np>=st.nn);
+  });
+  return fc;
+}
+function gbBbox(g){var b=[Infinity,Infinity,-Infinity,-Infinity];
+  (function w(c){ if(!c||!c.length)return;
+    if(typeof c[0]==='number'){ if(c[0]<b[0])b[0]=c[0]; if(c[1]<b[1])b[1]=c[1];
+      if(c[0]>b[2])b[2]=c[0]; if(c[1]>b[3])b[3]=c[1]; return; }
+    for(var i=0;i<c.length;i++)w(c[i]); })(g.coordinates);
+  return b;}
+function gbNormLng(lng,f){ if(!f||!f.geometry)return lng;
+  var g=f.geometry, b=g._nbb||(g._nbb=gbBbox(g));
+  if(b[2]>180&&lng<0)return lng+360;
+  if(b[0]<-180&&lng>0)return lng-360;
+  return lng; }
+
+/* --- fetch a level, following the shard tables ------------------------- */
+function gbFile(iso,lvl){ return iso+(GB_LVLDIGIT[lvl]||'')+'.geojson'; }
+function gbURL(iso,lvl){ return BOUNDARY_BASE+gbFile(iso,lvl); }
+function fetchLevel(iso,lvl){
+  var pmap=(lvl==='ADM3')?ADM3_PARTS:(lvl==='ADM4')?ADM4_PARTS:null, np=pmap&&pmap[iso];
+  if(np){
+    var key=lvl+':parts:'+iso;
+    if(gbCache[key])return Promise.resolve(gbCache[key]);
+    gbShowLoad('Loading '+GB_LVLNAME[lvl]+'\u2026');
+    var d=GB_LVLDIGIT[lvl], names=[];
+    for(var i=1;i<=np;i++)names.push(iso+d+'_'+i+'.geojson');
+    return Promise.all(names.map(gbFetchFile)).then(function(parts){
+      var feats=[]; parts.forEach(function(pp){feats=feats.concat(pp.features||[]);});
+      var fc=gbUnwrapAntimeridian({type:'FeatureCollection',features:feats});
+      gbCache[key]=fc; return fc;
+    });
+  }
+  var url=gbURL(iso,lvl);
+  if(gbCache[url])return Promise.resolve(gbCache[url]);
+  gbShowLoad('Loading '+GB_LVLNAME[lvl]+'\u2026');
+  return gbFetchFile(gbFile(iso,lvl))
+    .then(function(j){ j=gbUnwrapAntimeridian(j); gbCache[url]=j; return j; });
+}
+
+/* --- draw --------------------------------------------------------------- */
+function gbDraw(fc,fit){
+  if(gbLayer&&map.hasLayer(gbLayer))map.removeLayer(gbLayer);
+  gbFeats=fc;
+  if(!gbOn||!fc)return;
+  gbLayer=L.geoJSON(fc,{pane:'gbDrill',style:gbStyle,
+    onEachFeature:function(feat,lyr){
+      lyr.on('click',function(ev){
+        /* marks win: if a dot sits under the pointer, let the map handler have it */
+        try{ if(layer.pick(map.mouseEventToContainerPoint(ev.originalEvent))) return; }catch(e){}
+        L.DomEvent.stopPropagation(ev);
+        gbUnitClick(feat);
+      });
+    }}).addTo(map);
+  if(fit){ try{ map.fitBounds(gbLayer.getBounds(),{padding:[40,40]}); }catch(e){} }
+  gbHideLoad();
+}
+function gbSelect(feat){ gbSelFeat=feat||null; if(gbLayer)gbLayer.setStyle(gbStyle); }
+
+/* --- world (ADM0) ------------------------------------------------------- */
+function gbWorld(fit){
+  gbLevel=null; gbISO=null; gbISOName=''; gbSelFeat=null;
+  gbRenderChrome();
+  var k='world';
+  if(gbCache[k]){ gbDraw(gbCache[k],!!fit); return; }
+  gbShowLoad('Loading countries\u2026');
+  fetch(WORLD_TOPO).then(function(r){ if(!r.ok)throw new Error(r.status); return r.json(); })
+    .then(function(wd){
+      var fc=topojson.feature(wd,wd.objects.countries);
+      fc.features.forEach(function(f){
+        var id=String(f.id||'');
+        while(id.length<3)id='0'+id;
+        f.properties=f.properties||{};
+        f.properties.iso3=NUM2A3[id]||'';
+        f.properties.shapeName=f.properties.name||f.properties.shapeName||'';
+      });
+      fc=gbUnwrapAntimeridian(fc);
+      gbCache[k]=fc; gbDraw(fc,!!fit);
+    })
+    .catch(function(err){ gbShowLoad('Countries failed to load'); 
+      setTimeout(gbHideLoad,2500);
+      if(window.console)console.warn('world boundaries:',err); });
+}
+
+/* --- drill --------------------------------------------------------------- */
+function gbEnter(iso,name,lvl){
+  if(!iso){ return; }
+  lvl=lvl||'ADM1';
+  if(gbMissing[iso+':'+lvl]){ return; }
+  fetchLevel(iso,lvl).then(function(fc){
+    gbISO=iso; gbISOName=name||iso; gbLevel=lvl; gbSelFeat=null;
+    gbRenderChrome(); gbDraw(fc,true);
+  }).catch(function(){
+    gbMissing[iso+':'+lvl]=true;
+    gbShowLoad(name+' publishes no '+GB_LVLSHORT[lvl]);
+    setTimeout(gbHideLoad,2200);
+    gbRenderChrome();
+  });
+}
+function gbUnitClick(feat){
+  var pr=feat.properties||{};
+  if(gbLevel===null){
+    var iso=pr.iso3||'';
+    if(iso) gbEnter(iso, pr.shapeName||iso, 'ADM1');
+    else { gbSelect(feat); openEntry('unit', pr.shapeName||'Unit', unitHTML(feat,'ADM0')); }
+    return;
+  }
+  gbSelect(feat);
+  openEntry('unit', pr.shapeName||'Unit', unitHTML(feat,gbLevel));
+}
+
+/* --- point in polygon, so an opened unit can count what is inside it ---- */
+function gbPtIn(pt,feat){
+  var g=feat.geometry; if(!g)return false;
+  var x=gbNormLng(pt[1],feat), y=pt[0];
+  function ring(rg){ var inside=false;
+    for(var i=0,j=rg.length-1;i<rg.length;j=i++){
+      var xi=rg[i][0],yi=rg[i][1],xj=rg[j][0],yj=rg[j][1];
+      if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    return inside; }
+  function poly(p){ if(!p.length)return false; if(!ring(p[0]))return false;
+    for(var h=1;h<p.length;h++) if(ring(p[h])) return false; return true; }
+  if(g.type==='Polygon') return poly(g.coordinates);
+  if(g.type==='MultiPolygon'){ for(var i=0;i<g.coordinates.length;i++)
+    if(poly(g.coordinates[i]))return true; }
+  return false;
+}
+function unitHTML(feat,lvl){
+  var pr=feat.properties||{};
+  var h='<div class="pk">'+esc(pr.shapeName||'Unnamed unit')+'</div>';
+  h+='<span class="tag t-plain">'+esc(lvl==='ADM0'?'Country':GB_LVLSHORT[lvl]||lvl)+'</span>';
+  if(lvl!=='ADM0'&&gbISOName) h+='<span class="tag t-plain">'+esc(gbISOName)+'</span>';
+  var inside=RECORDS.filter(function(r){
+    return r.lat!=null && gbPtIn([r.lat,r.lng],feat); });
+  var byP={}; inside.forEach(function(r){byP[r.posture]=(byP[r.posture]||0)+1;});
+  h+='<div class="ent-sec">In this unit, from the harvest</div>';
+  if(inside.length){
+    h+='<div class="kv"><span>Records:</span> <b>'+inside.length+'</b></div>';
+    Object.keys(byP).forEach(function(k){
+      h+='<div class="kv"><span>'+esc(k)+':</span> '+byP[k]+'</div>'; });
+    h+='<div class="ent-sec">Records here</div>';
+    inside.slice(0,14).forEach(function(r){
+      h+='<div class="li"><span class="nolink">'+esc(r.name||'')+'</span>'
+        +'<div class="note">'+esc(KIND_LABEL[r.kind]||r.kind||'')
+        +(r.date?' \u00b7 '+esc(r.date):'')+'</div></div>';
+    });
+    if(inside.length>14) h+='<div class="ent-empty">'+(inside.length-14)+' more.</div>';
+  } else {
+    h+='<div class="ent-empty">No harvested records fall inside this unit. That is an '
+      +'absence of <b>records</b>, not of events &mdash; coverage follows whichever '
+      +'registers this jurisdiction publishes.</div>';
+  }
+  h+='<div class="ent-sec">Resources for this unit</div>';
+  h+='<div class="ent-empty">Not attached yet. Units are the frame; the curated '
+    +'per-unit resources &mdash; the offices, registers and contacts that apply '
+    +'<i>here</i> &mdash; are the next layer to go on top of them. Until they exist, '
+    +'this panel says so rather than showing an empty list that looks finished.</div>';
+  return h;
+}
+
+/* --- chrome: level pills + breadcrumb ---------------------------------- */
+function gbRenderChrome(){
+  document.getElementById('gbLevelLabel').textContent =
+    gbLevel===null?'countries':GB_LVLNAME[gbLevel];
+  var lp=document.getElementById('gbLevels');
+  if(gbLevel===null){ lp.innerHTML=''; }
+  else{
+    lp.innerHTML=GB_LEVELS.map(function(l){
+      var dead=gbMissing[gbISO+':'+l];
+      return '<span class="pill'+(l===gbLevel?' on':'')+(dead?' empty':'')
+        +'" data-l="'+l+'">'+GB_LVLSHORT[l]+'</span>';}).join('');
+    lp.onclick=function(e){
+      var b=e.target.closest('.pill'); if(!b||b.classList.contains('empty'))return;
+      gbEnter(gbISO,gbISOName,b.getAttribute('data-l'));
+    };
+  }
+  var cr=document.getElementById('gbCrumb');
+  cr.innerHTML = gbLevel===null
+    ? '<b>World</b> &mdash; click a country to go in.'
+    : '<a onclick="gbWorld(true)">World</a> &rsaquo; <b>'+esc(gbISOName)+'</b> &rsaquo; '
+      +esc(GB_LVLNAME[gbLevel]);
+}
+document.getElementById('layGB').addEventListener('change',function(){
+  gbOn=this.checked;
+  if(!gbOn){ if(gbLayer&&map.hasLayer(gbLayer))map.removeLayer(gbLayer); }
+  else gbDraw(gbFeats,false);
+});
+
 /* ------------------------------------------------------- facility loading */
 /* Loaded lazily on toggle: the global cemetery file is large, and most sessions
    never ask for it. A missing file is a normal state, not an error. */
@@ -1122,7 +1493,7 @@ facCheckbox('cem','layCem','nCem');
 facCheckbox('crem','layCrem','nCrem');
 facCheckbox('mort','layMort','nMort');
 
-load(); loadWire(); loadLenses();
+load(); loadWire(); loadLenses(); gbWorld(false);
 </script>
 </body>
 </html>
