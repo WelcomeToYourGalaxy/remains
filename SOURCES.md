@@ -207,6 +207,94 @@ Three things it is not, and the map says all three:
 It returns nothing, with an explanation, until `remains_local_cemetery.json.gz`
 exists — then it activates on its own.
 
+### `removed-ground`: what it actually means
+
+The kind label was **"Burial ground removed"** and the default record name was
+**"Former burial ground"**, which said two contradictory things at once — one reading
+as a removal under way now, the other as ancient history. It is neither.
+
+OpenStreetMap contributors record, using a lifecycle prefix (`was:`, `demolished:`,
+`removed:`, `abandoned:`), that a burial ground **was** at this spot and no longer is.
+The source says nothing about **when** it went, or about what happened to the people
+in it. It could be last year or two centuries ago.
+
+So the label is now **"Burial ground no longer there"**, unnamed records are
+**"Unnamed burial ground"** rather than "Former", and the description opens *Already
+gone* and states plainly that the date is unknown and the fate of the people in it is
+unrecorded.
+
+### How `removed-ground` is drawn
+
+These are **ground marks**, not event marks: a small hollow square in the facility
+idiom with a faint slash, the size of a cemetery mark rather than an impact-scaled
+dot.
+
+The reason is proportion. On the live harvest, 317 of 1,896 records are
+`removed-ground` — 17% of the map. Drawn as impact-scaled dots they looked exactly
+like live permit applications, so a map that is mostly *things that already happened
+at an unrecorded date* read as a map of *things happening now*. A burial ground that
+vanished decades ago is standing context; there is nothing to intervene in.
+
+**The blur is unchanged.** This is purely how the mark is drawn — `removed-ground` is
+still coarsened by the placement gate like every other kind that identifies a burial
+location. Making a mark look quieter must never make it more precise, and there is a
+test asserting the render branch touches nothing but drawing.
+
+### Coverage is Anglophone, and the reason is structural
+
+Of the records currently held, **about 83% are Australia, the United States and the
+United Kingdom** — New South Wales alone is roughly half the map. Continental Europe
+is thin; Latin America, Africa and Asia are close to absent.
+
+Sources were built against **registers**, and registers of burial disturbance exist
+mainly where a settler state built a permitting bureaucracy for it. NSW alone
+outweighs every non-Anglophone country combined — not because more happens there, but
+because NSW publishes an ArcGIS layer of every permit.
+
+The correction is not a better crawler. It is a different class of source: the news
+wire (already 21 languages across 39 locales), court filings, NGO reporting and UN
+submissions — none of which require a state to have built a database first. The
+portal federations are the largest already-built lever and have not yet completed a
+run; they are where Spain, France, Italy, Brazil, Mexico and Indonesia would come
+from. Design note 11.
+
+### Forensic recovery, in full
+
+Forensic exhumation runs on the opposite logic to heritage archaeology: heritage asks
+whose ancestors these are and where they belong; forensic asks who killed them and
+whether it can be proven — digging as evidence-gathering, under chain of custody, for a
+court or a truth commission.
+
+**Both are in scope, and single cases are included.** They carry their own kind,
+`forensic-case` / *Individual forensic recovery*, so they can be shown with mass graves
+or filtered apart. Collapsing them would hide both — a hundred single cases in one
+district is a pattern a mass-grave-only map would never surface.
+
+`_is_individual_case()` no longer excludes; it **labels**. It runs in `_finish()`, so it
+applies to every source current or future, and it tests the record's shape rather than
+its subject: a plural or group noun overrides, so "missing person case leads
+investigators to a mass grave" stays `mass-grave` while "remains identified as missing
+woman" becomes `forensic-case`. Set `EXCLUDE_INDIVIDUAL_CASES=1` to return to
+group-only.
+
+Individual cases are blurred like every other recovery location and sit at the lowest
+scale floor, so one case never outweighs a grave holding forty people.
+
+This also re-opens the coroner and unidentified-remains registers — NamUs and its
+equivalents — which had been left off the roster only because of the group-only rule.
+
+### Plain-language glossary
+
+28 specialist terms — repatriation, disposition, provenance, deaccession, NAGPRA,
+THPO, Section 106, AHIP, MNI, wāhi tapu, posture, coarsened, ADM1, proximity flag and
+the rest — each with a definition written for someone who has never read a
+repatriation notice. Shown on hover or tap wherever the word appears, and listed in
+full under **Plain-language glossary** in the map key.
+
+One rule enforced by test: **no term is defined using another term from the list.** A
+glossary that explains "repatriation" with "funerary objects" has not explained
+anything.
+
 ### Museums in the facility layer
 
 A fourth facility type, and a different kind of layer from the other three. Cemeteries,

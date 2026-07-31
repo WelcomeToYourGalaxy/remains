@@ -159,6 +159,25 @@ _LIFECYCLE = ("was:", "demolished:", "removed:", "abandoned:", "disused:",
               "razed:", "destroyed:", "former:", "proposed:", "construction:")
 
 
+def classify(tags):
+    """Which facility type is this element? None if it is none of them.
+
+    This is what makes the combined query possible: ask Overpass for all four
+    selectors at once, then sort the answers here instead of asking four times.
+    Order matters -- a museum inside a cemetery is a museum, and funeral_directors
+    is checked before the generic amenity fallbacks."""
+    t = {k.lower(): str(v).lower() for k, v in tags.items()}
+    if t.get("tourism") == "museum":
+        return "museum"
+    if t.get("amenity") == "crematorium":
+        return "crematory"
+    if t.get("amenity") == "mortuary" or t.get("shop") == "funeral_directors":
+        return "mortuary"
+    if t.get("landuse") == "cemetery" or t.get("amenity") == "grave_yard":
+        return "cemetery"
+    return None
+
+
 def _reject_archaeological(tags, ftype=None):
     """True if this element must not be published in the facility layer.
 
@@ -204,6 +223,9 @@ def _quarters(s, w, n, e):
     return [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
 
 
+ALL_SEL = "".join(SETS[k] for k in ("cemetery", "crematory", "mortuary", "museum"))
+
+
 def _query(sel, s, w, n, e):
     bb = "%s,%s,%s,%s" % (s, w, n, e)
     body = sel % tuple([bb] * sel.count("%s"))
@@ -239,12 +261,18 @@ def _overpass(q, label=""):
 
 
 def _collect(data, out, stats, ftype=None):
+    """out is a dict of type -> rows when ftype is None (combined mode),
+    or a plain list when harvesting a single type."""
     for el in (data.get("elements") or []):
         try:
             tg = el.get("tags") or {}
-            if _reject_archaeological(tg, ftype):
+            kind = ftype or classify(tg)
+            if kind is None:
+                continue
+            if _reject_archaeological(tg, kind):
                 stats["refused"] += 1
                 continue
+            bucket = out if isinstance(out, list) else out.setdefault(kind, [])
             c = el.get("center") or {}
             lat = c.get("lat", el.get("lat"))
             lng = c.get("lon", el.get("lon"))
@@ -257,8 +285,8 @@ def _collect(data, out, stats, ftype=None):
             hn = tg.get("addr:housenumber", ""); st = tg.get("addr:street", "")
             city = tg.get("addr:city", "")
             address = " ".join(x for x in [(hn + " " + st).strip(), city] if x).strip()
-            out.append([round(float(lat), 5), round(float(lng), 5),
-                        name[:140], website, "", address, "", phone])
+            bucket.append([round(float(lat), 5), round(float(lng), 5),
+                           name[:140], website, "", address, "", phone])
         except Exception:
             continue
 
@@ -311,8 +339,44 @@ def _write_rows(path, rows):
             json.dump(rows, f, ensure_ascii=False, separators=(",", ":"))
 
 
+EMPTIES_FILE = "osm_empty_tiles.json"
+
+
+def _load_empties():
+    """Tiles that yielded nothing last sweep. Most of the grid is ocean."""
+    try:
+        with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
+            return set(json.load(fh).get("empty", []))
+    except Exception:
+        return set()
+
+
+def _save_empties(empties):
+    try:
+        with open(EMPTIES_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"note": "Tiles that returned no facilities. Skipped on the "
+                               "next sweep except for a rotating eighth, so every "
+                               "tile is re-checked within eight runs.",
+                       "count": len(empties),
+                       "empty": sorted(empties)}, fh)
+    except Exception as e:
+        print("  could not save %s: %s" % (EMPTIES_FILE, e))
+
+
 def harvest(ftype):
-    sel = SETS[ftype]
+    """ftype='all' runs ONE query per tile covering every facility type.
+
+    This is the speed fix. The old shape asked Overpass for each type separately:
+    8,352 tiles x 4 types = 33,408 requests per sweep, spread over 32 jobs that a
+    12-wide runner limit had to process in three waves. Roughly five to six hours.
+
+    Overpass unions are free -- asking for cemeteries, crematoria, mortuaries and
+    museums in one statement costs about the same as asking for cemeteries alone,
+    because the expensive part is the bbox scan, not the number of selectors. So
+    one query per tile does the work of four: 8,352 requests, in 8 jobs that fit a
+    single wave. Same coverage, same data, a quarter of the traffic."""
+    combined = (ftype == "all")
+    sel = ALL_SEL if combined else SETS[ftype]
     grid = _tiles()
     shard = os.environ.get("FAC_SHARD")
     if shard is not None and shard != "":
@@ -324,25 +388,49 @@ def harvest(ftype):
         tag = ""
         print("== %s: whole world -> %d tiles ==" % (ftype, len(grid)))
 
+    # Tiles that returned nothing last sweep are skipped, except for a rotating
+    # eighth that is always re-checked -- so every tile is revisited within eight
+    # runs and newly mapped features are still found. Most of the grid is ocean.
+    empties = _load_empties()
+    rot = int(os.environ.get("OSM_ROTATION", str(int(time.time() // 604800) % 8)))
+    recheck_all = os.environ.get("OSM_RECHECK_ALL") == "1"
+
     t_end = time.time() + BUDGET_MIN * 60
-    out = []; stats = {"refused": 0}
-    ok = split = gaveup = skipped = 0
-    for (s, w, n, e) in grid:
+    out = {} if combined else []
+    stats = {"refused": 0}
+    ok = split = gaveup = skipped = preskipped = 0
+    for (s_, w, n, e) in grid:
+        key = "%.3f,%.3f" % (s_, w)
+        if (not recheck_all) and key in empties and (hash(key) % 8) != rot:
+            preskipped += 1
+            continue
         if time.time() > t_end:
             skipped += 1; continue
-        label = "%s %.1f,%.1f" % (ftype, s, w)
-        a, g, sp = _fetch_recursive(sel, s, w, n, e, t_end, out, label, stats, ftype)
-        if a > 0: ok += 1
+        label = "%s %.1f,%.1f" % (ftype, s_, w)
+        before = sum(len(v) for v in out.values()) if combined else len(out)
+        a, g, sp = _fetch_recursive(sel, s_, w, n, e, t_end, out, label, stats,
+                                    None if combined else ftype)
+        after = sum(len(v) for v in out.values()) if combined else len(out)
+        if a > 0:
+            ok += 1
+            if after == before:
+                empties.add(key)
+            else:
+                empties.discard(key)
         if sp > 0: split += 1
         gaveup += g
         time.sleep(0.4)
 
-    merged = _dedup(out)
-    fn = _outfile(ftype, tag)
-    _write_rows(fn, merged)
-    print("  %s: %d facilities (%d tiles ok, %d split, %d leaves gave up, "
-          "%d skipped, %d refused as archaeological) -> %s"
-          % (ftype, len(merged), ok, split, gaveup, skipped, stats["refused"], fn))
+    _save_empties(empties)
+    types = sorted(out.keys()) if combined else [ftype]
+    for t in types:
+        rows = _dedup(out[t] if combined else out)
+        fn = _outfile(t, tag)
+        _write_rows(fn, rows)
+        print("  %s: %d facilities -> %s" % (t, len(rows), fn))
+    print("  swept %d tiles (%d ok, %d split, %d gave up, %d over budget, "
+          "%d pre-skipped as known-empty), %d refused as archaeological"
+          % (len(grid), ok, split, gaveup, skipped, preskipped, stats["refused"]))
     if gaveup:
         print("  NOTE: %d leaves gave up at the %.4f-degree floor -- lower "
               "OSM_MIN_DEG if a gap remains." % (gaveup, OSM_MIN_DEG))

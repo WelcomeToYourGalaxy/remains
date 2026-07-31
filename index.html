@@ -29,8 +29,12 @@
     padding:12px 18px 26px;}
   #header h1{font-family:'Uncial Antiqua','Marcellus',serif;font-size:22px;font-weight:800;
     letter-spacing:.5px;color:#f4efe4;pointer-events:auto;}
+  /* ONE LINE. The old rule capped it at 62ch, which forced a wrap and pushed the
+     map down. Now it stays on a single line and truncates with an ellipsis if the
+     window is too narrow -- the full sentence lives in the how-to panel anyway. */
   #header .subtitle{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.3px;
-    pointer-events:auto;max-width:62ch;line-height:1.5;}
+    pointer-events:auto;line-height:1.5;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;max-width:calc(100vw - 40px);}
   #header .subtitle b{color:var(--accent-hi);font-weight:400;}
 
   /* ---- panels ---------------------------------------------------------- */
@@ -41,17 +45,17 @@
   #controls::-webkit-scrollbar-thumb,.panel ::-webkit-scrollbar-thumb,
   details.disc .body::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:3px;}
   .pnl-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;
-    font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;
+    font-family:'Marcellus','Georgia',serif;font-size:11px;font-weight:700;text-transform:uppercase;
     letter-spacing:.09em;color:var(--accent-hi);}
   /* MUST out-specify the ID-scoped .pnl-body rules further down
      (#wirePanel .pnl-body, #lensPanel .pnl-body, #legend .pnl-body). Those are
      (1,1,0); this was (0,2,0), so the ID won and `display:flex` beat
      `display:none` -- which is why the wire would not open or close. */
   .panel.collapsed > .pnl-body{display:none !important;}
-  label.chk{display:block;font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
+  label.chk{display:block;font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);
     cursor:pointer;margin:6px 0;line-height:1.45;}
   label.chk input{accent-color:var(--accent);vertical-align:-2px;margin-right:5px;}
-  select{width:100%;font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+  select{width:100%;font-family:'Marcellus','Georgia',serif;font-size:11.5px;color:var(--ink);
     background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);
     border-radius:7px;padding:6px 9px;outline:none;}
   select:focus{border-color:var(--accent);}
@@ -64,57 +68,73 @@
      filters : bottom right
      All fixed and independently scrollable, so the map stays one continuous
      surface underneath instead of being boxed in on every side. --------- */
-  #wirePanel{position:fixed;left:14px;top:66px;bottom:14px;width:302px;z-index:1000;
+  #wirePanel{position:fixed;left:14px;top:66px;bottom:14px;width:340px;z-index:1000;
     padding:11px 13px;display:flex;flex-direction:column;}
-  #wirePanel .pnl-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
+  /* The whole body scrolls, not just the list. The primer above the controls is
+     long by design, and an inner-scrolling list would squeeze it to a few lines
+     while leaving the intro fixed and unreadable. One scrollbar, everything moves. */
+  #wirePanel .pnl-body{flex:1 1 auto;min-height:0;overflow-y:auto;}
   #wirePanel.collapsed{bottom:auto;}
-  #wireList{flex:1 1 auto;overflow-y:auto;margin-top:8px;min-height:0;}
+  #wireList{margin-top:8px;}
 
-  #midcol{position:fixed;left:330px;top:66px;bottom:14px;width:374px;z-index:1000;
+  #midcol{position:fixed;left:368px;top:66px;bottom:14px;width:340px;z-index:1000;
     display:flex;flex-direction:column;gap:9px;pointer-events:none;}
   #midcol > .panel{pointer-events:auto;padding:11px 13px;min-height:0;}
-  #legend{flex:0 1 auto;display:flex;flex-direction:column;overflow:hidden;}
+  /* The opened-entry box gets half the column when open, instead of being squeezed
+     to a strip beneath a very tall how-to panel. With nothing open, entryPanel is
+     display:none and the how-to takes the whole column on its own. */
+  /* The how-to sizes to its own content -- so collapsing it really does give the
+     column away. The opened box then takes ALL the remaining height rather than a
+     fixed share, which is why it is flex:1 1 auto against the how-to's 0 1 auto.
+     The 78% cap stops a fully expanded how-to from leaving the opened box a
+     two-line strip. */
+  #legend{flex:0 1 auto;max-height:78%;display:flex;flex-direction:column;
+    overflow:hidden;min-height:0;}
   #legend .pnl-body{overflow-y:auto;min-height:0;}
-  #entryPanel{flex:1 1 auto;display:none;flex-direction:column;overflow:hidden;}
+  #entryPanel{flex:1 1 auto;display:none;flex-direction:column;overflow:hidden;min-height:0;}
   #entryPanel.open{display:flex;}
   #entryBody{overflow-y:auto;min-height:0;margin-top:8px;}
 
   /* Right-hand column: lenses at the top, filters pinned to the bottom by
-     margin-top:auto. Both live in one flex column, so opening the filters grows
-     it UPWARD until it meets the lens panel and stops -- it cannot run off the
-     bottom of the screen, and it cannot slide under the lenses. Previously each
-     was independently fixed with its own max-height, so the filters could only
-     scroll internally instead of using the space above it. */
+     stacked directly beneath it. Both live in one flex column bounded by the
+     window, so opening either one moves the other with it and neither can run off
+     the screen. Previously each was independently fixed with its own max-height,
+     so the filters could only scroll internally instead of using the free space. */
   #rightcol{position:fixed;right:14px;top:52px;bottom:14px;width:332px;z-index:1001;
-    display:flex;flex-direction:column;gap:9px;pointer-events:none;}
+    display:flex;flex-direction:column;justify-content:flex-start;gap:9px;
+    pointer-events:none;}
   #rightcol > .panel{pointer-events:auto;padding:11px 13px;min-height:0;
     display:flex;flex-direction:column;overflow:hidden;}
   #lensPanel{flex:0 1 auto;}
   #lensPanel .pnl-body{overflow-y:auto;min-height:0;}
-  #controls{flex:0 1 auto;margin-top:auto;}
+  /* NOT margin-top:auto. The filters sit DIRECTLY under the lenses and move with
+     them: open the lenses and the filters slide down to meet them; open the filters
+     too and they stay tucked under, growing downward into the free space rather
+     than being flung to the bottom of the window. */
+  #controls{flex:0 1 auto;}
   #controls .pnl-body{overflow-y:auto;min-height:0;}
   /* collapsed panels must not keep claiming flex space */
   #rightcol > .panel.collapsed{flex:0 0 auto;}
   .wi{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);}
   .wi:last-child{border-bottom:none;}
-  .wi a{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+  .wi a{font-family:'Marcellus','Georgia',serif;font-size:11.5px;color:var(--ink);
     text-decoration:none;line-height:1.4;display:block;}
   .wi a:hover{color:var(--accent-hi);}
-  .wi .meta{font-family:'DM Sans',sans-serif;font-size:9.5px;color:var(--dim);
+  .wi .meta{font-family:'Marcellus','Georgia',serif;font-size:9.5px;color:var(--dim);
     margin-top:3px;letter-spacing:.02em;}
   .wi.sig2 a{font-weight:700;}
   .wi .tt{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-right:5px;
     background:rgba(255,255,255,.07);color:var(--muted);}
   #lensBody{margin-top:8px;}
-  .lens-desc{font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);
+  .lens-desc{font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);
     line-height:1.5;margin:7px 0 9px;}
   .li{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);}
   .li:last-child{border-bottom:none;}
-  .li a,.li span.nolink{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+  .li a,.li span.nolink{font-family:'Marcellus','Georgia',serif;font-size:11.5px;color:var(--ink);
     text-decoration:none;font-weight:600;line-height:1.35;}
   .li a:hover{color:var(--accent-hi);}
-  .li .note{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+  .li .note{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--muted);
     line-height:1.5;margin-top:3px;}
   .li .st{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:1px;}
@@ -123,17 +143,17 @@
   .st-blocked{background:rgba(201,162,39,.18);color:#e6cf85;}
   .st-find{background:rgba(111,158,140,.18);color:#a6cfc0;}
   .li.dead a,.li.dead span.nolink{color:var(--dim);text-decoration:line-through;}
-  .li .lvl{font-family:'DM Sans',sans-serif;font-size:9px;color:var(--dim);
+  .li .lvl{font-family:'Marcellus','Georgia',serif;font-size:9px;color:var(--dim);
     text-transform:uppercase;letter-spacing:.06em;margin-left:6px;}
   details.disc .body .callout{margin:8px 0;padding:8px 10px;background:rgba(255,255,255,.04);
     border-left:2px solid var(--accent);border-radius:4px;}
-  .ctl-title{font-family:'DM Sans',sans-serif;font-size:9.5px;font-weight:700;
+  .ctl-title{font-family:'Marcellus','Georgia',serif;font-size:9.5px;font-weight:700;
     text-transform:uppercase;letter-spacing:.085em;color:var(--dim);margin:13px 0 6px;}
-  .ctl-note{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--dim);
+  .ctl-note{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--dim);
     line-height:1.5;margin:6px 2px 0;}
   .ctl-note b{color:var(--muted);font-weight:600;}
 
-  .pill{display:inline-block;font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;
+  .pill{display:inline-block;font-family:'Marcellus','Georgia',serif;font-size:10.5px;font-weight:700;
     padding:4px 9px;margin:0 4px 5px 0;border-radius:13px;cursor:pointer;
     border:1px solid rgba(255,255,255,.14);color:var(--muted);background:transparent;
     transition:border-color .18s,color .18s,background .18s;user-select:none;}
@@ -147,30 +167,32 @@
   .pill.p-redress.on{background:rgba(111,158,140,.22);color:#a6cfc0;border-color:var(--redress);}
   .pill.p-unlawful.on{background:rgba(125,51,80,.26);color:#d093ab;border-color:var(--unlawful);}
 
-  #q{width:100%;font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--ink);
+  #q{width:100%;font-family:'Marcellus','Georgia',serif;font-size:11.5px;color:var(--ink);
     background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:7px;
     padding:6px 9px;outline:none;}
   #q:focus{border-color:var(--accent);}
   #q::placeholder{color:var(--dim);}
-  .qn{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--dim);margin-top:5px;display:block;}
+  .qn{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--dim);margin-top:5px;display:block;}
 
   /* ---- legend: the placement-resolution key --------------------------- */
-    .leg-sec{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;
+    .leg-sec{font-family:'Marcellus','Georgia',serif;font-size:9px;font-weight:700;text-transform:uppercase;
     letter-spacing:.08em;color:var(--dim);margin:11px 0 5px;}
   .leg-row{display:flex;align-items:flex-start;gap:9px;margin-bottom:5px;
-    font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--muted);line-height:1.45;}
+    font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);line-height:1.45;}
   .leg-row i{flex:0 0 22px;height:15px;position:relative;}
   .leg-row b{color:var(--ink);font-weight:600;}
   .sw{position:absolute;left:3px;top:2px;width:11px;height:11px;border-radius:50%;}
 
   /* ---- disclosure ----------------------------------------------------- */
   details.disc{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:9px;}
-  details.disc > summary{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--accent-hi);
+  details.disc > summary{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--accent-hi);
     cursor:pointer;list-style:none;padding:2px 0;letter-spacing:.02em;}
   details.disc > summary::-webkit-details-marker{display:none;}
   details.disc > summary::before{content:'\25B8  ';}
   details.disc[open] > summary::before{content:'\25BE  ';}
-  details.disc .body{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+  details.disc.sub{margin:8px 0 4px;}
+  details.disc.sub > summary{font-size:10px;}
+  details.disc .body{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--muted);
     line-height:1.62;margin-top:8px;max-height:44vh;overflow-y:auto;padding-right:5px;}
   details.disc .body::-webkit-scrollbar{width:5px;}
   details.disc .body::-webkit-scrollbar-thumb{background:var(--accent-soft);border-radius:3px;}
@@ -183,7 +205,7 @@
   .leaflet-popup-content-wrapper{background:var(--popup)!important;
     border:1px solid var(--accent-soft)!important;border-radius:10px!important;
     box-shadow:0 8px 26px rgba(0,0,0,.6)!important;}
-  .leaflet-popup-content{margin:14px 16px!important;font-family:'DM Sans',sans-serif!important;
+  .leaflet-popup-content{margin:14px 16px!important;font-family:'Marcellus','Georgia',serif!important;
     line-height:1.55!important;font-size:12px!important;color:var(--muted)!important;
     max-height:56vh;overflow-y:auto;width:280px!important;}
   .leaflet-popup-content::-webkit-scrollbar{width:5px;}
@@ -208,38 +230,66 @@
     color:var(--accent-hi);text-decoration:none;border-bottom:1px dotted var(--accent-soft);}
   .plink:hover{color:#fff;}
 
+  .wire-ctl{display:flex;gap:6px;margin-top:6px;}
+  .wire-ctl select{flex:1 1 0;min-width:0;}
+  .wire-intro{font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);
+    line-height:1.6;margin:2px 0 10px;}
+  .wire-intro p{margin:0 0 8px;}
+  .wire-intro p:last-child{margin-bottom:0;}
+  .wire-intro b{color:var(--ink);font-weight:600;}
+
   /* ---- entry box: what a mark opens into, instead of a map popup ------ */
   .ent-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .ent-close{font-family:'DM Sans',sans-serif;font-size:17px;line-height:1;color:var(--dim);
+  .ent-close{font-family:'Marcellus','Georgia',serif;font-size:17px;line-height:1;color:var(--dim);
     cursor:pointer;background:none;border:none;padding:0 2px;}
   .ent-close:hover{color:var(--ink);}
-  .ent-kicker{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;
+  .ent-kicker{font-family:'Marcellus','Georgia',serif;font-size:9px;font-weight:700;
     text-transform:uppercase;letter-spacing:.09em;color:var(--dim);}
   #entryBody .pk{font-size:16px;}
   #entryBody .kv,#entryBody .geo-note,#entryBody .tag,#entryBody .plink{
-    font-family:'DM Sans',sans-serif;}
-  .ent-empty{font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--dim);line-height:1.55;}
-  .ent-sec{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;
+    font-family:'Marcellus','Georgia',serif;}
+  .lay-desc{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--dim);
+    line-height:1.45;font-weight:400;}
+  .ent-empty{font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--dim);line-height:1.55;}
+  .ent-sec{font-family:'Marcellus','Georgia',serif;font-size:9px;font-weight:700;text-transform:uppercase;
     letter-spacing:.08em;color:var(--dim);margin:12px 0 5px;}
 
   /* ---- administrative-unit drilldown chrome --------------------------- */
-  .gb-crumb{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--muted);
+  .gb-crumb{font-family:'Marcellus','Georgia',serif;font-size:10px;color:var(--muted);
     line-height:1.55;margin:6px 2px 0;}
   .gb-crumb a{color:var(--accent-hi);text-decoration:none;cursor:pointer;
     border-bottom:1px dotted var(--accent-soft);}
   .gb-crumb a:hover{color:#fff;}
   .gb-crumb b{color:var(--ink);font-weight:600;}
   #gbLoad{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:1003;
-    font-family:'DM Sans',sans-serif;font-size:10.5px;color:var(--accent-hi);
+    font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--accent-hi);
     background:rgba(22,19,14,0.95);border:1px solid var(--accent-soft);border-radius:8px;
     padding:6px 12px;display:none;box-shadow:0 4px 18px rgba(0,0,0,.5);}
+
+  /* a term with a plain-language definition on hover / tap */
+  .gl{border-bottom:1px dotted var(--accent-soft);cursor:help;}
+  .gl-inline{color:var(--dim);font-style:italic;}
+  .gl:hover{border-bottom-color:var(--accent-hi);color:var(--accent-hi);}
+  /* Identical to .wire-intro: same family, size, colour and leading, so the two
+     bodies of prose in the interface read as one voice rather than two. */
+  .howto-p{font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);
+    line-height:1.6;margin:2px 0 10px;}
+  .howto-p p{margin:0 0 8px;}
+  .howto-p b{color:var(--ink);font-weight:600;}
+  .howto-p p:last-child{margin-bottom:0;}
+  ol.run{margin:8px 0 4px;padding-left:20px;}
+  ol.run li{margin:0 0 9px;line-height:1.55;}
+  ol.run li i{display:block;margin-top:3px;color:var(--dim);font-style:italic;}
+  .gl-row{font-family:'Marcellus','Georgia',serif;font-size:10.5px;color:var(--muted);
+    line-height:1.5;margin:0 0 7px;}
+  .gl-row b{color:var(--ink);font-weight:600;}
 
   /* ---- states -------------------------------------------------------- */
   #status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1002;
     max-width:430px;padding:20px 24px;text-align:left;display:none;}
   #status h2{font-family:'Uncial Antiqua',serif;font-size:15px;color:var(--accent-hi);
     margin-bottom:9px;}
-  #status p{font-family:'DM Sans',sans-serif;font-size:11.5px;color:var(--muted);
+  #status p{font-family:'Marcellus','Georgia',serif;font-size:11.5px;color:var(--muted);
     line-height:1.65;margin-bottom:7px;}
   #status code{font-family:ui-monospace,'DejaVu Sans Mono',monospace;font-size:10.5px;
     color:var(--accent-hi);background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;}
@@ -256,7 +306,7 @@
   .leaflet-bar a.leaflet-disabled{opacity:.45;}
   .leaflet-top.leaflet-right{margin-top:8px;margin-right:8px;}
   .leaflet-control-attribution{background:rgba(22,19,14,0.82)!important;color:var(--dim)!important;
-    font-family:'DM Sans',sans-serif!important;font-size:10px!important;}
+    font-family:'Marcellus','Georgia',serif!important;font-size:10px!important;}
   .leaflet-control-attribution a{color:var(--accent-hi)!important;}
   /* the plate is decorative: never let it catch a pointer or show a drag cursor */
   .plate-img{pointer-events:none;image-rendering:auto;}
@@ -305,36 +355,156 @@
     <span>Layers &amp; filters</span><span>&#9662;</span>
   </div>
   <div class="pnl-body">
-    <div class="ctl-title">Administrative units</div>
-    <label class="chk"><input type="checkbox" id="layGB" checked>
-      <b>Boundaries</b> &mdash; <span id="gbLevelLabel">countries</span></label>
-    <div id="gbLevels"></div>
-    <div class="gb-crumb" id="gbCrumb"></div>
-    <div class="ctl-note">Click a country to open its regions, then keep going down.
-      Levels come from the CGAZ set, so the depth available differs by country &mdash;
-      some publish four levels, some only one.</div>
+    <div class="ctl-title">Reading a mark</div>
+    <div class="legend">
+<div class="leg-row"><i><span class="sw" style="background:var(--harm)"></span></i>
+      <span><b>Harm</b> &mdash; authorises or carries out disturbance</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--watch)"></span></i>
+      <span><b>Watch</b> &mdash; disclosed or under review, not yet decided</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--redress)"></span></i>
+      <span><b>Redress</b> &mdash; returning, reburying, recovering for descendants</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--unlawful)"></span></i>
+      <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
+      <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid rgba(197,106,90,.85);border-radius:2px;"></span></i>
+      <span><b>Small red square</b> &mdash; ground where a burial ground used to be and
+      no longer is. Still blurred to protect from looting and vandals, like every mark that
+      would otherwise point at a grave.</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px dashed var(--facility);border-radius:2px;"></span></i>
+      <span><b>Dashed square</b> &mdash; a museum, i.e. a possible <span class="gl" title="The documented history of how an object or ancestor came to be where they are now, and through whose hands.">provenance</span> and/or remains holder.</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid #b8912f;border-radius:2px;"></span></i>
+      <span><b>Gold outline</b> &mdash; an <span class="gl" title="The first tier of government below a country: a state, province or region; then counties, districts and municipalities below that.">administrative unit</span>. Hover lights it;
+      clicking opens it and descends into its own sub-units.</span></div>
 
+    <div class="leg-sec">Shape &mdash; how precise the placement is</div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="exact" width="22" height="15"></canvas></i>
+      <span><b>Solid dot</b> &mdash; the named institution or address</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="area" width="22" height="15"></canvas></i>
+      <span><b>Ringed dot</b> &mdash; centre of a permit or project area</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="admin" width="22" height="15"></canvas></i>
+      <span><b>Hollow ring</b> &mdash; centre of an administrative unit, not the site</span></div>
+    <div class="leg-row"><i><canvas class="lg" data-geo="coarsened" width="22" height="15"></canvas></i>
+      <span><b>Diffuse halo, no centre</b> &mdash; deliberately blurred to about
+      5&nbsp;km, because the location is either genuinely unknown or is being withheld
+      to keep looters and vandals away from a grave. Size tracks scale, not
+      certainty.</span></div>
+    </div>
     <div class="ctl-title">Layers</div>
     <label class="chk"><input type="checkbox" id="layUnearth" checked>
-      <b>Unearthings &amp; decisions</b> &mdash; <span id="nUnearth">&hellip;</span></label>
+      <b>Unearthings &amp; decisions</b> <span id="nUnearth" class="qn"></span>
+      <span class="lay-desc">&mdash; every harvested record: permits, notices, licences,
+      recoveries, grounds no longer there</span></label>
+
     <label class="chk"><input type="checkbox" id="layCem">
-      <b>Cemeteries &amp; burial grounds</b> &mdash; <span id="nCem">not loaded</span></label>
+      <b>Cemeteries &amp; burial grounds</b> <span id="nCem" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; working, signposted burial places. Unmarked burial
+      sites are excluded from these layers by design &mdash; the places where a community
+      was never permitted to record its dead cannot be but silent</span></label>
+
     <label class="chk"><input type="checkbox" id="layCrem">
-      Crematoria &mdash; <span id="nCrem">not loaded</span></label>
+      <b>Crematoria</b> <span id="nCrem" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; relevant when a disposition names cremation rather
+      than reburial</span></label>
+
     <label class="chk"><input type="checkbox" id="layMort">
-      Mortuaries &amp; funeral directors &mdash; <span id="nMort">not loaded</span></label>
+      <b>Mortuaries &amp; funeral directors</b> <span id="nMort" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; where the recently dead are held before burial</span></label>
+
     <label class="chk"><input type="checkbox" id="layMus">
-      <b>Museums</b> <span id="nMus" class="qn"></span> &mdash; potential holders, unconfirmed</label>
-    <div class="ctl-note">The facility layers are a <b>directory</b> from OpenStreetMap:
-      established, signposted burial places. They are drawn plainly and are <b>not
-      blurred</b>, because a working cemetery is already on every street map.
-      Archaeological and unmarked burial sites are excluded from them by design
-      &mdash; design note 3 in the map key explains why.</div>
+      <b>Museums</b> <span id="nMus" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; institutions that might hold ancestors. Most do
+      not</span></label>
+
+    <label class="chk"><input type="checkbox" id="layFire">
+      <b>Global fire</b> <span id="nFire" class="qn">off</span>
+      <span class="lay-desc">&mdash; NASA VIIRS active fire, last 24h. Fire exposes
+      remains with no permit and no applicant</span></label>
+
+    <label class="chk"><input type="checkbox" id="layThaw" disabled>
+      <b>Global thaw</b> <span id="nThaw" class="qn">no global feed</span>
+      <span class="lay-desc">&mdash; permafrost thaw exposes remains continuously; no
+      public service publishes it as a live global layer</span></label>
+
+    <label class="chk"><input type="checkbox" id="layErosion" disabled>
+      <b>Global erosion</b> <span id="nErosion" class="qn">no global feed</span>
+      <span class="lay-desc">&mdash; coastal erosion unearths burial grounds every
+      winter; national programmes exist, a worldwide feed does not</span></label>
+
+    <label class="chk"><input type="checkbox" id="layFind">
+      <b>Measured damage &amp; density</b> <span id="nFind" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; published findings on how much has already been
+      looted or lost. Aggregate percentages only; no site locations are held or
+      shown</span></label>
+
+    <details class="disc">
+    <summary>Where this data comes from &amp; what&rsquo;s not (yet) in it</summary>
+    <div class="body">
+
+      <b class="h">Feeds in production</b>
+      <ul>
+      <li><b>United States &mdash; NAGPRA notices.</b> Notices of Inventory Completion,
+        Intent to Repatriate, Intended Disposition, and Transfer, from the
+        <i>Federal Register</i> API. This is the statutory venue: if remains are being
+        repatriated from a US museum or agency, it is published here.</li>
+      <li><b>United States &mdash; federal reviews naming burials.</b> NEPA and NHPA
+        notices whose text puts human remains in a project&rsquo;s path. Placed at
+        state level only; these notices carry no coordinates.</li>
+      <li><b>Australia (NSW) &mdash; Aboriginal Heritage Impact Permits.</b> Legal
+        authorisations under s.90 of the <i>National Parks and Wildlife Act 1974</i>
+        to harm Aboriginal objects and places. Boundary polygons, quarterly refresh.
+        NSW DCCEEW, CC-BY. DCCEEW notes some permits are missing from the spatial
+        layer; the AHIP Public Register is authoritative.</li>
+      <li><b>California &mdash; CEQA filings.</b> State clearinghouse filings naming
+        burials or remains. California&rsquo;s AB&nbsp;52 tribal-consultation track
+        means disclosure lands here earlier than in federal notices.</li>
+      <li><b>United Kingdom &mdash; planning applications.</b> Local-authority
+        applications affecting burial grounds, via PlanIt. Removal of remains also
+        needs a Ministry of Justice licence, which is not published as open data.</li>
+      <li><b>Worldwide &mdash; removed burial grounds in OpenStreetMap.</b> Ground
+        that mappers record as having held a cemetery that is now gone. Community
+        contributed, not an official register, and labelled as such.</li>
+      <li><b>Worldwide &mdash; government open-data portals.</b> Cemetery, burial and
+        excavation datasets found across the portal federations, searched in the
+        languages those portals publish in.</li>
+      </ul>
+
+      <b class="h">Registers that exist but are not in yet</b>
+      Named so the gaps are legible rather than invisible. Each is real; what is missing
+      is a machine-readable, licence-clear route in.
+      <ul>
+      <li><b>NPS National NAGPRA tables</b> &mdash; the Inventories and Unclaimed
+        Lists grids, which carry per-institution counts of individuals still held.
+        The single most valuable gap on this list.</li>
+      <li><b>Western Australia s.18 consents</b> &mdash; the WA equivalent of an AHIP.
+        Spatial reuse terms need checking first.</li>
+      <li><b>Queensland</b> Cultural Heritage Management Plans register.</li>
+      <li><b>Spain</b> state Mapa de Fosas &mdash; Civil War and dictatorship mass
+        graves, published <i>with</i> coordinates as an act of public memory. The one
+        case where the blurring rule may be the wrong call, since families are meant
+        to be able to find these.</li>
+      <li><b>Ireland</b> National Monuments excavation licences and excavations.ie.</li>
+      <li><b>EAMENA</b> &mdash; disturbance and looting across the Middle East and
+        North Africa. Account-gated.</li>
+      <li><b>Colombia</b> UBPD recovery of the disappeared; <b>Mexico</b> CNB
+        clandestine-grave registry.</li>
+      <li><b>England &amp; Wales</b> Ministry of Justice licences to remove remains
+        (Burial Act 1857 s.25) &mdash; issued in volume, released only on request.</li>
+      <li><b>ICMP</b> &mdash; the fullest record of conflict-grave exhumations
+        anywhere; publishes reports, not data.</li>
+      </ul>
+
+    </div>
+    </details>
+
+    <div class="ctl-title">Filter by data source</div>
+    <div id="fSource"></div>
+    <div class="ctl-note">Which register a record came from. Every source is described
+      under <b>Where this data comes from</b> in the how-to panel.</div>
 
     <div class="ctl-title">Posture &mdash; what is being done</div>
     <div id="fPosture"></div>
-    <div class="ctl-note">Posture is the difference between a permit to dig and a
-      return to descendants. Both are on this map; they are not the same event.</div>
+    <div class="ctl-note">Posture is the difference between a permit to dig and a return to descendants.</div>
 
     <div class="ctl-title">Kind of record</div>
     <div id="fKind"></div>
@@ -364,290 +534,112 @@
 
 <div id="legend" class="panel">
   <div class="pnl-head" onclick="document.getElementById('legend').classList.toggle('collapsed')">
-    <span>Map key &amp; design notes</span><span>&#9662;</span>
+    <span>How to use this map</span><span>&#9662;</span>
   </div>
   <div class="pnl-body">
-    <div class="leg-sec">Colour &mdash; posture</div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--harm)"></span></i>
-      <span><b>Harm</b> &mdash; authorises or carries out disturbance</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--watch)"></span></i>
-      <span><b>Watch</b> &mdash; disclosed or under review, not yet decided</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--redress)"></span></i>
-      <span><b>Redress</b> &mdash; returning, reburying, recovering for descendants</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--unlawful)"></span></i>
-      <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
-      <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px dashed var(--facility);border-radius:2px;"></span></i>
-      <span><b>Dashed square</b> &mdash; a museum. It is on the map because it is an
-      institution you may have to ask, <b>not</b> because it is known to hold
-      anyone. Most do not.</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid #b8912f;border-radius:2px;"></span></i>
-      <span><b>Gold outline</b> &mdash; an administrative unit. Hover lights it;
-      clicking opens it <i>and</i> descends into its own sub-units. The unit you
-      have open turns white.</span></div>
 
-    <div class="leg-sec">Shape &mdash; how precise the placement is</div>
-    <div class="leg-row"><i><canvas class="lg" data-geo="exact" width="22" height="15"></canvas></i>
-      <span><b>Solid dot</b> &mdash; the named institution or address</span></div>
-    <div class="leg-row"><i><canvas class="lg" data-geo="area" width="22" height="15"></canvas></i>
-      <span><b>Ringed dot</b> &mdash; centre of a permit or project area</span></div>
-    <div class="leg-row"><i><canvas class="lg" data-geo="admin" width="22" height="15"></canvas></i>
-      <span><b>Hollow ring</b> &mdash; centre of an administrative unit, not the site</span></div>
-    <div class="leg-row"><i><canvas class="lg" data-geo="coarsened" width="22" height="15"></canvas></i>
-      <span><b>Diffuse halo, no centre</b> &mdash; deliberately blurred to about 5&nbsp;km</span></div>
-    <div class="ctl-note" style="margin-top:7px;">A halo means the dot is honest about
-      not knowing, or about refusing to say. Size of the mark tracks scale, not certainty.</div>
+    <div class="howto-p">
+      <p>Three panels surround the map. <b>The wire</b>, on the left, is the live news
+      feed, and its opening text is the primer on this subject if you are new to it
+      &mdash; filter it by region, date and topic, or sort by language. <b>Lenses</b>,
+      top right, narrow the whole map to one kind of work: who is holding ancestors,
+      whom you are obliged to consult, which register records the permit, what can
+      actually stop it. <b>Layers &amp; filters</b>, bottom right, holds the full mark
+      key and every filter &mdash; posture, kind, driver, scale, recency and free-text
+      search.</p>
+
+      <p>On the map, every mark is a public record of an unearthing, or of a decision
+      about people already unearthed &mdash; a repatriation notice, a permit authorising
+      harm to a burial ground, an exhumation licence, a ground that is no longer there.
+      Records come from official registers: permit systems, notice publications, licence
+      rolls and impact-assessment files.</p>
+
+      <p>Icon colour is <b>posture</b> &mdash; what is being done to the dead, from
+      authorising harm through to returning them. <b>Shape</b> is precision &mdash; how
+      exactly the location is known, from a named address down to a diffuse halo. Size
+      tracks how many people a record affects. Small squares are cemeteries, crematoria,
+      mortuaries and museums, each switchable on its own.</p>
+
+      <p><b>Development projects reach this map two ways, and neither is complete.</b>
+      One feed catches projects that announce remains in their own text. The other
+      crosses every project footprint against the burial-ground layer and flags anything
+      within 250&nbsp;m, labelled <i>proximity flag, not a finding</i>. Both are thin for
+      the same reason: a project description rarely mentions burials even when the
+      project will disturb them. Disturbance surfaces later &mdash; in the environmental
+      statement, the salvage condition, the stop-work order. Never in the title at
+      application time.</p>
+
+      <p>On the map, countries are outlined in gold. Hovering lights one; clicking it
+      does two things at once &mdash; it opens that country in the box directly below
+      this one, and it drops you a level into its states or provinces. Clicking again
+      goes deeper: state, county, municipal, as far down as that country publishes. To
+      come back up, click any empty space on the map.</p>
+
+      <p>Open a unit and you get its records and resources. Resources are placed by the
+      jurisdiction they serve, not by where their office is &mdash; the rule is service
+      area, not postal address, so a national programme sits at country level even
+      though its building is in one city, and a state regulator sits in that state
+      alone.</p>
+
+      <p>A record carries a number of individuals only where a source states one
+      explicitly &mdash; "at least", "a minimum of", or a figure in an inventory table.
+      Nothing is inferred from the size of a site or the length of a notice. A record
+      with no count means <b>no count was published</b>.</p>
+
+      <p><b>The coverage is far more Anglophone than the world is.</b> Of the records
+      currently held, roughly 83% are Australia, the United States and the United
+      Kingdom &mdash; New South Wales alone is about half the map. Continental Europe is
+      thin; Latin America, Africa and Asia are close to absent. The cause is structural:
+      sources were built against registers, and registers of burial disturbance exist
+      mainly where a settler state built a permitting bureaucracy for it. NSW alone
+      outweighs every non-Anglophone country combined &mdash; not because more happens
+      there, but because NSW publishes an ArcGIS layer of every permit. For those, see
+      the news wire, court filings, NGO reporting and UN submissions, which do not
+      require a state to have built a database first.</p>
+
+      <p>No percentage of world coverage is given, because no dataset holds the true
+      global count. Any figure would be invented. The shape of the sample is described
+      instead. Sparse regions on this map are sparse in the records, not necessarily in
+      the ground &mdash; or because the data is restricted, as in cases of archaeological
+      sites vulnerable to looting and vandalism.</p>
+
+      <div class="callout">When researchers checked remote survey against ground survey
+        in southern Peru, <b>satellite analysts found only 9.3% of the sites already
+        known from walking the same ground</b> &mdash; the best performers reached 20%.
+        Any inventory built from imagery is missing roughly nine tenths of what is
+        there. The same study notes that <b>looter pits can make a site visible from
+        orbit that would otherwise be invisible</b>, so remote inventories also skew
+        toward sites that have already been dug into.</div>
+    </div>
 
     <details class="disc">
       <summary>Design notes &mdash; the calls made here, and how to overrule them</summary>
       <div class="body">
 
-        <b class="h">1. This map does not plot graves. That is the whole design.</b>
-        <div class="callout">Precise burial locations are withheld by archaeologists,
-          descendant communities and states because publishing them invites
-          desecration. In the United States site-location data is exempt from
-          disclosure under <b>NHPA&nbsp;&sect;304</b> and <b>ARPA&nbsp;&sect;9</b> for
-          exactly that reason, and NAGPRA notices themselves name only counties of
-          removal, never coordinates.</div>
-        So the unit of this map is <b>the accountable actor and the decision</b>, not the
-        grave:
-        <ul>
-          <li>A repatriation notice sits at the <b>institution holding the remains</b>.</li>
-          <li>A heritage-harm permit sits at the <b>centre of the permit area</b>.</li>
-          <li>A review sits at the <b>administrative unit it names</b>.</li>
-          <li>Anything that is itself a burial location is <b>blurred to about 5&nbsp;km</b>
-              and drawn as a halo with no centre.</li>
-        </ul>
-        The blur is enforced by a gate keyed to the <i>record type</i>, not to the good
-        intentions of whoever wrote the fetcher: hand it exact coordinates for a mass
-        grave and it blurs them anyway. Unknown record types fail safe to blurred, and an
-        audit pass re-checks every record before the file is written.
-        <b>If you disagree with this call, it is one constant to change</b> &mdash;
-        <code>COARSE_GRID_DEG</code> &mdash; and one table, <code>KINDS</code>, that
-        decides which record types get blurred.
-
-        <b class="h">2. Spain is the case that tests the rule</b>
-        Spain's state map of the disappeared publishes grave coordinates deliberately, so
-        families can find their dead. That looked like grounds for an exemption. But
-        <b>Ley 20/2022 art.&nbsp;17</b> both mandates the map <i>and</i> requires the
-        zones it names to receive <i>preservaci&oacute;n especial</i> &mdash; Spain
-        publishes and protects at once. So the blur stays even there. Separately, the
-        Spanish data is not machine-readable anyway: the live tool is georeferenced, while
-        the downloadable release dates from 2017 and carries no coordinates at all.
-
-        <b class="h">3. Two layers, two different rules, on purpose</b>
-        The cemetery layer is <b>not</b> blurred, and that is not an inconsistency:
-        <ul>
-          <li>A <b>working cemetery</b> is a signposted public place with a street
-            address. People need to find it. Blurring it would serve nobody.</li>
-          <li>An <b>archaeological or unmarked burial site</b> is the opposite:
-            unadvertised, and endangered by publication.</li>
-        </ul>
-        So the facility harvester takes only tags denoting an established public burial
-        facility, and explicitly <b>refuses</b> <code>historic=*</code>, tombs, tumuli,
-        necropoleis, and every lifecycle-prefixed tag (<code>was:</code>,
-        <code>demolished:</code>, <code>removed:</code>, <code>abandoned:</code>). Those
-        last are unearthing <i>events</i> and belong to the other harvester, where the
-        blur applies. An element carrying both a cemetery tag and an archaeological tag is
-        dropped rather than published.
-
-        <b class="h">4. Posture is not a quality score</b>
-        A repatriation and a permit to destroy are both on this map. Collapsing them into
-        a single "impact" number would have made the map say something false, so
-        <b>posture</b> carries direction (harm / watch / redress / unlawful) and
-        <b>scale</b> carries magnitude only. A large repatriation is a large event, not a
-        bad one.
-
-        <b class="h">5. Counts are never estimated</b>
-        A number of individuals appears only where a source states one, after an explicit
-        "at least" / "a minimum of" / "a total of". Absence of a count means the source
-        was silent &mdash; never that the number is small.
-
-        <b class="h">6. No coverage percentage is claimed</b>
-        No dataset holds the true global count of unearthings, so any percentage would be
-        invented. Coverage is weighted toward jurisdictions with statutory repatriation
-        and heritage-permit regimes, because those are the ones that publish.
-        <b>Sparse regions on this map are sparse in the records, not necessarily in the
-        ground.</b> The same caution applies to the wire: an empty wire for a region is a
-        gap in reporting, not evidence that nothing is happening.
-
-        <b class="h">7. Some data is refused because it should not be published</b>
-        Every other gap on this map is a source we cannot <i>get</i>. This one is a
-        source we will not <i>publish</i>. Registers of <b>site locations</b> &mdash;
-        New Zealand's ArchSite, with around 80,000 recorded sites, and the
-        <i>w&#257;hi tapu</i> layers some councils put on open-data portals &mdash; are
-        refused outright, before a single point is read.
-        <div class="callout">Blurring protects a single grave by hiding it in the noise.
-          It does not protect a <b>register</b>: coarsening thousands of sites still
-          discloses which cells contain them, and for sacred places held deliberately
-          un-public by the communities they belong to, that disclosure <i>is</i> the
-          harm.</div>
-        A register is also not an unearthing. Nothing has happened, nobody applied,
-        there is no decision and no accountable party &mdash; it fails this map's own
-        definition of a record twice over. The refusal is counted in every harvest log,
-        so it stays visible rather than silent.
-
-        <b class="h">8. Resources are filed by where they serve, not where they sit</b>
-        Open a unit and it lists the bodies whose remit covers <i>that jurisdiction</i>,
-        deepest first, then the ones covering the whole country, then the ones covering
-        everywhere. The rule is service area, not postal address:
-        <div class="callout">The National NAGPRA Program has an office in Washington DC
-          and administers the statute for the entire United States. Filing it under DC
-          would be true about the building and useless about the law. It sits at the
-          country level. Heritage NSW serves one state, so it sits in New South Wales
-          and nowhere else. A body serving three states is listed in all three.</div>
-        <b>Museums are the deliberate exception</b>, marked <i>located here</i>. A
-        collection is not a service area &mdash; it is a place holding ancestors taken
-        from somewhere else entirely. Pretending it "serves" the jurisdiction it stands
-        in would misdescribe the thing this map exists to make legible, so those are
-        filed where they physically are and labelled as such.
-        <br><br>An empty box means no curated body has that jurisdiction in its remit
-        &mdash; not that the place is unserved.
-
-        <b class="h">9. Why this map cannot show you every project that disturbs graves</b>
-        The obvious thing to want is every development that will disturb a burial
-        ground. You cannot have it, and the reason is worth knowing.
-        <div class="callout">Running the full burial vocabulary across all 267,819
-          projects on the Live Projects map returns <b>six</b> genuine records. Not
-          because the data is bad &mdash; because a project description rarely mentions
-          burials even when the project will disturb them. Disturbance surfaces later:
-          in the environmental statement, the salvage condition, the stop-work order.
-          Never in the title at application time.</div>
-        So there are two feeds here and neither is complete. One catches projects that
-        <i>announce</i> remains. The other crosses every project footprint against the
-        burial-ground layer and flags anything within 250&nbsp;m &mdash; labelled
-        <b>proximity flag, not a finding</b>, because a resurfacing job beside a
-        churchyard touches nobody.
-        <br><br><b>And the second method is blind to the worst cases.</b> Unmarked and
-        undocumented burial grounds are absent from every layer &mdash; that absence is
-        what <i>unmarked</i> means. So it finds projects near <b>recorded</b> graves and
-        misses projects over <b>forgotten</b> ones. The places where a community was
-        never permitted to record its dead are exactly the places this will stay silent
-        about.
-        <br><br>What does work is a third route, and it is not a dataset:
-        <b>somebody says so out loud</b>. A nation objects, a preservation officer
-        files, a council blockades. That is why the wire carries an <i>opposition</i>
-        topic of its own &mdash; opposition is a speech act by a named party, and it
-        lives in comment dockets, interventions, court filings and press, never in the
-        permit record. It is the least structured signal on this map and the one with
-        the most force behind it.
-
-        <b class="h">10. There is one cause of unearthing this map cannot see</b>
-        <div class="callout">Every register harvested here is a <b>consent or compliance
-          regime</b>: someone applied, someone decided, someone filed. Erosion,
-          permafrost thaw and wildfire unearth remains with <b>no permit, no applicant
-          and no accountable party</b> &mdash; so no register records them, and the dot
-          layer is structurally blind to them.</div>
-        This is not a missing feed. Adding one would not fix it, because the thing that
-        produces the records does not exist for this cause. The <b>Erosion, thaw &amp;
-        fire</b> lens is a partial answer &mdash; it points at the monitoring projects
-        and volunteer networks that do the recording instead &mdash; but treat any
-        apparent quiet on a coastline as the map's limit rather than the ground's.
-
-        <b class="h">11. The lenses ship unverified, then get checked in public</b>
-        The resource lenses are hand-compiled, and curation rots faster than data. So they
-        ship without any claim that every link works, and a scheduled link-checker
-        verifies them. Dead links are <b>greyed out and labelled, not deleted</b> &mdash;
-        a resource that has vanished tells you an office closed or a programme was wound
-        up, which is itself worth knowing.
-      </div>
-    </details>
-
-    <details class="disc">
-      <summary>Where this data comes from &amp; what&rsquo;s not (yet) in it</summary>
-      <div class="body">
-
-        <b class="h">What this map is</b>
-        Every mark is a public record of an <b>unearthing or a decision about unearthed
-        human remains</b> &mdash; a repatriation notice, a permit to disturb a burial
-        ground, an environmental review that admits graves are in the way, a burial
-        ground recorded as removed. Records are harvested automatically from official
-        registers and community databases, and each mark links back to its primary source.
-
-        <b class="h">What this map deliberately will not do</b>
-        It does not publish grave coordinates. Precise burial locations are withheld by
-        archaeologists, descendant communities and states because publishing them invites
+        <b class="h">This map does not plot graves. That is the whole design.</b>
+        Anything that is itself a burial location is blurred to about 5&nbsp;km and drawn
+        as a halo with no centre. Precise burial locations are withheld by archaeologists,
+        descendant communities and states alike because publishing them invites
         desecration &mdash; in the United States site-location data is exempt from
-        disclosure under NHPA&nbsp;s.304 and ARPA&nbsp;s.9 for exactly that reason. So the
-        unit of this map is <b>the accountable actor and the decision</b>, not the grave:
-        <ul>
-          <li>A repatriation notice sits at the <b>institution holding the remains</b>.</li>
-          <li>A heritage-harm permit sits at the <b>centre of the permit area</b>.</li>
-          <li>A review sits at the <b>administrative unit it names</b>.</li>
-          <li>Anything that is itself a burial location is <b>blurred to about 5&nbsp;km</b>
-              and drawn as a halo with no centre.</li>
-        </ul>
-        The blurring is enforced in the harvester by a fail-safe gate keyed to the record
-        type, plus an audit pass before writing, so a source cannot publish a precise
-        burial point by accident.
+        disclosure under NHPA&nbsp;s.304 and ARPA&nbsp;s.9 for exactly that reason. A
+        repatriation notice is plotted at the museum that holds the remains. A permit is
+        plotted at the office that issued it.
+        <details class="disc sub">
+          <summary>Details</summary>
+          <div class="body">
+            <b class="h">Spain is the case that tests the rule</b>
+            Spain's Mapa de Fosas is an official, georeferenced state map of Civil War
+            mass graves, published deliberately so families can find their dead. Ley
+            20/2022 nonetheless places those sites under <i>preservaci&oacute;n
+            especial</i>. So, I've kept the blur.
+          </div>
+        </details>
 
-        <b class="h">Feeds in production</b>
-        <ul>
-          <li><b>United States &mdash; NAGPRA notices.</b> Notices of Inventory Completion,
-            Intent to Repatriate, Intended Disposition, and Transfer, from the
-            <i>Federal Register</i> API. This is the statutory venue: if remains are being
-            repatriated from a US museum or agency, it is published here.</li>
-          <li><b>United States &mdash; federal reviews naming burials.</b> NEPA and NHPA
-            notices whose text puts human remains in a project&rsquo;s path. Placed at
-            state level only; these notices carry no coordinates.</li>
-          <li><b>Australia (NSW) &mdash; Aboriginal Heritage Impact Permits.</b> Legal
-            authorisations under s.90 of the <i>National Parks and Wildlife Act 1974</i>
-            to harm Aboriginal objects and places. Boundary polygons, quarterly refresh.
-            NSW DCCEEW, CC-BY. DCCEEW notes some permits are missing from the spatial
-            layer; the AHIP Public Register is authoritative.</li>
-          <li><b>California &mdash; CEQA filings.</b> State clearinghouse filings naming
-            burials or remains. California&rsquo;s AB&nbsp;52 tribal-consultation track
-            means disclosure lands here earlier than in federal notices.</li>
-          <li><b>United Kingdom &mdash; planning applications.</b> Local-authority
-            applications affecting burial grounds, via PlanIt. Removal of remains also
-            needs a Ministry of Justice licence, which is not published as open data.</li>
-          <li><b>Worldwide &mdash; removed burial grounds in OpenStreetMap.</b> Ground
-            that mappers record as having held a cemetery that is now gone. Community
-            contributed, not an official register, and labelled as such.</li>
-          <li><b>Worldwide &mdash; government open-data portals.</b> Cemetery, burial and
-            excavation datasets found across the portal federations, searched in the
-            languages those portals publish in.</li>
-        </ul>
-
-        <b class="h">Registers that exist but are not in yet</b>
-        Named so the gaps are legible rather than invisible. Each is real; what is missing
-        is a machine-readable, licence-clear route in.
-        <ul>
-          <li><b>NPS National NAGPRA tables</b> &mdash; the Inventories and Unclaimed
-            Lists grids, which carry per-institution counts of individuals still held.
-            The single most valuable gap on this list.</li>
-          <li><b>Western Australia s.18 consents</b> &mdash; the WA equivalent of an AHIP.
-            Spatial reuse terms need checking first.</li>
-          <li><b>Queensland</b> Cultural Heritage Management Plans register.</li>
-          <li><b>Spain</b> state Mapa de Fosas &mdash; Civil War and dictatorship mass
-            graves, published <i>with</i> coordinates as an act of public memory. The one
-            case where the blurring rule may be the wrong call, since families are meant
-            to be able to find these.</li>
-          <li><b>Ireland</b> National Monuments excavation licences and excavations.ie.</li>
-          <li><b>EAMENA</b> &mdash; disturbance and looting across the Middle East and
-            North Africa. Account-gated.</li>
-          <li><b>Colombia</b> UBPD recovery of the disappeared; <b>Mexico</b> CNB
-            clandestine-grave registry.</li>
-          <li><b>England &amp; Wales</b> Ministry of Justice licences to remove remains
-            (Burial Act 1857 s.25) &mdash; issued in volume, released only on request.</li>
-          <li><b>ICMP</b> &mdash; the fullest record of conflict-grave exhumations
-            anywhere; publishes reports, not data.</li>
-        </ul>
-
-        <b class="h">What the numbers can and cannot tell you</b>
-        <ul>
-          <li>No percentage of world coverage is given, because no dataset holds the true
-            global count. Any figure would be invented. The shape of the sample is
-            described instead.</li>
-          <li>A count of individuals appears only where a source states one. Absence of a
-            count means the source was silent, never that the number is small.</li>
-          <li>Coverage is heavily weighted to countries with statutory repatriation and
-            heritage-permit regimes. Sparse regions on this map are sparse in the
-            <i>records</i>, not necessarily in the ground.</li>
-        </ul>
       </div>
     </details>
+
+
+    
   </div>
 </div>
 
@@ -669,8 +661,74 @@
     <span>The wire <span id="wireCount" style="opacity:.6;font-weight:400;"></span></span><span>&#9662;</span>
   </div>
   <div class="pnl-body">
+    <div class="wire-intro">
+      <p>An unearthing is any moment buried people come back to the surface. Most begin by
+      accident. A trench
+      for a water main, a storm that eats a coastline, a farmer deepening a field. Some
+      are deliberate &mdash; a licensed excavation, a cemetery cleared to build. A few
+      are theft. What they share is that the people in the ground had no say.</p>
+
+      <p>The first question anyone asks is how old they are. Recent remains become a criminal matter: police, a coroner, an
+      investigation. Older remains pass a legal threshold and enter the heritage system
+      instead. In much of the world the line sits around a century.</p>
+
+      <p>Once it is a heritage matter, the law asks who has standing to speak for the
+      dead. The answer is usually determined by the state, using the state's own
+      records of who belongs where &mdash; frequently the same records produced by the
+      displacement that put the remains in the ground. A nation erased on paper has no
+      standing to claim what was taken from it, and communities that were moved,
+      renamed or never recognised routinely find themselves outside the process
+      entirely.</p>
+
+      <p>Those with standing are then consulted. In most regimes the authority may proceed over an objection, having consulted
+      lawfully, and the file will show the process was followed. What consultation
+      reliably produces is a record &mdash; which is why a consultation that was skipped,
+      rushed or served on the wrong party is the most common ground on which a project is
+      later stopped.</p>
+
+      <p>Then a decision issues: a permit, a licence, a consent, recorded in a register.
+      This is the part most visible on this map, and the part most often misread. A
+      permit register is not a protection system. It exists to make disturbance orderly
+      &mdash; to say who may dig, under what conditions, with what reporting.</p>
+
+      <p>Removal follows, carried out by an archaeologist working to some standard of
+      practice. Standards vary enormously between jurisdictions, and in most commercial
+      systems the developer chooses and pays the specialist who assesses the developer's
+      site. The remains then go somewhere &mdash; a university, a museum, a contractor's
+      store &mdash; and this is the step that, repeated for two centuries, built the collections now held across the world. Storage without a deadline is how
+      enormous numbers of people ended up in institutional custody without anyone ever deciding if they stay or not.</p>
+
+      <p>The holder then writes an inventory of what it has, then rules on affiliation
+      &mdash; whether these remains can be tied to a living people. If affiliation is
+      found, a public notice is published, opening a window for claims. If it is not, the
+      remains are declared unclaimed or culturally unidentifiable and stay on the shelf.
+      Limbo is the most common ending.</p>
+
+      
+
+      <p>This wire watches all of this in <b>21 languages across 39 locales</b>, worldwide.</p>
+    </div>
+
     <select id="wireRegion"><option value="">Everywhere</option></select>
+    <div class="wire-ctl">
+      <select id="wireAge">
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="365">Last year</option>
+        <option value="0" selected>Everything held</option>
+      </select>
+      <select id="wireSort">
+        <option value="new">Sort: newest first</option>
+        <option value="old">Sort: oldest first</option>
+        <option value="sig">Sort: significance</option>
+        <option value="lang">Sort: by language</option>
+        <option value="place">Sort: A&ndash;Z by place</option>
+        <option value="topic">Sort: by topic</option>
+      </select>
+    </div>
     <div id="wireTopics" style="margin-top:8px;"></div>
+    <div class="ctl-note" id="wireTopicDesc"></div>
     <div id="wireList"><div class="ctl-note">Loading&hellip;</div></div>
   </div>
 </div>
@@ -687,13 +745,95 @@ var PLATE_IMG = "data:image/webp;base64,UklGRgIbBgBXRUJQVlA4WAoAAAAQAAAAPwYAmgUA
 /* ------------------------------------------------------------------ config */
 var POSTURES=[['harm','Harm'],['watch','Watch'],['redress','Redress'],['unlawful','Unlawful']];
 var PCOLOR={harm:'#b5462f',watch:'#c9a227',redress:'#6f9e8c',unlawful:'#7d3350'};
+/* ------------------------------------------------------------------ glossary
+   This subject runs on jargon, and a reader who does not already work in it will
+   bounce off words like "disposition", "provenance" or "THPO" without knowing they
+   have missed something. Every specialist term the interface uses gets a plain
+   definition, shown on hover and tap, and listed in full in the map key.
+
+   Definitions are written for someone who has never read a repatriation notice.
+   No term is defined using another term from this list. */
+var GLOSS={
+ 'repatriation':'Returning ancestors, and the things buried with them, to the descendants or nation they were taken from.',
+ 'disposition':'The formal decision about who receives ancestors and where they will finally rest.',
+ 'reinterment':'Burying someone again, after they were dug up or moved.',
+ 'exhumation':'Digging up someone who was buried.',
+ 'inadvertent discovery':'Human remains found by accident, usually during building work, with no plan in place.',
+ 'provenance':'The documented history of how an object or ancestor came to be where they are now, and through whose hands.',
+ 'deaccession':'A museum formally removing something from its collection, so it can be returned, transferred or disposed of.',
+ 'funerary objects':'Things buried with a person, or made for their burial. Treated in law as belonging with them, not as artefacts.',
+ 'NAGPRA':'A 1990 US law requiring museums and agencies to inventory Native American ancestors they hold and return them to descendant nations.',
+ 'THPO':'Tribal Historic Preservation Officer. The official who speaks for a tribe on heritage matters, with authority a federal agency must engage.',
+ 'SHPO':'State Historic Preservation Officer. The state-level equivalent, for sites not on tribal land.',
+ 'Section 106':'The step in US law where a federal project must identify historic properties it will affect and consult the people who care about them, before it proceeds.',
+ 'AHIP':'Aboriginal Heritage Impact Permit. A New South Wales licence that lawfully permits harm to Aboriginal heritage, including burials.',
+ 'MNI':'Minimum Number of Individuals. The smallest number of people that a set of bones must represent. Used because remains are often incomplete or mixed.',
+ 'ossuary':'A container or room where the bones of many people are gathered together after burial.',
+ 'wahi tapu':'Maori term for a place sacred in the traditional sense, including burial grounds. Its location is often deliberately unpublished.',
+ 'unearthing':'Any event that brings buried people back to the surface, or decides what happens to them once they are there.',
+ 'posture':'This map\'s word for what a record does to the dead: harm, watch, redress, or unlawful. Not a judgement of the organisation involved.',
+ 'coarsened':'Deliberately blurred. The point shown is not the real location, because publishing the real one would expose a grave.',
+ 'ADM1':'The first tier of government below a country: a state, province or region.',
+ 'ADM2':'The tier below that: a county, district or municipality.',
+ 'proximity flag':'A project that sits near a recorded burial ground. It means the question should be asked, not that anything has been disturbed.',
+ 'lifecycle prefix':'A tag in OpenStreetMap marking that something used to be there and no longer is.',
+ 'service area':'The jurisdiction a body actually covers, which is often not where its office is.',
+ 'repatriation notice':'A published legal notice that an institution intends to return specific ancestors, opening a window for others to make a claim.',
+ 'mass grave':'A grave holding several people put there together, usually after a killing, disaster or epidemic.',
+ 'looting':'Digging up graves without permission, generally to sell what is found.',
+ 'salvage condition':'A requirement attached to a permit saying what must happen if remains are found once work has begun.'
+};
+/* The definition is printed WHERE THE WORD IS, in parentheses, rather than parked
+   in a glossary the reader has to go and find. A hover tooltip fails the two people
+   who most need it -- anyone on a touchscreen, and anyone who does not know there is
+   anything to hover over.
+
+   Definitions are shortened to a clause here; the full sentence stays in the title
+   attribute for anyone who does hover. A term is defined ONCE per rendered block --
+   _glodone is reset by gloReset() at the top of each render -- so a list of twenty
+   records does not repeat the same parenthesis twenty times. */
+var _glodone={};
+function gloReset(){ _glodone={}; }
+function glo(term,shown){
+  var k=String(term).toLowerCase(), d=GLOSS[term]||GLOSS[k];
+  var label=esc(shown||term);
+  if(!d) return label;
+  if(_glodone[k]) return '<span class="gl" title="'+esc(d)+'">'+label+'</span>';
+  _glodone[k]=1;
+  var brief=d.replace(/\s+/g,' ').trim();
+  var cut=brief.indexOf('. ');
+  if(cut>20) brief=brief.slice(0,cut);
+  brief=brief.replace(/\.$/,'');
+  brief=brief.charAt(0).toLowerCase()+brief.slice(1);
+  return '<span class="gl" title="'+esc(d)+'">'+label+'</span>'
+       + '<span class="gl-inline"> (' + esc(brief) + ')</span>';
+}
+function glossaryHTML(){
+  return Object.keys(GLOSS).sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:1;})
+    .map(function(k){
+      return '<div class="gl-row"><b>'+esc(k)+'</b> &mdash; '+esc(GLOSS[k])+'</div>';
+    }).join('');
+}
+
 var KIND_LABEL={
   'repatriation':'Repatriation notice','disposition':'Intended disposition',
   'reinterment':'Transfer or reinterment','holding':'Institution holding remains',
   'harm-permit':'Permit to harm burial site','excavation':'Licensed excavation',
-  'exhumation':'Exhumation / cemetery removal','removed-ground':'Burial ground removed',
-  'mass-grave':'Forensic recovery','discovery':'Inadvertent discovery',
+  'exhumation':'Exhumation / cemetery removal','removed-ground':'Burial ground no longer there',
+  'mass-grave':'Mass-grave recovery','forensic-case':'Individual forensic recovery',
+  'discovery':'Inadvertent discovery',
   'looting':'Illicit disturbance','review':'Review flagging burials'};
+/* which glossary entry explains each kind */
+var KIND_GLOSS={'repatriation':'repatriation notice','disposition':'disposition',
+  'reinterment':'reinterment','holding':'provenance','harm-permit':'AHIP',
+  'excavation':'unearthing','exhumation':'exhumation','removed-ground':'lifecycle prefix',
+  'mass-grave':'mass grave','forensic-case':'exhumation',
+  'discovery':'inadvertent discovery','looting':'looting',
+  'review':'proximity flag'};
+function kindLabel(k){
+  var lbl=KIND_LABEL[k]||k||'';
+  return KIND_GLOSS[k]?glo(KIND_GLOSS[k],lbl):esc(lbl);
+}
 var GEO_LABEL={exact:'Named institution or address',area:'Centre of permit or project area',
   admin:'Centre of an administrative unit',coarsened:'Blurred to about 5 km'};
 var WINDOWS=[[0,'All ages'],[30,'\u226430d'],[90,'\u226490d'],[180,'\u22646mo'],[365,'\u22641yr']];
@@ -710,16 +850,53 @@ var FACILITIES={
      institutional field at once, not hunt for it. */
   mus:  ['remains_local_museum','Museum (may hold remains \u2014 unconfirmed)',5]
 };
-var WTOPIC=[['redress','Return'],['conflict','Conflict & the disappeared'],
+var WTOPIC=[['opposition','Opposition'],['trade','Trade in remains'],
+            ['redress','Return'],['conflict','Conflict & the disappeared'],
             ['development','Development'],['desecration','Desecration & looting'],
             ['institution','Institutions'],['other','Other']];
+/* Shown when a topic is selected. Opposition gets the longest note because it is
+   the one topic with no register behind it at all. */
+var WTOPIC_DESC={
+  opposition:'A nation objects, a preservation officer files, a council blockades. '
+    +'Opposition is a speech act by a named party, and it lives in comment dockets, '
+    +'interventions, court filings and press \u2014 never in the permit record. That is '
+    +'why it is a wire topic rather than a map layer: no register collects it.',
+  trade:'The live market in human remains \u2014 auction and online listings, customs '
+    +'and INTERPOL seizures, smuggling. Press-driven rather than register-driven, so '
+    +'coverage is patchy by nature.',
+  redress:'Ancestors going home: repatriations, reburials, identifications returned to '
+    +'families.',
+  conflict:'Mass graves, the disappeared, war crimes, and the forensic teams that open '
+    +'them.',
+  development:'Construction, extraction and infrastructure meeting a burial ground.',
+  desecration:'Vandalism, grave robbing and trafficking.',
+  institution:'Museums, universities and collections \u2014 who is holding whom.',
+  other:'On topic for this wire, but not falling into the categories above.'};
 
 /* ------------------------------------------------------------------- state */
 var RECORDS=[], META={}, showUnearth=true;
 var FAC={};                       /* id -> {rows, on, loading} */
-var WIRE=[], wireRegion='', wireTopics=new Set();
+var WIRE=[], wireRegion='', wireTopics=new Set(), wireAge=0, wireSort='new';
+/* ISO 639-1 -> the language's own name, so a reader recognises it. The wire runs
+   21 languages across 39 locales; sorting by language groups the coverage that
+   only exists in one press. */
+var LANG_NAME={en:'English',es:'Espanol',pt:'Portugues',fr:'Francais',de:'Deutsch',
+  it:'Italiano',nl:'Nederlands',sv:'Svenska',no:'Norsk',da:'Dansk',fi:'Suomi',
+  pl:'Polski',ru:'Russkiy',uk:'Ukrainska',tr:'Turkce',el:'Ellinika',he:'Ivrit',
+  ar:'Arabiyya',ja:'Nihongo',ko:'Hangugeo',zh:'Zhongwen',id:'Indonesia',
+  hi:'Hindi',th:'Thai',vi:'Tieng Viet',cs:'Cestina',hu:'Magyar',ro:'Romana'};
+function langName(c){ return c?(LANG_NAME[c]||c.toUpperCase()):'Unspecified'; }
 var LENSES=null, LENS_STATUS=null, lensKey=null;
-var fPosture=new Set(), fKind=new Set(), fTrigger=new Set(), fScale=new Set();
+var fPosture=new Set(), fKind=new Set(), fTrigger=new Set(), fScale=new Set(),
+    fSource=new Set();
+var SOURCE_LABEL={
+  'nagpra_notices':'US NAGPRA notices','us_burial_reviews':'US federal burial reviews',
+  'nsw_ahip':'NSW heritage permits (AHIP)','uk_burial_planning':'UK planning',
+  'ceqanet_burials':'California CEQA','osm_removed_burial_grounds':'OSM removed grounds',
+  'projects_crossfeed':'Live Projects map (text)',
+  'projects_on_burial_ground':'Live Projects map (proximity)',
+  'nps_nagpra_grid':'US NAGPRA inventories','ckan_remains':'Open-data portals (CKAN)',
+  'ods_remains':'Open-data portals (ODS)','geonode_remains':'Open-data portals (GeoNode)'};
 var fWindow=0, inclUndated=true, query='';
 
 /* --------------------------------------------------------------------- map */
@@ -830,6 +1007,28 @@ function drawFacility(ctx,x,y,z,ftype){
   if(z>=11){ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;
     ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);}
 }
+/* GROUND MARKS -- for records that describe a place rather than an event in motion.
+   A burial ground that vanished at an unknown date is standing context: it is not
+   news, nobody is acting on it today, and there is nothing to intervene in. Drawn
+   with an impact-scaled dot it looked exactly like a live permit application, and
+   at 317 of 1,896 records it swamped the map with things that already happened.
+
+   So it takes the facility idiom -- a small quiet square, the size of a cemetery
+   mark -- but hollow and in the harm tone, so it still reads as "ground that was
+   disturbed" rather than "cemetery that exists".
+
+   The BLUR IS UNCHANGED. This is purely how the mark is drawn; removed-ground is
+   still coarsened by the placement gate like every other kind that identifies a
+   burial location. Making it look quieter must never make it more precise. */
+var GROUND_KINDS={'removed-ground':1};
+function drawGround(ctx,x,y,z,color){
+  var sz=z<8?2.4:(z<11?3:3.8);
+  ctx.strokeStyle=color; ctx.lineWidth=1.1;
+  ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);
+  if(z>=10){   /* a faint slash: this ground is gone, not standing */
+    ctx.beginPath(); ctx.moveTo(x-sz/2,y+sz/2); ctx.lineTo(x+sz/2,y-sz/2); ctx.stroke();
+  }
+}
 function markRadius(impact,zoom){
   var base=2.6+1.15*(Math.max(1,Math.min(5,impact||2))-1);
   return base*(zoom<4?0.82:zoom<7?1:1.22);
@@ -885,10 +1084,24 @@ var MarkLayer=L.Layer.extend({
         if(r.lat==null||r.lng==null)continue;
         if(!b.contains([r.lat,r.lng]))continue;
         var p=m.latLngToContainerPoint([r.lat,r.lng]),
-            rad=markRadius(r.impact,z),
             col=PCOLOR[r.posture]||'#c9a227';
+        if(GROUND_KINDS[r.kind]){
+          drawGround(ctx,p.x,p.y,z,'rgba(197,106,90,.75)');
+          this._hit.push({x:p.x,y:p.y,r:6,rec:r});
+          continue;
+        }
+        var rad=markRadius(r.impact,z);
         drawMark(ctx,p.x,p.y,rad,col,r.geo||'admin');
         this._hit.push({x:p.x,y:p.y,r:Math.max(rad*1.6,7),rec:r});
+      }
+      if(findOn){
+        for(var fi=0;fi<FINDINGS.length;fi++){
+          var f=FINDINGS[fi];
+          if(f.lat==null)continue;
+          var fpt=m.latLngToContainerPoint([f.lat,f.lng]);
+          drawFinding(ctx,fpt.x,fpt.y,f);
+          this._hit.push({x:fpt.x,y:fpt.y,r:16,finding:f});
+        }
       }
     }
   },
@@ -911,7 +1124,8 @@ var layer=new MarkLayer().addTo(map);
 map.on('click',function(e){
   var h=layer.pick(e.containerPoint);
   if(!h) return;                 /* boundary clicks are handled by the gb layer */
-  if(h.rec) openEntry('record', recTitle(h.rec), popupHTML(h.rec));
+  if(h.finding) openEntry('unit', h.finding.place, findingHTML(h.finding));
+  else if(h.rec) openEntry('record', recTitle(h.rec), popupHTML(h.rec));
   else      openEntry('facility', h.fac[2]||'Unnamed burial ground',
                       facilityHTML(h.fac,h.facType));
 });
@@ -925,7 +1139,7 @@ function esc(s){return String(s==null?'':s)
 function popupHTML(r){
   var h='<div class="pk">'+esc(r.name||'Record')+'</div>';
   h+='<span class="tag t-'+esc(r.posture||'watch')+'">'+esc(r.posture||'watch')+'</span>';
-  if(r.kind)h+='<span class="tag t-plain">'+esc(KIND_LABEL[r.kind]||r.kind)+'</span>';
+  if(r.kind)h+='<span class="tag t-plain">'+kindLabel(r.kind)+'</span>';
   if(r.trigger&&r.trigger!=='unknown')
     h+='<span class="tag t-plain">'+esc(r.trigger)+'</span>';
   if(r.count!=null)h+='<div class="kv"><span>Individuals stated:</span> <b>'+esc(r.count)+'</b></div>';
@@ -987,6 +1201,7 @@ function visible(){
     if(fPosture.size&&!fPosture.has(r.posture))return false;
     if(fKind.size&&!fKind.has(r.kind))return false;
     if(fTrigger.size&&!fTrigger.has(r.trigger||'unknown'))return false;
+    if(fSource.size&&!fSource.has(r.source))return false;
     if(fScale.size&&!fScale.has(Math.max(1,Math.min(5,r.impact||2))))return false;
     if(cut){
       if(!r.date)return inclUndated;
@@ -1031,6 +1246,14 @@ function buildFilters(){
   var byP=tally('posture'), byK=tally('kind'), byT=tally(null,function(r){
     return r.trigger||'unknown';});
   var byS=tally(null,function(r){return Math.max(1,Math.min(5,r.impact||2));});
+  var bySrc=tally('source');
+
+  /* Which register a record came from. Worth its own filter because the sources are
+     not interchangeable: one ArcGIS permit layer can outweigh every other feed
+     combined, and being able to switch it off is the fastest way to see what the
+     rest of the world's registers actually contain. */
+  pills('fSource',Object.keys(bySrc).sort(function(a,b){return bySrc[b]-bySrc[a];})
+    .map(function(k){return {key:k,label:SOURCE_LABEL[k]||k,n:bySrc[k]};}),fSource,render);
 
   pills('fPosture',POSTURES.map(function(p){
     return {key:p[0],label:p[1],n:byP[p[0]]||0,cls:'p-'+p[0]};}),fPosture,render);
@@ -1067,6 +1290,7 @@ function buildFilters(){
 
 /* ---------------------------------------------------------------- render */
 function render(){
+  gloReset();
   layer.redraw();
   var n=visible().length;
   document.getElementById('nUnearth').textContent=
@@ -1081,11 +1305,13 @@ function subtitle(n){
   if(!RECORDS.length){s.textContent='No records loaded.';return;}
   var gen=META.generated?String(META.generated).slice(0,10):'';
   var coarse=RECORDS.filter(function(r){return r.geo==='coarsened';}).length;
-  s.innerHTML='<b>'+n.toLocaleString()+'</b> public records of unearthings and '
-    +'decisions about unearthed human remains, worldwide'
-    +(gen?', harvested '+esc(gen):'')+'. '
-    +'<b>'+coarse.toLocaleString()+'</b> are drawn as halos because their location is '
-    +'deliberately blurred &mdash; this map does not publish grave coordinates.';
+  /* Kept short enough to hold one line at a normal window width. The reasoning
+     about blurring is in the how-to panel and in design note 1, where it has room
+     to be explained rather than asserted. */
+  s.innerHTML='<b>'+n.toLocaleString()+'</b> public records of unearthings worldwide'
+    +(gen?' &middot; harvested '+esc(gen):'')
+    +' &middot; <b>'+coarse.toLocaleString()+'</b> blurred, because this map does not '
+    +'publish grave coordinates';
 }
 
 /* ------------------------------------------------------------- legend key */
@@ -1494,7 +1720,7 @@ function unitHTML(feat,lvl){
     h+='<div class="ent-sec">Records here</div>';
     inside.slice(0,14).forEach(function(r){
       h+='<div class="li"><span class="nolink">'+esc(r.name||'')+'</span>'
-        +'<div class="note">'+esc(KIND_LABEL[r.kind]||r.kind||'')
+        +'<div class="note">'+kindLabel(r.kind)
         +(r.date?' \u00b7 '+esc(r.date):'')+'</div></div>';
     });
     if(inside.length>14) h+='<div class="ent-empty">'+(inside.length-14)+' more.</div>';
@@ -1509,9 +1735,14 @@ function unitHTML(feat,lvl){
 
 /* --- chrome: level pills + breadcrumb ---------------------------------- */
 function gbRenderChrome(){
-  document.getElementById('gbLevelLabel').textContent =
-    gbLevel===null?'countries':GB_LVLNAME[gbLevel];
+  /* The level pills and breadcrumb were removed from the panel: the drilldown is
+     driven entirely by clicking a unit to go in and empty space to come back out,
+     which is how the projects map behaves and needs no chrome. These lookups are
+     kept null-safe so the code works with or without that block present. */
+  var ll=document.getElementById('gbLevelLabel');
+  if(ll) ll.textContent = gbLevel===null?'countries':GB_LVLNAME[gbLevel];
   var lp=document.getElementById('gbLevels');
+  if(!lp){ var cr0=document.getElementById('gbCrumb'); if(!cr0) return; }
   if(gbLevel===null){ lp.innerHTML=''; }
   else{
     lp.innerHTML=GB_LEVELS.map(function(l){
@@ -1524,6 +1755,7 @@ function gbRenderChrome(){
     };
   }
   var cr=document.getElementById('gbCrumb');
+  if(!cr) return;
   if(gbLevel===null){
     cr.innerHTML='<b>World</b> &mdash; click a country to go in.';
   } else {
@@ -1538,11 +1770,136 @@ function gbRenderChrome(){
     cr.innerHTML=parts.join(' &rsaquo; ');
   }
 }
-document.getElementById('layGB').addEventListener('change',function(){
+var _gbToggle=document.getElementById('layGB');
+if(_gbToggle) _gbToggle.addEventListener('change',function(){
   gbOn=this.checked;
   if(!gbOn){ if(gbLayer&&map.hasLayer(gbLayer))map.removeLayer(gbLayer); }
   else gbDraw(gbFeats,false);
 });
+
+/* Click empty space to step back up a level -- the way out, now that the
+   breadcrumb is gone. A click that hits a mark or a unit is handled elsewhere and
+   never reaches here, so this only fires on genuinely empty ground. */
+map.on('click',function(e){
+  try{ if(layer.pick(e.containerPoint)) return; }catch(err){}
+  if(gbLevel===null) return;                 /* already at the world */
+  if(gbChain.length>1){
+    gbChain.pop();
+    var up=gbChain[gbChain.length-1];
+    if(up && up.lvl==='ADM0'){ gbEnter(gbISO,gbISOName,'ADM1'); return; }
+    if(up){ gbSelect(null); gbUnitClick(up.feat); return; }
+  }
+  gbWorld(true);
+});
+
+/* ------------------------------------------- conditions on the ground -----
+   Erosion, thaw and fire unearth people with no permit, no applicant and nobody
+   to serve notice on. They were a research lens; they are conditions, so they are
+   layers now, visible against the records rather than described next to them.
+
+   Fire is live: NASA GIBS serves global VIIRS thermal anomalies as WMTS tiles,
+   updated daily, no key required.
+
+   Erosion and thaw have NO equivalent live global tile service. What exists is
+   modelled and periodic, not a feed. Rather than invent one, those two toggles
+   load a documented context layer where one exists and say plainly when it does
+   not -- an empty toggle that explains itself beats a layer that implies live
+   monitoring nobody is doing. */
+var ENV_LAYERS={
+  fire: {
+    label:'Active fire (last 24h)',
+    url:'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/'
+        +'VIIRS_NOAA20_Thermal_Anomalies_375m_Day/default/{time}/'
+        +'GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+    opts:{maxZoom:7, opacity:0.85, time:'default',
+          attribution:'Fire: NASA EOSDIS GIBS / VIIRS'},
+    note:'NASA VIIRS thermal anomalies, refreshed daily.'
+  },
+  thaw: {
+    label:'Permafrost extent',
+    url:null,
+    note:'No public global tile service publishes permafrost thaw as a live layer. '
+        +'The standard reference is the Obu et al. permafrost extent model, which is '
+        +'periodic rather than live. Left off rather than faked.'
+  },
+  erosion: {
+    label:'Coastal erosion',
+    url:null,
+    note:'No public global tile service publishes shoreline change as a live layer. '
+        +'National programmes exist in places; a worldwide feed does not. Left off '
+        +'rather than faked.'
+  }
+};
+var envOn={};
+function toggleEnv(key,on){
+  var cfg=ENV_LAYERS[key]; if(!cfg)return;
+  if(on && cfg.url){
+    if(!envOn[key]){
+      envOn[key]=L.tileLayer(cfg.url.replace('{time}',cfg.opts.time),cfg.opts);
+      envOn[key].addTo(map);
+    }
+  } else if(envOn[key]){
+    map.removeLayer(envOn[key]); delete envOn[key];
+  }
+  var el=document.getElementById('n'+key.charAt(0).toUpperCase()+key.slice(1));
+  if(el) el.textContent = cfg.url ? (on?'on':'off') : 'no global feed';
+}
+
+/* --------------------------------------------------- measured damage layer
+   Published AGGREGATE findings on how much has already been looted or destroyed,
+   and where anyone has published it, how densely sites occur.
+
+   No coordinates of any site are involved. These are percentages researchers put
+   in print, plotted at the centroid of the area each study covered -- because
+   deriving a density surface ourselves would mean ingesting and holding the point
+   data, and a harvester that stores a site register IS one whatever it publishes.
+
+   Drawn as an open ring with the figure written inside it, deliberately unlike
+   every other mark: this is a published statistic about a region, not an event at
+   a place. */
+var FINDINGS=[], findOn=false;
+function loadFindings(){
+  fetch('findings.json').then(function(r){ if(!r.ok)throw 0; return r.json(); })
+    .then(function(j){
+      FINDINGS=j.findings||[];
+      var el=document.getElementById('nFind');
+      if(el) el.textContent=FINDINGS.length+' published';
+      layer.redraw();
+    }).catch(function(){
+      var el=document.getElementById('nFind'); if(el) el.textContent='not loaded';
+    });
+}
+function drawFinding(ctx,x,y,f){
+  var big=f.value>=50, r=big?15:12;
+  ctx.strokeStyle=f.kind==='density'?'rgba(120,170,190,.95)':'rgba(214,122,90,.95)';
+  ctx.lineWidth=1.6;
+  ctx.setLineDash([3,2.5]);
+  ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(12,10,8,.72)';
+  ctx.beginPath(); ctx.arc(x,y,r-2,0,6.2832); ctx.fill();
+  ctx.fillStyle=f.kind==='density'?'#a8d0de':'#f0b49a';
+  ctx.font='bold 10px Marcellus, Georgia, serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(f.value?(f.value+'%'):'!', x, y);
+  ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+}
+function findingHTML(f){
+  var h='<div class="pk">'+esc(f.place)+'</div>';
+  h+='<span class="tag t-plain">'+(f.kind==='density'?'Site density':'Measured looting')+'</span>';
+  if(f.period) h+='<span class="tag t-plain">'+esc(f.period)+'</span>';
+  if(f.value) h+='<div class="kv"><span>Finding:</span> <b>'+f.value+'</b> '+esc(f.unit)+'</div>';
+  else h+='<div class="kv"><span>Finding:</span> '+esc(f.unit)+'</div>';
+  if(f.denominator) h+='<div class="kv"><span>Out of:</span> '+esc(f.denominator)+'</div>';
+  if(f.compare) h+='<div class="kv"><span>Compared with:</span> '+esc(f.compare)+'</div>';
+  h+='<div class="ent-sec">What it means</div>';
+  h+='<div class="ent-empty">'+esc(f.note||'')+'</div>';
+  h+='<div class="ent-sec">Source</div>';
+  h+='<div class="li">'+(f.url?'<a href="'+esc(f.url)+'" target="_blank" rel="noopener">'
+      +esc(f.source)+'</a>':'<span class="nolink">'+esc(f.source)+'</span>')+'</div>';
+  h+='<div class="ent-empty" style="margin-top:9px;">These figures are <b>not '+'comparable to each other</b> &mdash; different studies, methods, date ranges '+'and definitions of "site" and "looted". Each one means a team measured an area '+'one way and published the number.</div>';
+  return h;
+}
 
 /* ------------------------------------------------------- facility loading */
 /* Loaded lazily on toggle: the global cemetery file is large, and most sessions
@@ -1586,11 +1943,37 @@ function wireVisible(){
       } else if(w.iso!==wireRegion) return false;
     }
     if(wireTopics.size&&!wireTopics.has(w.topic||'other'))return false;
+    if(wireAge){
+      /* Date-only strings compare correctly as text in ISO form, so no Date
+         parsing and no timezone surprises. An item with no date is KEPT: a
+         missing date is not evidence that the item is old. */
+      if(w.date && w.date < wireCutoff()) return false;
+    }
     return true;
   });
 }
+function wireCutoff(){
+  var d=new Date(Date.now()-wireAge*86400000);
+  return d.toISOString().slice(0,10);
+}
+function wireSorted(items){
+  var by=wireSort;
+  return items.slice().sort(function(a,b){
+    if(by==='new')  return (b.date||'').localeCompare(a.date||'');
+    if(by==='old')  return (a.date||'').localeCompare(b.date||'');
+    if(by==='sig')  return (b.sig||0)-(a.sig||0) || (b.date||'').localeCompare(a.date||'');
+    if(by==='lang') return langName(a.lang).localeCompare(langName(b.lang))
+                        || (b.date||'').localeCompare(a.date||'');
+    if(by==='place')return (isoLabel(a.iso)||'zzz').localeCompare(isoLabel(b.iso)||'zzz')
+                        || (a.region||'').localeCompare(b.region||'');
+    if(by==='topic')return (a.topic||'other').localeCompare(b.topic||'other')
+                        || (b.date||'').localeCompare(a.date||'');
+    return 0;
+  });
+}
 function renderWire(){
-  var items=wireVisible(),el=document.getElementById('wireList');
+  gloReset();
+  var items=wireSorted(wireVisible()),el=document.getElementById('wireList');
   document.getElementById('wireCount').textContent='('+items.length+')';
   if(!items.length){
     var who=wireRegion
@@ -1604,7 +1987,8 @@ function renderWire(){
     return;
   }
   el.innerHTML=items.slice(0,60).map(function(w){
-    var place=[w.region,isoLabel(w.iso)].filter(Boolean).join(', ');
+    var place=[w.region,isoLabel(w.iso),(w.lang&&w.lang!=='en')?langName(w.lang):'']
+                .filter(Boolean).join(', ');
     return '<div class="wi sig'+(w.sig||1)+'">'
       +'<a href="'+esc(w.link)+'" target="_blank" rel="noopener">'+esc(w.title)+'</a>'
       +'<div class="meta"><span class="tt">'+esc(w.topic||'other')+'</span>'
@@ -1657,6 +2041,10 @@ function buildWireControls(){
     +(idle.length?'<optgroup label="Nothing right now ('+idle.length+' countries)">'
         +optsFor(idle)+'</optgroup>':'');
   sel.onchange=function(){wireRegion=sel.value;renderWire();};
+  var ag=document.getElementById('wireAge');
+  ag.onchange=function(){wireAge=parseInt(ag.value,10)||0;renderWire();};
+  var so=document.getElementById('wireSort');
+  so.onchange=function(){wireSort=so.value;renderWire();};
   var tp=document.getElementById('wireTopics'),byT={};
   WIRE.forEach(function(w){var t=w.topic||'other';byT[t]=(byT[t]||0)+1;});
   tp.innerHTML=WTOPIC.filter(function(t){return byT[t[0]];}).map(function(t){
@@ -1666,11 +2054,19 @@ function buildWireControls(){
     var b=e.target.closest('.pill'); if(!b)return;
     var k=b.getAttribute('data-k');
     if(wireTopics.has(k))wireTopics.delete(k); else wireTopics.add(k);
-    b.classList.toggle('on');renderWire();};
+    b.classList.toggle('on');
+    var d=document.getElementById('wireTopicDesc');
+    if(d){
+      var sel=Array.from(wireTopics);
+      d.innerHTML = sel.length===1 && WTOPIC_DESC[sel[0]]
+        ? esc(WTOPIC_DESC[sel[0]]) : '';
+    }
+    renderWire();};
 }
 
 /* ----------------------------------------------------------------- lenses */
 function renderLens(){
+  gloReset();
   if(!LENSES||!LENSES.lenses)return;
   var lens=LENSES.lenses.filter(function(l){return l.key===lensKey;})[0]||LENSES.lenses[0];
   lensKey=lens.key;
@@ -1778,8 +2174,15 @@ facCheckbox('cem','layCem','nCem');
 facCheckbox('crem','layCrem','nCrem');
 facCheckbox('mort','layMort','nMort');
 facCheckbox('mus','layMus','nMus');
+document.getElementById('layFind').addEventListener('change',function(){
+  findOn=this.checked; layer.redraw();
+});
+['fire','thaw','erosion'].forEach(function(k){
+  var el=document.getElementById('lay'+k.charAt(0).toUpperCase()+k.slice(1));
+  if(el) el.addEventListener('change',function(){ toggleEnv(k,this.checked); });
+});
 
-load(); loadWire(); loadLenses(); gbWorld(false);
+load(); loadWire(); loadLenses(); loadFindings(); gbWorld(false);
 </script>
 </body>
 </html>

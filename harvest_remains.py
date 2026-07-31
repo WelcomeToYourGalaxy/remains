@@ -111,8 +111,12 @@ KINDS = {
     "harm-permit":   ("Permit to harm burial site",   "harm",     False),
     "excavation":    ("Licensed excavation",          "harm",     True),
     "exhumation":    ("Exhumation / cemetery removal", "harm",    True),
-    "removed-ground": ("Burial ground recorded removed", "harm",  True),
-    "mass-grave":    ("Forensic recovery",            "redress",  True),
+    "removed-ground": ("Burial ground no longer there", "harm",  True),
+    "mass-grave":    ("Mass-grave recovery",          "redress",  True),
+    # One named person, one recovery. Kept distinct from mass-grave so the map can
+    # show them together or apart -- they are the same field of work at a very
+    # different scale, and conflating them would hide both.
+    "forensic-case": ("Individual forensic recovery",  "redress",  True),
     "discovery":     ("Inadvertent discovery",        "watch",    True),
     "looting":       ("Illicit disturbance",          "unlawful", True),
     "review":        ("Review flagging burials",      "watch",    False),
@@ -177,7 +181,7 @@ GEO_NOTE = {
 # carries that distinction, impact only carries magnitude.
 _KIND_FLOOR = {
     "harm-permit": 3, "exhumation": 3, "removed-ground": 3, "looting": 3,
-    "excavation": 2, "mass-grave": 3, "discovery": 2, "review": 2,
+    "excavation": 2, "mass-grave": 3, "forensic-case": 1, "discovery": 2, "review": 2,
     "repatriation": 2, "disposition": 2, "reinterment": 2, "holding": 2,
 }
 
@@ -490,6 +494,54 @@ _REMAINS_DENY_RE = re.compile(
     r"pet\scemeter\w*|cemetery\smaintenance|cemetery\smowing|lawn\scare|"
     r"grave\sdigger\svacancy|cemetery\sfee\sschedule|burial\splot\ssales"
     r")\b", re.I)
+
+
+# ---------------------------------------------------------------------------
+# SINGLE-CASE EXCLUSION
+# ---------------------------------------------------------------------------
+# This map is about MULTI-PERSON incidents and decisions taken over groups of the
+# dead: a burial ground cleared, a collection inventoried, a mass grave opened, a
+# community's ancestors returned. It is NOT a missing-persons register.
+#
+# An individual forensic case -- one named person, one coroner's file, one body
+# recovered and identified -- is somebody's private grief with a live investigation
+# attached. Plotting it would put a named death on a public map for no gain to
+# anyone, and would bury the pattern this map exists to show under thousands of
+# individual files. It is also why the coroner and unidentified-remains registers
+# were left off the source roster deliberately, not by oversight.
+#
+# The test is the SHAPE of the record, not its subject. "Remains of a missing hiker
+# identified" is one case. "Remains of at least 47 individuals" is this map's business.
+_SINGLE_CASE = (
+    "missing person", "missing hiker", "missing walker", "missing woman",
+    "missing man", "missing girl", "missing boy", "cold case",
+    "coroner's inquest", "coroners inquest", "inquest into the death",
+    "murder victim identified", "identified as missing", "body found in",
+    "remains identified as", "named as the victim",
+    "persona desaparecida", "caso individual", "vermisste person",
+)
+_MULTI_HINT = (
+    "individuals", "remains of at least", "a minimum of", "mass grave", "mass graves",
+    "burial ground", "cemetery", "collection", "inventory", "ancestors",
+    "fosa comun", "fosas comunes", "massengrab",
+)
+
+
+# Default OFF: individual cases are IN SCOPE. The classifier is kept because it is
+# still useful -- it now LABELS rather than excludes, so a single recovery gets the
+# `forensic-case` kind and can be filtered apart from group events on the map. Set
+# EXCLUDE_INDIVIDUAL_CASES=1 to go back to group-only.
+EXCLUDE_INDIVIDUAL_CASES = os.environ.get("EXCLUDE_INDIVIDUAL_CASES", "") == "1"
+
+
+def _is_individual_case(text):
+    """True if this reads as ONE person's case rather than a decision about a group."""
+    t = (text or "").lower()
+    if not any(x in t for x in _SINGLE_CASE):
+        return False
+    # An explicit plural or group noun overrides: a story can mention a missing
+    # person and still be about a mass grave.
+    return not any(x in t for x in _MULTI_HINT)
 
 
 def _is_remains(text):
@@ -1043,7 +1095,7 @@ def fetch_osm_removed_burial_grounds(cap=6000):
         lng = el.get("lon") or (el.get("center") or {}).get("lon")
         if lat is None or lng is None:
             continue
-        nm = tags.get("name") or tags.get("old_name") or "Former burial ground"
+        nm = tags.get("name") or tags.get("old_name") or "Unnamed burial ground"
         life = next((k for k, _ in _OSM_REMOVED_TAGS if k in tags), "was:landuse")
         rec = {"name": str(nm)[:150], "kind": "removed-ground", "posture": "harm",
                "trigger": "development", "country": "", "region": "",
@@ -1052,9 +1104,16 @@ def fetch_osm_removed_burial_grounds(cap=6000):
                "url": "https://www.openstreetmap.org/%s/%s" % (el.get("type"), el.get("id")),
                "date": "", "deadline": "", "source": "osm_removed_burial_grounds"}
         _place(rec, lat, lng, GEO_AREA)             # gate coarsens
-        rec["desc"] = ("Burial ground mapped by OpenStreetMap contributors as no "
-                       "longer present. Community-recorded, not an official "
-                       "register. " + GEO_NOTE[rec["geo"]])[:200]
+        # Say plainly that this ALREADY HAPPENED and that the date is unknown.
+        # "Burial ground removed" read as though a removal were under way now;
+        # "Former burial ground" read as though it were ancient history. It is
+        # neither: OSM records that the ground is gone, and says nothing about when
+        # or about what happened to the people in it.
+        rec["desc"] = ("Already gone. OpenStreetMap contributors record that a burial "
+                       "ground was here and no longer is. WHEN it went, and what "
+                       "happened to the people in it, is not stated by this source -- "
+                       "it could be last year or two centuries ago. Community-recorded, "
+                       "not an official register. " + GEO_NOTE[rec["geo"]])[:420]
         rec["impact"] = rate_remains(rec)
         out.append(rec)
     return out
@@ -1708,6 +1767,24 @@ def _finish(items):
     _print_diagnostics()
     items = [r for r in items
              if r.get("lat") is not None and r.get("lng") is not None]
+
+    # Individual forensic cases are IN SCOPE. Rather than dropping them, tag them so
+    # they carry their own kind and can be filtered apart from group events.
+    tagged = 0
+    for r in items:
+        blob = " ".join(str(r.get(k) or "") for k in ("name", "desc"))
+        if _is_individual_case(blob):
+            if r.get("kind") in ("mass-grave", "discovery", None, ""):
+                r["kind"] = "forensic-case"
+                r["posture"] = KINDS["forensic-case"][1]
+            tagged += 1
+    if tagged:
+        print("  tagged %d record(s) as individual forensic cases" % tagged)
+    if EXCLUDE_INDIVIDUAL_CASES:
+        before = len(items)
+        items = [r for r in items if r.get("kind") != "forensic-case"]
+        print("  EXCLUDE_INDIVIDUAL_CASES=1 -- dropped %d" % (before - len(items)))
+
     items = _audit_placement(items)
     items = dedup(items)
     items.sort(key=lambda r: -(r.get("impact") or 0))
@@ -1856,7 +1933,9 @@ _XFEED_REJECT = (
 )
 
 
-def fetch_projects_crossfeed(limit=400):
+def fetch_projects_crossfeed(limit=0):
+    """limit=0 means no cap. Same reasoning as XSPATIAL_CAP: a cap truncates the
+    scan in file order rather than filtering by anything meaningful."""
     """Projects from the sibling repo whose own text announces remains."""
     out = []
     try:
@@ -1871,7 +1950,7 @@ def fetch_projects_crossfeed(limit=400):
         return out
     scanned = rejected = 0
     for r in recs:
-        if len(out) >= limit:
+        if limit and len(out) >= limit:
             break
         scanned += 1
         blob = " ".join(str(r.get(k) or "") for k in ("name", "desc", "type", "status"))
@@ -1948,7 +2027,11 @@ def fetch_projects_crossfeed(limit=400):
 # Instead the burial points go into a dict keyed by rounded lat/lng cell, and each
 # project only tests the nine cells around it -- linear in projects.
 XSPATIAL_METRES = int(os.environ.get("XSPATIAL_METRES", "250"))
-XSPATIAL_CAP = int(os.environ.get("XSPATIAL_CAP", "1200"))
+# 0 = no cap, and that is the default. A cap here does NOT filter by size -- it
+# stops the scan mid-file, so whatever happens to sit later in projects.json is
+# dropped silently. That reads as "small projects are missing" when really it is
+# "everything after record N is missing". Set XSPATIAL_CAP only to debug.
+XSPATIAL_CAP = int(os.environ.get("XSPATIAL_CAP", "0"))
 _CEM_FILE = "remains_local_cemetery.json.gz"
 
 
@@ -2008,7 +2091,7 @@ def fetch_projects_on_burial_ground():
     recs = data.get("projects") if isinstance(data, dict) else data
     scanned = 0
     for r in (recs or []):
-        if len(out) >= XSPATIAL_CAP:
+        if XSPATIAL_CAP and len(out) >= XSPATIAL_CAP:
             break
         lat, lng = r.get("lat"), r.get("lng")
         if lat is None or lng is None:

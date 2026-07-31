@@ -35,7 +35,11 @@ Tunables (env):
     CHECK_SLEEP     politeness pause between requests (default 0.7)
 """
 
-import json, os, sys, time, datetime
+import json
+import ssl
+
+# Hosts whose TLS chain is known-broken; see the note in _check().
+_TLS_BROKEN_HOSTS = {"apps.cr.nps.gov"}, os, sys, time, datetime
 import urllib.request, urllib.error, urllib.parse
 
 LENSES = os.environ.get("LENSES_FILE", "lenses.json")
@@ -77,6 +81,33 @@ def _check(url):
             return "blocked", e.code, url, "server refuses automated requests"
         return "dead", e.code, url, "HTTP %s" % e.code
     except Exception as e:
+        # A BROKEN CERTIFICATE CHAIN IS NOT A DEAD LINK.
+        # apps.cr.nps.gov omits its intermediate certificate, so OpenSSL cannot
+        # build a path and every check dies here. On the 2026-07-30 run that
+        # single misconfiguration marked SEVEN National NAGPRA databases "dead"
+        # -- and they are not: the NPS databases page, last updated 2026-06-09,
+        # still links to every one of them. Same allowlist and same reasoning as
+        # the harvester: retry once without verification, for these hosts only,
+        # and report the result as `tls` so nobody mistakes it for healthy.
+        if "CERTIFICATE_VERIFY_FAILED" in str(e):
+            host = ""
+            try:
+                host = urllib.parse.urlparse(url).netloc.split(":")[0].lower()
+            except Exception:
+                pass
+            if host in _TLS_BROKEN_HOSTS:
+                try:
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
+                    req = urllib.request.Request(url, headers={"User-Agent": UA})
+                    with urllib.request.urlopen(req, timeout=TIMEOUT,
+                                                context=ctx) as r:
+                        return ("tls", r.getcode(), r.geturl(),
+                                "live, but the server's certificate chain is "
+                                "incomplete")
+                except Exception as e2:
+                    return "dead", 0, url, str(e2)[:90]
         return "dead", 0, url, str(e)[:90]
 
 
@@ -88,7 +119,8 @@ def main():
     lenses = doc.get("lenses") or []
 
     results = {}
-    tally = {"ok": 0, "redirect": 0, "blocked": 0, "dead": 0, "find-only": 0}
+    tally = {"ok": 0, "redirect": 0, "blocked": 0, "dead": 0, "find-only": 0,
+             "tls": 0, "moved-to-root": 0}
     dead_list, redirects = [], []
 
     total = sum(len(l.get("items") or []) for l in lenses)
