@@ -35,33 +35,32 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false          # one bad shard must not kill the others
-      # 4 facilities x 8 shards = 32 jobs, but a free public repo gets 20
-      # concurrent jobs across the WHOLE account -- so an unthrottled matrix
-      # leaves four shards sitting "pending" and starves every other workflow
-      # behind it. 12 at a time finishes in two comfortable waves and leaves
-      # runners free for the daily harvest and the wire.
-      max-parallel: 12
+      # ONE query per tile now covers all four facility types, so the facility
+      # dimension is gone from the matrix: 32 jobs become 16, all of which fit in a
+      # single wave instead of three. A free public repo gets 20 concurrent jobs
+      # across the whole account, so 16 leaves headroom for the daily harvest and
+      # the wire.
+      max-parallel: 16
       matrix:
-        facility: [cemetery, crematory, mortuary, museum]
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Harvest ${{ matrix.facility }} shard ${{ matrix.shard }}
+      - name: Harvest shard ${{ matrix.shard }} (all facility types)
         env:
-          FAC_TYPE: ${{ matrix.facility }}
+          FAC_TYPE: all
           FAC_SHARD: ${{ matrix.shard }}
-          FAC_SHARDS: '8'
+          FAC_SHARDS: '16'
           OSM_BUDGET_MIN: '160'
           OSM_TILE_DEG: '2.5'
           OSM_MIN_DEG: '0.3125'
         run: python harvest_cemeteries.py
       - uses: actions/upload-artifact@v4
         with:
-          name: fac-${{ matrix.facility }}-${{ matrix.shard }}
-          path: remains_local_${{ matrix.facility }}_part${{ matrix.shard }}.json
+          name: fac-shard-${{ matrix.shard }}
+          path: remains_local_*_part${{ matrix.shard }}.json
           if-no-files-found: warn
           retention-days: 2
 
@@ -81,9 +80,19 @@ jobs:
           pattern: fac-*
           merge-multiple: true
       - name: Merge shard parts
+        # The facility list is DERIVED from the parts that actually downloaded, not
+        # hardcoded. It was hardcoded to cemetery/crematory/mortuary, so when museum
+        # was added to the matrix its eight shards ran, uploaded and downloaded --
+        # and were then silently never merged. Deriving it means the merge can never
+        # drift out of step with the matrix again.
         run: |
           ls -la remains_local_*_part*.json || echo "no parts downloaded"
-          for t in cemetery crematory mortuary; do
+          TYPES="$(ls remains_local_*_part*.json 2>/dev/null \
+                   | sed -E 's/^remains_local_(.+)_part[0-9]+\.json$/\1/' \
+                   | sort -u | tr '\n' ' ')"
+          if [ -z "$TYPES" ]; then echo "no parts to merge"; exit 0; fi
+          echo "merging facility types: $TYPES"
+          for t in $TYPES; do
             FAC_MERGE=1 FAC_TYPE=$t python harvest_cemeteries.py
           done
           rm -f remains_local_*_part*.json
@@ -99,7 +108,7 @@ jobs:
         # So: take the remote exactly as it is, drop our freshly built file on top,
         # commit that. Survives deletes, concurrent edits and unrelated commits.
         env:
-          FILES: "remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz remains_local_museum.json.gz"
+          FILES: "remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz remains_local_museum.json.gz osm_empty_tiles.json"
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -116,7 +125,14 @@ jobs:
             for f in $FILES; do
               [ -f "$KEEP/$(basename "$f")" ] && cp "$KEEP/$(basename "$f")" "$f"
             done
-            git add -- $FILES
+            # Only add files that EXIST. `git add` fatals on an unmatched pathspec
+            # (unlike `git status`), and with `bash -e` that killed the whole job:
+            # the 2026-07-31 run merged 17,541 cemeteries and then threw them away on
+            # `fatal: pathspec 'remains_local_museum.json.gz' did not match any files`.
+            HAVE=""
+            for f in $FILES; do [ -f "$f" ] && HAVE="$HAVE $f"; done
+            if [ -z "$HAVE" ]; then echo "none of $FILES exist -- nothing to commit"; exit 0; fi
+            git add -- $HAVE
             if git diff --staged --quiet; then
               echo "identical to remote -- nothing to push"; exit 0
             fi

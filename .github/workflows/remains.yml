@@ -86,7 +86,10 @@ jobs:
             for f in $FILES; do
               [ -f "$KEEP/$(basename "$f")" ] && cp "$KEEP/$(basename "$f")" "$f"
             done
-            git add -- $FILES
+            HAVE=""
+            for f in $FILES; do [ -f "$f" ] && HAVE="$HAVE $f"; done
+            if [ -z "$HAVE" ]; then echo "none of $FILES exist -- nothing to commit"; exit 0; fi
+            git add -- $HAVE
             if git diff --staged --quiet; then
               echo "identical to remote -- nothing to push"; exit 0
             fi

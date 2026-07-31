@@ -542,7 +542,15 @@ def _gnews(iso):
         _NET["gnews_ok"] += 1
     else:
         _NET["gnews_empty"] += 1
-    return items[:PER_QUERY], "Google News (%s)" % gl
+    # Stamp the language. This wire queries 39 locales in 21 languages, and the
+    # language was previously recoverable only by guessing from the source label.
+    # A reader who wants to know what the Spanish-language press is reporting --
+    # a different set of stories, not a translation of the English ones -- needs
+    # this to be a field.
+    out = items[:PER_QUERY]
+    for it in out:
+        it["_lang"] = lang
+    return out, "Google News (%s)" % gl
 
 
 # --- GDELT DOC 2.0 ---------------------------------------------------------
@@ -609,6 +617,8 @@ def _mk(name, it, topic_default=None):
            "link": it.get("link") or "", "date": date,
            "sig": _sig(blob), "snippet": snippet,
            "topic": topic_default or _topic(blob)}
+    if it.get("_lang"):
+        rec["lang"] = it["_lang"]
     if iso:
         rec["iso"] = iso
     if region:
