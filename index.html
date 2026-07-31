@@ -1303,15 +1303,10 @@ function render(){
 function subtitle(n){
   var s=document.getElementById('subtitle');
   if(!RECORDS.length){s.textContent='No records loaded.';return;}
-  var gen=META.generated?String(META.generated).slice(0,10):'';
-  var coarse=RECORDS.filter(function(r){return r.geo==='coarsened';}).length;
   /* Kept short enough to hold one line at a normal window width. The reasoning
      about blurring is in the how-to panel and in design note 1, where it has room
      to be explained rather than asserted. */
-  s.innerHTML='<b>'+n.toLocaleString()+'</b> public records of unearthings worldwide'
-    +(gen?' &middot; harvested '+esc(gen):'')
-    +' &middot; <b>'+coarse.toLocaleString()+'</b> blurred, because this map does not '
-    +'publish grave coordinates';
+  s.innerHTML='<b>'+n.toLocaleString()+'</b> public records of unearthings worldwide';
 }
 
 /* ------------------------------------------------------------- legend key */
