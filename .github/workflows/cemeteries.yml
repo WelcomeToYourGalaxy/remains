@@ -96,6 +96,7 @@ jobs:
             FAC_MERGE=1 FAC_TYPE=$t python harvest_cemeteries.py
           done
           rm -f remains_local_*_part*.json
+          python prune_tiles.py
       - name: Commit if changed
         # Do NOT merge. These jobs REGENERATE the file wholesale, so there is
         # nothing to reconcile -- and `git merge -X ours` cannot help anyway:
@@ -108,7 +109,7 @@ jobs:
         # So: take the remote exactly as it is, drop our freshly built file on top,
         # commit that. Survives deletes, concurrent edits and unrelated commits.
         env:
-          FILES: "remains_local_cemetery.json.gz remains_local_crematory.json.gz remains_local_mortuary.json.gz remains_local_museum.json.gz osm_empty_tiles.json"
+          FILES: "remains_local_*.json.gz remains_local_manifest.json osm_empty_tiles.json"
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -131,6 +132,9 @@ jobs:
             # `fatal: pathspec 'remains_local_museum.json.gz' did not match any files`.
             HAVE=""
             for f in $FILES; do [ -f "$f" ] && HAVE="$HAVE $f"; done
+            # $FILES contains a glob: unmatched globs stay literal in bash, and the
+            # -f test above drops them, so a type that is currently single-file
+            # rather than tiled costs nothing here.
             if [ -z "$HAVE" ]; then echo "none of $FILES exist -- nothing to commit"; exit 0; fi
             git add -- $HAVE
             if git diff --staged --quiet; then
