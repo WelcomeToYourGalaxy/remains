@@ -93,7 +93,7 @@ Tunables (env):
     CONTACT        contact string for the User-Agent
 """
 
-import os, sys, time, json, glob, gzip, urllib.request, urllib.parse
+import os, sys, time, json, glob, gzip, math, urllib.request, urllib.parse
 
 CONTACT     = os.environ.get("CONTACT", "wheelock.chris@gmail.com")
 UA          = "remains-map-cemeteries/1.0 (+%s)" % CONTACT
@@ -434,7 +434,6 @@ def harvest(ftype):
     if gaveup:
         print("  NOTE: %d leaves gave up at the %.4f-degree floor -- lower "
               "OSM_MIN_DEG if a gap remains." % (gaveup, OSM_MIN_DEG))
-    return merged
 
 
 def _dedup(rows):
@@ -472,15 +471,90 @@ def merge(ftype):
     if not merged:
         print("  merge: nothing to write for %s" % ftype)
         return []
-    _write_rows(fn, merged)
-    sz = os.path.getsize(fn) / 1e6
-    print("  merge: %s -> %d facilities from %d parts (%.1f MB gz)"
-          % (fn, len(merged), len(parts), sz))
-    if sz > 45:
-        print("  WARNING: %s is %.1f MB compressed. GitHub warns over 50 MB and "
-              "rejects over 100 MB -- if this keeps growing, split the set by "
-              "continent." % (fn, sz))
+    _write_type(ftype, merged, len(parts))
     return merged
+
+
+# ---------------------------------------------------------------------------
+# GEOGRAPHIC SHARDING OF THE PUBLISHED LAYER
+# ---------------------------------------------------------------------------
+# One global file per type worked at 17,000 cemeteries. It does not work at half a
+# million: that is roughly 7 MB gzipped and ~40 MB of JSON parsed on every page
+# load, which is slow on a desktop and fatal on a phone.
+#
+# So any type over TILE_THRESHOLD rows is published as a grid of LAYER_TILE_DEG
+# cells, and the map fetches only the cells its viewport touches. Small types
+# (crematoria are ~119 worldwide) stay as one file, because a manifest lookup and
+# a second request would cost more than the file does.
+#
+# The manifest records which scheme each type uses and how many rows sit in each
+# cell, so the map never has to probe for a file that does not exist -- an empty
+# ocean cell is simply absent from the manifest and never requested.
+LAYER_TILE_DEG = float(os.environ.get("LAYER_TILE_DEG", "10"))
+TILE_THRESHOLD = int(os.environ.get("TILE_THRESHOLD", "40000"))
+MANIFEST_FILE = "remains_local_manifest.json"
+
+
+def _cell_key(lat, lng):
+    d = LAYER_TILE_DEG
+    return "%d_%d" % (int(math.floor(lat / d) * d), int(math.floor(lng / d) * d))
+
+
+def _load_manifest():
+    try:
+        with open(MANIFEST_FILE, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {"tile_deg": LAYER_TILE_DEG, "types": {}}
+
+
+def _save_manifest(man):
+    man["tile_deg"] = LAYER_TILE_DEG
+    man["note"] = ("Which facility types are published as one file and which as a "
+                   "grid of tiles, with the row count in each tile. The map reads "
+                   "this first so it only requests cells that exist.")
+    with open(MANIFEST_FILE, "w", encoding="utf-8") as fh:
+        json.dump(man, fh, sort_keys=True)
+
+
+def _write_type(ftype, rows, nparts):
+    """Publish one type: a single file if small, a tile grid if large."""
+    man = _load_manifest()
+    if len(rows) < TILE_THRESHOLD:
+        fn = _outfile(ftype)
+        _write_rows(fn, rows)
+        sz = os.path.getsize(fn) / 1e6
+        man["types"][ftype] = {"mode": "single", "count": len(rows),
+                               "file": fn, "mb": round(sz, 3)}
+        _save_manifest(man)
+        print("  merge: %s -> %d facilities from %d parts (%.2f MB gz, single file)"
+              % (fn, len(rows), nparts, sz))
+        return
+
+    cells = {}
+    for r in rows:
+        cells.setdefault(_cell_key(r[0], r[1]), []).append(r)
+    total_mb = 0.0
+    counts = {}
+    for key, cr in cells.items():
+        fn = "remains_local_%s_%s.json.gz" % (ftype, key)
+        _write_rows(fn, cr)
+        total_mb += os.path.getsize(fn) / 1e6
+        counts[key] = len(cr)
+    # a stale single file would otherwise be served forever alongside the tiles
+    old = _outfile(ftype)
+    if os.path.exists(old):
+        os.remove(old)
+        print("  merge: removed the old single %s (now tiled)" % old)
+    man["types"][ftype] = {"mode": "tiled", "count": len(rows),
+                           "tile_deg": LAYER_TILE_DEG, "tiles": counts,
+                           "mb": round(total_mb, 2)}
+    _save_manifest(man)
+    biggest = max(counts.values())
+    print("  merge: %s -> %d facilities from %d parts, split into %d tiles of "
+          "%.0f deg (%.1f MB gz total, largest tile %d rows)"
+          % (ftype, len(rows), nparts, len(cells), LAYER_TILE_DEG,
+             total_mb, biggest))
 
 
 def main():

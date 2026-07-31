@@ -544,7 +544,7 @@
       &mdash; filter it by region, date and topic, or sort by language. <b>Lenses</b>,
       top right, narrow the whole map to one kind of work: who is holding ancestors,
       whom you are obliged to consult, which register records the permit, what can
-      actually stop it. <b>Layers &amp; filters</b>, bottom right, holds the full mark
+      actually stop it, and how the rule itself gets changed. <b>Layers &amp; filters</b>, bottom right, holds the full mark
       key and every filter &mdash; posture, kind, driver, scale, recency and free-text
       search.</p>
 
@@ -1897,36 +1897,105 @@ function findingHTML(f){
 }
 
 /* ------------------------------------------------------- facility loading */
-/* Loaded lazily on toggle: the global cemetery file is large, and most sessions
-   never ask for it. A missing file is a normal state, not an error. */
+/* --------------------------------------------------- facility layers -------
+   A worldwide cemetery sweep is on the order of half a million rows: about 7 MB
+   gzipped and 40 MB of JSON to parse. Fetching that on toggle is slow on a desktop
+   and fatal on a phone, so the harvester publishes any large type as a grid of
+   10-degree tiles and writes remains_local_manifest.json describing the layout.
+
+   The map reads the manifest once, then fetches only the tiles its viewport
+   touches, once, and caches them. A cell with no facilities is simply absent from
+   the manifest and is never requested -- no 404 probing, no wasted round trips.
+
+   Small types stay single files: crematoria number about 119 worldwide, and a
+   manifest lookup plus a second request would cost more than the file does. Both
+   shapes are handled here, so the harvester can switch a type from one to the
+   other without touching the map. */
+var FAC_MAN=null, FAC_MAN_TRIED=false;
+
+function facManifest(){
+  if(FAC_MAN||FAC_MAN_TRIED) return Promise.resolve(FAC_MAN);
+  FAC_MAN_TRIED=true;
+  return fetch('remains_local_manifest.json?_='+Date.now(),{cache:'no-store'})
+    .then(function(r){ if(!r.ok)throw 0; return r.json(); })
+    .then(function(j){ FAC_MAN=j; return j; })
+    .catch(function(){ return null; });
+}
+function facFetch(base){
+  var bust='?_='+Date.now();
+  return fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
+    .catch(function(){ return fetch(base+'.json'+bust,{cache:'no-store'})
+      .then(function(r){ if(!r.ok)return Promise.reject('http '+r.status); return r.json(); }); });
+}
+/* Which manifest cells the current view touches. */
+function facVisibleCells(spec){
+  var d=spec.tile_deg||10, b=map.getBounds(), out=[];
+  var la=Math.floor(b.getSouth()/d)*d, laN=Math.floor(b.getNorth()/d)*d;
+  for(; la<=laN; la+=d){
+    var lo=Math.floor(b.getWest()/d)*d, loE=Math.floor(b.getEast()/d)*d;
+    for(; lo<=loE; lo+=d){
+      var k=Math.round(la)+'_'+Math.round(lo);
+      if(spec.tiles[k]) out.push(k);
+    }
+  }
+  return out;
+}
+function facEnsureTiles(id){
+  var f=FAC[id]; if(!f||!f.on||!f.spec||f.spec.mode!=='tiled')return;
+  var lbl=document.getElementById(f.countId);
+  var want=facVisibleCells(f.spec).filter(function(k){return !f.cells[k];});
+  if(!want.length)return;
+  want.forEach(function(k){ f.cells[k]='loading'; });
+  if(lbl) lbl.textContent='loading\u2026';
+  Promise.all(want.map(function(k){
+    return facFetch(FACILITIES[id][0]+'_'+k)
+      .then(function(rows){ f.cells[k]=Array.isArray(rows)?rows:[]; })
+      .catch(function(){ f.cells[k]=[]; });
+  })).then(function(){
+    f.rows=[];
+    Object.keys(f.cells).forEach(function(k){
+      if(Array.isArray(f.cells[k])) f.rows=f.rows.concat(f.cells[k]); });
+    if(lbl) lbl.textContent=f.rows.length.toLocaleString()+' here of '
+      +(f.spec.count||0).toLocaleString();
+    layer.redraw();
+  });
+}
 function facCheckbox(id,cbId,countId){
   var cb=document.getElementById(cbId);
   cb.addEventListener('change',function(){
-    FAC[id]=FAC[id]||{rows:null,on:false,loading:false};
-    FAC[id].on=cb.checked;
+    FAC[id]=FAC[id]||{rows:null,on:false,loading:false,cells:{},spec:null,countId:countId};
+    FAC[id].countId=countId;
+    var f=FAC[id]; f.on=cb.checked;
     var lbl=document.getElementById(countId);
-    if(cb.checked&&!FAC[id].rows&&!FAC[id].loading){
-      FAC[id].loading=true; lbl.textContent='loading\u2026';
-      /* Same dual-path gz loader as the dot layer: a worldwide cemetery sweep is
-         45-75 MB raw, so it is committed gzipped. parseGz copes with GitHub Pages
-         having already inflated it AND with a plain host sending raw bytes. */
-      var base=FACILITIES[id][0],bust='?_='+Date.now();
-      fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
-        .catch(function(){return fetch(base+'.json'+bust,{cache:'no-store'})
-          .then(function(r){if(!r.ok)return Promise.reject('http '+r.status);return r.json();});})
+    if(!cb.checked){ layer.redraw(); return; }
+    facManifest().then(function(man){
+      /* the manifest is keyed by facility type, which is the tail of the
+         published path: remains_local_cemetery -> cemetery */
+      var mkey=FACILITIES[id][0].replace('remains_local_','');
+      var spec=man&&man.types&&man.types[mkey];
+      f.spec=spec||null;
+      if(spec&&spec.mode==='tiled'){
+        f.rows=f.rows||[]; facEnsureTiles(id); return;
+      }
+      if(f.rows||f.loading){ layer.redraw(); return; }
+      f.loading=true; lbl.textContent='loading\u2026';
+      facFetch(FACILITIES[id][0])
         .then(function(rows){
-          FAC[id].rows=Array.isArray(rows)?rows:[];
-          FAC[id].loading=false;
-          lbl.textContent=FAC[id].rows.length.toLocaleString()+' mapped';
+          f.rows=Array.isArray(rows)?rows:[]; f.loading=false;
+          lbl.textContent=f.rows.length.toLocaleString()+' mapped';
           layer.redraw();
         })
         .catch(function(err){
-          FAC[id].loading=false; lbl.textContent='no file yet';
+          f.loading=false; lbl.textContent='no file yet';
           if(window.console)console.warn('facility file missing:',FACILITIES[id][0],err);
         });
-    } else { layer.redraw(); }
+    });
   });
 }
+/* Panning or zooming pulls in whatever new cells came into view. */
+map.on('moveend', function(){
+  Object.keys(FAC||{}).forEach(function(id){ facEnsureTiles(id); });
+});
 
 /* ------------------------------------------------------------------- wire */
 function wireVisible(){

@@ -240,6 +240,35 @@ still coarsened by the placement gate like every other kind that identifies a bu
 location. Making a mark look quieter must never make it more precise, and there is a
 test asserting the render branch touches nothing but drawing.
 
+### The `reform` lens — changing the law, not fighting one incident under it
+
+`remedies` answers "how do I stop this dig". `law` lists the instruments. Neither
+answers the larger question: the rule itself is the problem, so how is it changed?
+
+23 entries covering four different crafts:
+
+- **Regional human rights courts** — Inter-American Court and Commission, African
+  Commission, ECtHR. The Inter-American system produced the strongest Indigenous
+  land and cultural-rights jurisprudence anywhere, and it is cited well outside the
+  Americas.
+- **UN treaty bodies** — individual complaints, plus the two fast routes that matter
+  here: CERD early warning and urgent action, which does **not** require exhausting
+  domestic remedies, and Article 30 urgent actions on the disappeared.
+- **Strategic litigation practice** — organisations that choose a case for its
+  precedent rather than its client, and the databases that tell you whether the
+  argument has been run before. Includes the risk nobody advertises: a badly chosen
+  case that loses sets the rule against everyone who comes after.
+- **Legislative tracking** — Congress.gov, UK Parliament bills, NCSL. Amendments to
+  NAGPRA, NHPA and the Burial Act regime all pass through these, with short comment
+  windows.
+
+Also flagged: **CalNAGPRA**, California's statute, which reaches institutions the
+federal act does not and sets harder deadlines — the working proof that a state can
+legislate above the federal floor.
+
+18 entries carry a verified URL; 5 are search strings where I was not confident
+enough to publish a link.
+
 ### Coverage is Anglophone, and the reason is structural
 
 Of the records currently held, **about 83% are Australia, the United States and the
@@ -294,6 +323,34 @@ full under **Plain-language glossary** in the map key.
 One rule enforced by test: **no term is defined using another term from the list.** A
 glossary that explains "repatriation" with "funerary objects" has not explained
 anything.
+
+### The facility layers are tiled, not global files
+
+One global file per type worked at 17,000 cemeteries. It does not work at half a
+million: roughly **7 MB gzipped and ~40 MB of JSON parsed on every page load**,
+which is slow on a desktop and fatal on a phone.
+
+Any type over 40,000 rows is published as a grid of 10° cells —
+`remains_local_cemetery_50_0.json.gz` and so on — described by
+`remains_local_manifest.json`. The map reads the manifest once, then fetches only
+the cells its viewport touches, and again on every pan or zoom that brings a new
+cell into view.
+
+Measured against a simulated 590,000-row sweep: **478 tiles, 7.0 MB total, largest
+tile 0.28 MB**. A London view at zoom 9 pulls 2 tiles and 0.54 MB. A mid-Pacific
+view pulls **nothing at all** — empty cells are simply absent from the manifest and
+are never requested, so there is no 404 probing.
+
+Small types stay single files. Crematoria number about 119 worldwide; a manifest
+lookup plus a second request would cost more than the file does. Both shapes are
+handled in the map, so the harvester can switch a type between them without any
+change on the front end.
+
+`prune_tiles.py` runs after each merge and deletes tiles the new manifest no longer
+lists. Without it, a cell that empties out would keep serving its old rows forever —
+invisible to readers, because the map only requests what the manifest advertises,
+but immortal in git. It only removes files matching the published naming scheme and
+absent from the manifest; anything it cannot account for is left alone.
 
 ### Museums in the facility layer
 
