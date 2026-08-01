@@ -1,12 +1,13 @@
 {
  "_meta": {
-  "tranche": 6,
+  "tranche": 7,
   "compiled": "2026-07-29",
   "note": "Curated resource lenses for the unearthings map. Every entry names a real body or instrument. URLs are NOT live-checked in this file -- check_lenses.py verifies them and writes lenses_status.json, which the map reads to grey out anything that no longer resolves. An entry with no url carries a \"find\" string instead: the search that reaches it. That is deliberate; a guessed URL that 404s is worse than an honest search string, because it looks authoritative.",
   "coverage_warning": "Weighted toward jurisdictions that have statutory repatriation and heritage-permit regimes, because those are the ones that publish. Absence of a country here is absence of a published regime, not absence of the problem.",
   "blind_spot": "Erosion, permafrost thaw and wildfire unearth human remains with no permit, no applicant and no accountable party. Every register this map harvests is a consent or compliance regime, so none of them can see that. The climate lens is a partial answer; the dot layer has no answer at all, and that gap is structural rather than a matter of adding another feed.",
   "serves": "Every entry carries a service area: GLOBAL, an ISO3 country code, or ISO3/UnitName for one ADM1 unit. The rule is jurisdiction of SERVICE, not physical address -- National NAGPRA sits in Washington DC but administers the whole statute, so it is filed under USA, not DC. A body serving several states is listed in each of them. Entries with located:true are the deliberate exception: a museum is not a service area but a place holding ancestors taken from elsewhere, so it is filed where it sits and the map says so.",
-  "climate_removed": "The 'climate' lens was removed. Erosion, thaw and fire are not a research method you pick up; they are conditions on the ground. They are now three map layers instead, where they can be seen against the records rather than read about."
+  "climate_removed": "The 'climate' lens was removed. Erosion, thaw and fire are not a research method you pick up; they are conditions on the ground. They are now three map layers instead, where they can be seen against the records rather than read about.",
+  "intents": "Resources are grouped by INTENTION -- what you are trying to do -- rather than by lens. The lenses are a research taxonomy; intention is the reader's. Six intentions regroup entries across the twelve lenses, so 'stop a disturbance' gathers the regulator, the consultation duty and the injunction into one place instead of three."
  },
  "lenses": [
   {
@@ -23,7 +24,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "National NAGPRA public databases",
@@ -33,7 +35,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "NAGPRA notices index",
@@ -43,7 +46,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Federal Register",
@@ -53,7 +57,8 @@
      "serves": [
       "USA"
      ],
-     "find": "Federal Register full text"
+     "find": "Federal Register full text",
+     "intent": "home"
     },
     {
      "name": "Indigenous Repatriation Program (Australia)",
@@ -63,7 +68,8 @@
      "level": "national",
      "serves": [
       "AUS"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Karanga Aotearoa Repatriation Programme, Te Papa (NZ)",
@@ -73,7 +79,8 @@
      "level": "national",
      "serves": [
       "NZL"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "ICOM Code of Ethics for Museums",
@@ -83,7 +90,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "ICOM Code of Ethics for Museums full text"
+     "find": "ICOM Code of Ethics for Museums full text",
+     "intent": "home"
     },
     {
      "name": "UK guidance on the care of human remains in museums",
@@ -93,7 +101,8 @@
      "level": "national",
      "serves": [
       "GBR"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "German Museums Association guidance on human remains",
@@ -103,7 +112,8 @@
      "level": "national",
      "serves": [
       "DEU"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Dutch committee on colonial collections",
@@ -113,7 +123,8 @@
      "level": "national",
      "serves": [
       "NLD"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Restitution of human remains, France (loi 2023-1194)",
@@ -123,7 +134,8 @@
      "level": "national",
      "serves": [
       "FRA"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Belgian restitution of remains from the Congo",
@@ -133,7 +145,8 @@
      "level": "national",
      "serves": [
       "BEL"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Bååstede and Sámi repatriation (Norway/Sweden)",
@@ -144,7 +157,8 @@
      "serves": [
       "NOR",
       "SWE"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Ainu remains repatriation (Japan)",
@@ -154,7 +168,8 @@
      "level": "national",
      "serves": [
       "JPN"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Museums Association (UK) — ethics",
@@ -164,7 +179,8 @@
      "level": "national",
      "serves": [
       "GBR"
-     ]
+     ],
+     "intent": "home"
     }
    ]
   },
@@ -182,7 +198,8 @@
      "level": "tribal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "NCSHPO — State Historic Preservation Officers (US)",
@@ -192,7 +209,8 @@
      "level": "state",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Native American Consultation Database (US)",
@@ -202,7 +220,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "AIATSIS (Australia)",
@@ -212,7 +231,8 @@
      "level": "national",
      "serves": [
       "AUS"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Heritage NSW — Aboriginal cultural heritage",
@@ -222,7 +242,8 @@
      "level": "state",
      "serves": [
       "AUS/New South Wales"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "National Native Title Tribunal (Australia)",
@@ -232,7 +253,8 @@
      "level": "national",
      "serves": [
       "AUS"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Native Land Digital",
@@ -242,7 +264,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "National Congress of American Indians",
@@ -252,7 +275,8 @@
      "level": "tribal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Assembly of First Nations (Canada)",
@@ -262,7 +286,8 @@
      "level": "national",
      "serves": [
       "CAN"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Inuit Tapiriit Kanatami",
@@ -272,7 +297,8 @@
      "level": "national",
      "serves": [
       "CAN"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Registered Aboriginal Parties (Victoria, Australia)",
@@ -282,7 +308,8 @@
      "level": "state",
      "serves": [
       "AUS/Victoria"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Sámi Parliaments (Norway, Sweden, Finland)",
@@ -294,7 +321,8 @@
       "NOR",
       "SWE",
       "FIN"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Office of Hawaiian Affairs",
@@ -304,7 +332,8 @@
      "level": "state",
      "serves": [
       "USA/Hawaii"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Island Burial Councils (Hawaiʻi)",
@@ -314,7 +343,8 @@
      "level": "state",
      "serves": [
       "USA/Hawaii"
-     ]
+     ],
+     "intent": "stop"
     }
    ]
   },
@@ -332,7 +362,8 @@
      "level": "state",
      "serves": [
       "AUS/New South Wales"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "AHIP Boundaries dataset (NSW)",
@@ -342,7 +373,8 @@
      "level": "state",
      "serves": [
       "AUS/New South Wales"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "WA Department of Planning, Lands and Heritage",
@@ -352,7 +384,8 @@
      "level": "state",
      "serves": [
       "AUS/Western Australia"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Heritage New Zealand Pouhere Taonga",
@@ -362,7 +395,8 @@
      "level": "national",
      "serves": [
       "NZL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Historic England",
@@ -372,7 +406,8 @@
      "level": "national",
      "serves": [
       "GBR/England"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Historic Environment Scotland",
@@ -382,7 +417,8 @@
      "level": "national",
      "serves": [
       "GBR/Scotland"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "National Monuments Service (Ireland)",
@@ -392,7 +428,8 @@
      "level": "national",
      "serves": [
       "IRL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Advisory Council on Historic Preservation (US)",
@@ -402,7 +439,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Parks Canada — archaeology and heritage",
@@ -412,7 +450,8 @@
      "level": "federal",
      "serves": [
       "CAN"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "INRAP (France)",
@@ -422,7 +461,8 @@
      "level": "national",
      "serves": [
       "FRA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Rijksdienst voor het Cultureel Erfgoed (Netherlands)",
@@ -432,7 +472,8 @@
      "level": "national",
      "serves": [
       "NLD"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "INAH (Mexico)",
@@ -442,7 +483,8 @@
      "level": "national",
      "serves": [
       "MEX"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "SAHRA (South Africa)",
@@ -452,7 +494,8 @@
      "level": "national",
      "serves": [
       "ZAF"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Archaeological Survey of India",
@@ -462,7 +505,8 @@
      "level": "national",
      "serves": [
       "IND"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Riksantikvarieämbetet (Sweden)",
@@ -472,7 +516,8 @@
      "level": "national",
      "serves": [
       "SWE"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Riksantikvaren (Norway)",
@@ -482,7 +527,8 @@
      "level": "national",
      "serves": [
       "NOR"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "IPHAN (Brazil)",
@@ -492,7 +538,8 @@
      "level": "national",
      "serves": [
       "BRA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Ministerio de Cultura CIRA (Peru)",
@@ -502,7 +549,8 @@
      "level": "national",
      "serves": [
       "PER"
-     ]
+     ],
+     "intent": "stop"
     }
    ]
   },
@@ -520,7 +568,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "EAAF — Equipo Argentino de Antropología Forense",
@@ -530,7 +579,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "FAFG — Fundación de Antropología Forense de Guatemala",
@@ -540,7 +590,8 @@
      "level": "national",
      "serves": [
       "GTM"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "UBPD (Colombia)",
@@ -550,7 +601,8 @@
      "level": "national",
      "serves": [
       "COL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Comisión Nacional de Búsqueda (Mexico)",
@@ -560,7 +612,8 @@
      "level": "national",
      "serves": [
       "MEX"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "ICRC — missing persons and the dead",
@@ -570,7 +623,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "UN Committee on Enforced Disappearances",
@@ -580,7 +634,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Forensic Architecture",
@@ -590,7 +645,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Committee on Missing Persons in Cyprus",
@@ -600,7 +656,8 @@
      "level": "international",
      "serves": [
       "CYP"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Missing Persons Institute (Bosnia and Herzegovina)",
@@ -610,7 +667,8 @@
      "level": "national",
      "serves": [
       "BIH"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Mass Graves Directorate (Iraq)",
@@ -620,7 +678,8 @@
      "level": "national",
      "serves": [
       "IRQ"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Servicio Médico Legal (Chile)",
@@ -630,7 +689,8 @@
      "level": "national",
      "serves": [
       "CHL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Banco Nacional de Datos Genéticos (Argentina)",
@@ -640,7 +700,8 @@
      "level": "national",
      "serves": [
       "ARG"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "INTERPOL Disaster Victim Identification",
@@ -650,7 +711,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Ukraine exhumation and identification",
@@ -660,7 +722,8 @@
      "level": "national",
      "serves": [
       "UKR"
-     ]
+     ],
+     "intent": "find"
     }
    ]
   },
@@ -678,7 +741,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "NHPA §106 and §304 (US)",
@@ -688,7 +752,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Archaeological Resources Protection Act (US)",
@@ -698,7 +763,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Ley 20/2022 de Memoria Democrática (Spain)",
@@ -708,7 +774,8 @@
      "level": "national",
      "serves": [
       "ESP"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Burial Act 1857 s.25 (England & Wales)",
@@ -719,7 +786,8 @@
       "GBR/England",
       "GBR/Wales"
      ],
-     "find": "Burial Act 1857 s.25 (England & Wales) full text"
+     "find": "Burial Act 1857 s.25 (England & Wales) full text",
+     "intent": "stop"
     },
     {
      "name": "National Parks and Wildlife Act 1974 s.90 (NSW)",
@@ -729,7 +797,8 @@
      "serves": [
       "AUS/New South Wales"
      ],
-     "find": "National Parks and Wildlife Act 1974 s.90 (NSW) full text"
+     "find": "National Parks and Wildlife Act 1974 s.90 (NSW) full text",
+     "intent": "stop"
     },
     {
      "name": "Aboriginal Heritage Act (Western Australia)",
@@ -739,7 +808,8 @@
      "serves": [
       "AUS/Western Australia"
      ],
-     "find": "Aboriginal Heritage Act (Western Australia) full text"
+     "find": "Aboriginal Heritage Act (Western Australia) full text",
+     "intent": "stop"
     },
     {
      "name": "Heritage New Zealand Pouhere Taonga Act 2014",
@@ -749,7 +819,8 @@
      "serves": [
       "NZL"
      ],
-     "find": "Heritage New Zealand Pouhere Taonga Act 2014 full text"
+     "find": "Heritage New Zealand Pouhere Taonga Act 2014 full text",
+     "intent": "stop"
     },
     {
      "name": "UNDRIP Article 12",
@@ -759,7 +830,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "home"
     },
     {
      "name": "Vermillion Accord on Human Remains",
@@ -769,7 +841,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "Vermillion Accord on Human Remains full text"
+     "find": "Vermillion Accord on Human Remains full text",
+     "intent": "home"
     },
     {
      "name": "Convention against Enforced Disappearance (ICPPED)",
@@ -779,7 +852,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "Convention against Enforced Disappearance (ICPPED) full text"
+     "find": "Convention against Enforced Disappearance (ICPPED) full text",
+     "intent": "find"
     },
     {
      "name": "Valletta Convention (archaeological heritage)",
@@ -789,7 +863,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "Valletta Convention (archaeological heritage) full text"
+     "find": "Valletta Convention (archaeological heritage) full text",
+     "intent": "rule"
     },
     {
      "name": "Faro Convention (heritage and society)",
@@ -799,7 +874,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "Faro Convention (heritage and society) full text"
+     "find": "Faro Convention (heritage and society) full text",
+     "intent": "rule"
     },
     {
      "name": "UNESCO 1970 Convention (illicit transfer)",
@@ -809,7 +885,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "UNESCO 1970 Convention (illicit transfer) full text"
+     "find": "UNESCO 1970 Convention (illicit transfer) full text",
+     "intent": "rule"
     },
     {
      "name": "Rome Statute",
@@ -819,7 +896,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "rule"
     },
     {
      "name": "36 CFR Part 800 (Section 106 regulations)",
@@ -829,7 +907,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Hawaiʻi HRS Chapter 6E and burial rules",
@@ -839,7 +918,8 @@
      "level": "state",
      "serves": [
       "USA/Hawaii"
-     ]
+     ],
+     "intent": "stop"
     }
    ]
   },
@@ -857,7 +937,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Excavations.ie",
@@ -867,7 +948,8 @@
      "level": "national",
      "serves": [
       "IRL"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Archaeology Data Service (UK)",
@@ -877,7 +959,8 @@
      "level": "national",
      "serves": [
       "GBR"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Heritage Gateway (England)",
@@ -887,7 +970,8 @@
      "level": "national",
      "serves": [
       "GBR/England"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "AHIMS (NSW)",
@@ -897,7 +981,8 @@
      "level": "state",
      "serves": [
       "AUS/New South Wales"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "ArchSite (New Zealand)",
@@ -907,7 +992,8 @@
      "level": "national",
      "serves": [
       "NZL"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "NCTR — National Centre for Truth and Reconciliation (Canada)",
@@ -917,7 +1003,8 @@
      "level": "national",
      "serves": [
       "CAN"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Fornsök (Sweden)",
@@ -927,7 +1014,8 @@
      "level": "national",
      "serves": [
       "SWE"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Askeladden / Kulturminnesøk (Norway)",
@@ -937,7 +1025,8 @@
      "level": "national",
      "serves": [
       "NOR"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Fund og Fortidsminder (Denmark)",
@@ -947,7 +1036,8 @@
      "level": "national",
      "serves": [
       "DNK"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Archis (Netherlands)",
@@ -957,7 +1047,8 @@
      "level": "national",
      "serves": [
       "NLD"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Atlas des patrimoines / Patriarche (France)",
@@ -967,7 +1058,8 @@
      "level": "national",
      "serves": [
       "FRA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "National NAGPRA Summaries database",
@@ -977,7 +1069,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "National NAGPRA newspaper notices",
@@ -987,7 +1080,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "National NAGPRA grants database",
@@ -997,7 +1091,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     }
    ]
   },
@@ -1015,7 +1110,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Copernicus Data Space",
@@ -1025,7 +1121,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "USGS EarthExplorer",
@@ -1035,7 +1132,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "ASOR Cultural Heritage Initiatives",
@@ -1045,7 +1143,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "NCAP — National Collection of Aerial Photography",
@@ -1055,7 +1154,8 @@
      "level": "national",
      "serves": [
       "GBR/Scotland"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Global Forest Watch",
@@ -1065,7 +1165,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Sentinel Hub EO Browser",
@@ -1075,7 +1176,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "Planet NICFI basemaps",
@@ -1085,7 +1187,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "find"
     },
     {
      "name": "National Library of Scotland georeferenced maps",
@@ -1095,7 +1198,8 @@
      "serves": [
       "GBR/Scotland"
      ],
-     "find": "National Library of Scotland georeferenced maps full text"
+     "find": "National Library of Scotland georeferenced maps full text",
+     "intent": "find"
     }
    ]
   },
@@ -1113,7 +1217,8 @@
      "level": "national",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "ProPublica — The Repatriation Project",
@@ -1123,7 +1228,8 @@
      "level": "national",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "International Coalition of Sites of Conscience",
@@ -1133,7 +1239,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Memoria Abierta (Argentina)",
@@ -1143,7 +1250,8 @@
      "level": "national",
      "serves": [
       "ARG"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Survival International",
@@ -1153,7 +1261,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Society for American Archaeology",
@@ -1163,7 +1272,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "World Archaeological Congress",
@@ -1173,7 +1283,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "IWGIA",
@@ -1183,7 +1294,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Cultural Survival",
@@ -1193,7 +1305,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "ICOMOS",
@@ -1203,7 +1316,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Blue Shield International",
@@ -1213,7 +1327,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Digital Benin and colonial provenance projects",
@@ -1223,7 +1338,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "European Association of Archaeologists",
@@ -1233,7 +1349,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Society for Historical Archaeology",
@@ -1243,7 +1360,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     }
    ]
   },
@@ -1261,7 +1379,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "National NAGPRA Unclaimed Lists",
@@ -1271,7 +1390,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "ProPublica Repatriation Database",
@@ -1281,7 +1401,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "who"
     },
     {
      "name": "Field Museum repatriation catalogues",
@@ -1292,7 +1413,8 @@
      "serves": [
       "USA/Illinois"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Smithsonian National Museum of Natural History",
@@ -1303,7 +1425,8 @@
      "serves": [
       "USA"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Natural History Museum, London",
@@ -1314,7 +1437,8 @@
      "serves": [
       "GBR"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Peabody Museum, Harvard",
@@ -1325,7 +1449,8 @@
      "serves": [
       "USA/Massachusetts"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Charité Human Remains Project (Berlin)",
@@ -1336,7 +1461,8 @@
      "serves": [
       "DEU"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Iziko Museums / UCT human remains (South Africa)",
@@ -1347,7 +1473,8 @@
      "serves": [
       "ZAF"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Musée du quai Branly (France)",
@@ -1358,7 +1485,8 @@
      "serves": [
       "FRA"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "Australian Museum",
@@ -1369,7 +1497,8 @@
      "serves": [
       "AUS"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     },
     {
      "name": "University anatomical collections",
@@ -1380,7 +1509,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "located": true
+     "located": true,
+     "intent": "who"
     }
    ]
   },
@@ -1398,7 +1528,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Stop-work and interim protection orders (NSW)",
@@ -1408,7 +1539,8 @@
      "level": "state",
      "serves": [
       "AUS/New South Wales"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "Native American Rights Fund",
@@ -1418,7 +1550,8 @@
      "level": "national",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "ELAW — Environmental Law Alliance Worldwide",
@@ -1428,7 +1561,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "World Bank Inspection Panel",
@@ -1438,7 +1572,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "IFC/MIGA Compliance Advisor Ombudsman",
@@ -1448,7 +1583,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "OECD National Contact Points",
@@ -1458,7 +1594,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "OECD National Contact Points full text"
+     "find": "OECD National Contact Points full text",
+     "intent": "stop"
     },
     {
      "name": "UN Special Rapporteur on the Rights of Indigenous Peoples",
@@ -1468,7 +1605,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "INTERPOL Stolen Works of Art database",
@@ -1478,7 +1616,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "find": "INTERPOL Stolen Works of Art database full text"
+     "find": "INTERPOL Stolen Works of Art database full text",
+     "intent": "stop"
     },
     {
      "name": "NAGPRA Review Committee",
@@ -1488,7 +1627,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "NAGPRA civil penalties",
@@ -1498,7 +1638,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     },
     {
      "name": "National NAGPRA grants programme",
@@ -1508,7 +1649,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "stop"
     }
    ]
   },
@@ -1525,7 +1667,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "The venue that produced the strongest Indigenous land and cultural-rights jurisprudence anywhere. Rulings bind the state and are cited far outside the Americas. Reached only after the Commission, and only after domestic remedies are exhausted."
+     "note": "The venue that produced the strongest Indigenous land and cultural-rights jurisprudence anywhere. Rulings bind the state and are cited far outside the Americas. Reached only after the Commission, and only after domestic remedies are exhausted.",
+     "intent": "rule"
     },
     {
      "name": "Inter-American Commission on Human Rights — petitions",
@@ -1534,7 +1677,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "The door to the Court, and useful on its own: precautionary measures can be requested urgently where a site or a community faces irreparable harm while the case is pending."
+     "note": "The door to the Court, and useful on its own: precautionary measures can be requested urgently where a site or a community faces irreparable harm while the case is pending.",
+     "intent": "rule"
     },
     {
      "name": "African Commission on Human and Peoples' Rights",
@@ -1543,7 +1687,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Communications procedure, plus a Working Group on Indigenous Populations/Communities. The Endorois and Ogiek decisions are the reference points for community land and cultural claims in Africa."
+     "note": "Communications procedure, plus a Working Group on Indigenous Populations/Communities. The Endorois and Ogiek decisions are the reference points for community land and cultural claims in Africa.",
+     "intent": "rule"
     },
     {
      "name": "European Court of Human Rights",
@@ -1552,7 +1697,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Article 8 and Article 9 claims have reached burial, exhumation and reburial disputes. Strict admissibility: four months from the final domestic decision, and domestic remedies must be exhausted first."
+     "note": "Article 8 and Article 9 claims have reached burial, exhumation and reburial disputes. Strict admissibility: four months from the final domestic decision, and domestic remedies must be exhausted first.",
+     "intent": "rule"
     },
     {
      "name": "UN treaty body individual complaints",
@@ -1561,7 +1707,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Where a state has accepted the relevant procedure, an individual or community can complain directly. Views are not binding like a court judgment, but they name the law as the violation, which is what a reform campaign needs on paper."
+     "note": "Where a state has accepted the relevant procedure, an individual or community can complain directly. Views are not binding like a court judgment, but they name the law as the violation, which is what a reform campaign needs on paper.",
+     "intent": "rule"
     },
     {
      "name": "CERD early warning and urgent action",
@@ -1570,7 +1717,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "The fastest UN route. Does not require exhausting domestic remedies and has been used repeatedly on Indigenous sacred sites and burial grounds facing imminent destruction."
+     "note": "The fastest UN route. Does not require exhausting domestic remedies and has been used repeatedly on Indigenous sacred sites and burial grounds facing imminent destruction.",
+     "intent": "rule"
     },
     {
      "name": "Committee on Enforced Disappearances — urgent actions",
@@ -1579,7 +1727,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Article 30 urgent actions on the disappeared, and Article 33 country visits. The committee has pressed states directly on search, exhumation and identification obligations."
+     "note": "Article 30 urgent actions on the disappeared, and Article 33 country visits. The committee has pressed states directly on search, exhumation and identification obligations.",
+     "intent": "rule"
     },
     {
      "name": "EMRIP — Expert Mechanism on the Rights of Indigenous Peoples",
@@ -1588,7 +1737,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Provides country engagement and technical advice on bringing domestic law into line with UNDRIP — useful where the aim is to rewrite a heritage act rather than win a case."
+     "note": "Provides country engagement and technical advice on bringing domestic law into line with UNDRIP — useful where the aim is to rewrite a heritage act rather than win a case.",
+     "intent": "rule"
     },
     {
      "name": "UN Permanent Forum on Indigenous Issues",
@@ -1597,7 +1747,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "An annual venue where states answer in public. Interventions are on the record and are frequently the first international notice a domestic repatriation failure receives."
+     "note": "An annual venue where states answer in public. Interventions are on the record and are frequently the first international notice a domestic repatriation failure receives.",
+     "intent": "rule"
     },
     {
      "name": "ILO Convention 169 — Article 24 representations",
@@ -1606,7 +1757,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Only 24-odd states have ratified, but where they have, a workers' or employers' organisation can file a representation alleging non-observance — including of the consultation duties that heritage law usually breaches."
+     "note": "Only 24-odd states have ratified, but where they have, a workers' or employers' organisation can file a representation alleging non-observance — including of the consultation duties that heritage law usually breaches.",
+     "intent": "rule"
     },
     {
      "name": "Open Society Justice Initiative — strategic litigation",
@@ -1615,7 +1767,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Practical guidance on choosing a case for its precedent, and on the risk nobody mentions: a badly chosen case that loses sets the rule against everyone who comes after."
+     "note": "Practical guidance on choosing a case for its precedent, and on the risk nobody mentions: a badly chosen case that loses sets the rule against everyone who comes after.",
+     "intent": "rule"
     },
     {
      "name": "ESCR-Net — strategic litigation and caselaw database",
@@ -1624,7 +1777,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "A searchable database of economic, social and cultural rights judgments worldwide. The place to find whether a court anywhere has already ruled on the argument you are about to make."
+     "note": "A searchable database of economic, social and cultural rights judgments worldwide. The place to find whether a court anywhere has already ruled on the argument you are about to make.",
+     "intent": "rule"
     },
     {
      "name": "Indian Law Resource Center",
@@ -1633,7 +1787,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Litigates for Indigenous nations in the Americas and before international bodies, with a long record on sacred sites and cultural property."
+     "note": "Litigates for Indigenous nations in the Americas and before international bodies, with a long record on sacred sites and cultural property.",
+     "intent": "rule"
     },
     {
      "name": "Forest Peoples Programme — legal and human rights",
@@ -1642,7 +1797,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Supports communities bringing international claims where domestic law offers nothing, particularly on land tenure and consultation."
+     "note": "Supports communities bringing international claims where domestic law offers nothing, particularly on land tenure and consultation.",
+     "intent": "rule"
     },
     {
      "name": "Minority Rights Group — strategic litigation",
@@ -1651,7 +1807,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Took Endorois and Ogiek to the African system. A working model of litigation aimed at a continental precedent rather than one community's remedy."
+     "note": "Took Endorois and Ogiek to the African system. A working model of litigation aimed at a continental precedent rather than one community's remedy.",
+     "intent": "rule"
     },
     {
      "name": "Earthjustice",
@@ -1660,7 +1817,8 @@
      "serves": [
       "USA"
      ],
-     "note": "Litigates without charge and picks cases for their reach. Sacred-site and consultation cases sit alongside the environmental docket because in practice they run on the same statutes."
+     "note": "Litigates without charge and picks cases for their reach. Sacred-site and consultation cases sit alongside the environmental docket because in practice they run on the same statutes.",
+     "intent": "rule"
     },
     {
      "name": "Native American Rights Fund — law reform docket",
@@ -1669,7 +1827,8 @@
      "serves": [
       "USA"
      ],
-     "note": "Already listed under remedies for stopping a specific action; listed again here because much of its work is aimed at the rule rather than the incident, including the NAGPRA regulatory overhaul."
+     "note": "Already listed under remedies for stopping a specific action; listed again here because much of its work is aimed at the rule rather than the incident, including the NAGPRA regulatory overhaul.",
+     "intent": "rule"
     },
     {
      "name": "CourtListener and RECAP",
@@ -1678,7 +1837,8 @@
      "serves": [
       "USA"
      ],
-     "note": "Free full-text search of US federal and state opinions plus PACER dockets. Where you check whether a NAGPRA or Section 106 argument has already been run, and how it went."
+     "note": "Free full-text search of US federal and state opinions plus PACER dockets. Where you check whether a NAGPRA or Section 106 argument has already been run, and how it went.",
+     "intent": "rule"
     },
     {
      "name": "Business & Human Rights Resource Centre — lawsuits database",
@@ -1687,7 +1847,8 @@
      "serves": [
       "GLOBAL"
      ],
-     "note": "Tracks cases against companies worldwide, including claims over sacred sites and destruction of cultural heritage. Useful for finding the corporate defendant's litigation history before you name them."
+     "note": "Tracks cases against companies worldwide, including claims over sacred sites and destruction of cultural heritage. Useful for finding the corporate defendant's litigation history before you name them.",
+     "intent": "rule"
     },
     {
      "name": "Congress.gov — bill tracking",
@@ -1696,7 +1857,8 @@
      "serves": [
       "USA"
      ],
-     "note": "Amendments to NAGPRA, NHPA and ARPA all move through here. Set an alert on a bill number rather than checking: the comment and markup windows are short."
+     "note": "Amendments to NAGPRA, NHPA and ARPA all move through here. Set an alert on a bill number rather than checking: the comment and markup windows are short.",
+     "intent": "rule"
     },
     {
      "name": "UK Parliament — bills before Parliament",
@@ -1705,7 +1867,8 @@
      "serves": [
       "GBR"
      ],
-     "note": "Where changes to the Burial Act regime and the Human Tissue Act would appear, with committee evidence sessions that accept written submissions."
+     "note": "Where changes to the Burial Act regime and the Human Tissue Act would appear, with committee evidence sessions that accept written submissions.",
+     "intent": "rule"
     },
     {
      "name": "National Conference of State Legislatures",
@@ -1714,7 +1877,8 @@
      "serves": [
       "USA"
      ],
-     "note": "State repatriation and burial-protection statutes vary enormously, and the strongest ones are copied between states. Tracking one state's bill is how you find the model text for another."
+     "note": "State repatriation and burial-protection statutes vary enormously, and the strongest ones are copied between states. Tracking one state's bill is how you find the model text for another.",
+     "intent": "rule"
     },
     {
      "name": "CalNAGPRA — a state law stronger than the federal one",
@@ -1723,7 +1887,8 @@
      "serves": [
       "USA/California"
      ],
-     "note": "California's statute reaches institutions the federal act does not and sets harder deadlines. The working example that a state can legislate above the federal floor."
+     "note": "California's statute reaches institutions the federal act does not and sets harder deadlines. The working example that a state can legislate above the federal floor.",
+     "intent": "rule"
     }
    ]
   },
@@ -1741,7 +1906,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "BABAO",
@@ -1751,7 +1917,8 @@
      "level": "national",
      "serves": [
       "GBR"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "APABE (Advisory Panel on the Archaeology of Burials in England)",
@@ -1761,7 +1928,8 @@
      "level": "national",
      "serves": [
       "GBR/England"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Register of Professional Archaeologists (US)",
@@ -1771,7 +1939,8 @@
      "level": "federal",
      "serves": [
       "USA"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "American Association of Biological Anthropologists",
@@ -1781,7 +1950,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Australian consulting archaeology standards",
@@ -1791,7 +1961,8 @@
      "level": "national",
      "serves": [
       "AUS"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Ground-penetrating radar guidance for burial survey",
@@ -1801,7 +1972,8 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     },
     {
      "name": "Ethics of ancient DNA and destructive sampling",
@@ -1811,9 +1983,42 @@
      "level": "international",
      "serves": [
       "GLOBAL"
-     ]
+     ],
+     "intent": "help"
     }
    ]
+  }
+ ],
+ "intents": [
+  {
+   "key": "who",
+   "label": "Find out who is holding them",
+   "desc": "Before anything else: which institution has these ancestors, what has it admitted to, and what has it filed."
+  },
+  {
+   "key": "home",
+   "label": "Get them home",
+   "desc": "The return itself — who is obliged to give ancestors back, under what process, and what a claim has to contain."
+  },
+  {
+   "key": "stop",
+   "label": "Stop a disturbance",
+   "desc": "Something is about to be dug, or is being dug now. Who authorised it, who had a right to be asked, and what can actually halt it."
+  },
+  {
+   "key": "rule",
+   "label": "Change the rule itself",
+   "desc": "When the problem is not that a permit was wrongly granted but that the law allows it to be granted at all."
+  },
+  {
+   "key": "find",
+   "label": "Find and identify the dead",
+   "desc": "Recovery, forensic identification, and watching ground nobody is monitoring."
+  },
+  {
+   "key": "help",
+   "label": "Get help and check the work",
+   "desc": "The people already doing this, and how to tell whether whoever is holding the shovel is competent."
   }
  ]
 }

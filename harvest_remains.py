@@ -56,9 +56,13 @@ Output is remains.json.gz  ({"_meta": {...}, "records": [...]}).
 """
 import math
 import os
+import datetime as dt
 import gzip
 import json
-import ssl, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
+import io
+import contextlib
+import ssl
+import traceback, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
 
 UA = "galaxy-remains-harvester (contact: wheelock.chris@gmail.com)"
 TIMEOUT = 30
@@ -117,6 +121,10 @@ KINDS = {
     # show them together or apart -- they are the same field of work at a very
     # different scale, and conflating them would hide both.
     "forensic-case": ("Individual forensic recovery",  "redress",  True),
+    # Remains leaving a collection WITHOUT going home: deaccessioned, sold, or moved
+    # between institutions. Kept apart from `reinterment` because a transfer is not
+    # a return, and a map that merged them would report custody changes as redress.
+    "transfer":      ("Deaccession or transfer",       "watch",    False),
     "discovery":     ("Inadvertent discovery",        "watch",    True),
     "looting":       ("Illicit disturbance",          "unlawful", True),
     "review":        ("Review flagging burials",      "watch",    False),
@@ -182,6 +190,7 @@ GEO_NOTE = {
 _KIND_FLOOR = {
     "harm-permit": 3, "exhumation": 3, "removed-ground": 3, "looting": 3,
     "excavation": 2, "mass-grave": 3, "forensic-case": 1, "discovery": 2, "review": 2,
+    "transfer": 2,
     "repatriation": 2, "disposition": 2, "reinterment": 2, "holding": 2,
 }
 
@@ -633,19 +642,52 @@ def _mni(text):
 # Plotted at the HOLDING INSTITUTION (the accountable party), never at the place
 # the remains were taken from -- notices name removal counties in prose and this
 # harvester keeps those in `desc` without mapping them. See PLACEMENT POLICY.
+# Every NAGPRA notice family the Federal Register publishes, not just the four
+# that announce a completed decision. The additions matter for different reasons:
+#
+#  * "Receipt of a Request" / "Request for Repatriation" is the PENDING side. A map
+#    of completed returns shows the system working; the pending queue shows what is
+#    stuck, which is usually the story. Filed as `holding` -- the institution still
+#    has them.
+#  * "Deaccession" and "Notice of Transfer" cover remains LEAVING a collection
+#    without going home: sold, transferred between institutions, or otherwise moved.
+#    A transfer is not a return, and conflating them would flatter the record.
+#  * Corrections are how a wrong affiliation finding gets undone. They are small in
+#    number and disproportionately important.
 _NAGPRA_QUERIES = [
     ("Notice of Inventory Completion", "repatriation"),
     ("Notice of Intent to Repatriate", "repatriation"),
     ("Notice of Intended Disposition", "disposition"),
     ("Notice of Transfer of Control", "reinterment"),
+    # pending, not completed -- the institution still holds them
+    ("Receipt of a Request for Repatriation", "holding"),
+    ("Request for Repatriation", "holding"),
+    ("Notice of Receipt of Request", "holding"),
+    # leaving a collection, but not going home
+    ("Notice of Deaccession", "transfer"),
+    ("Deaccession of Human Remains", "transfer"),
+    ("Notice of Transfer", "transfer"),
+    # the record correcting itself
+    ("Correction to Notice of Inventory Completion", "review"),
+    ("Correction to Notice of Intent to Repatriate", "review"),
 ]
 # "City ST" or "City, ST" at the end of a NAGPRA notice title.
 _NAG_PLACE_RE = re.compile(r",\s*([A-Za-z .'\u2019\-]{2,40}?),?\s+([A-Z]{2})\s*$")
 
 
 def fetch_nagpra_notices(days=1095, per_page=100, max_pages=12):
-    """NAGPRA notices published in the Federal Register."""
+    """NAGPRA notices published in the Federal Register.
+
+    Eight of the twelve families below are NEW and unverified against live results
+    -- the Federal Register was unreachable from the machine that wrote them, so
+    the exact notice wording could not be confirmed. The per-family tally printed at
+    the end of this function is how you find out: a family reporting API hits but
+    keeping 0 records has the wrong wording, and one reporting 0 hits does not exist
+    under that name. Both are one-line fixes to _NAGPRA_QUERIES; neither can corrupt
+    the data, because the title check already rejects anything that is not that
+    notice."""
     out = []
+    per_family = {}
     since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
     for term, kind in _NAGPRA_QUERIES:
         for page in range(1, max_pages + 1):
@@ -689,6 +731,7 @@ def fetch_nagpra_notices(days=1095, per_page=100, max_pages=12):
                     inst = _NAG_PLACE_RE.sub("", head).strip(" ,;")
                 else:
                     inst = title.split(":", 1)[-1].strip(" ,;")
+                per_family[term] = per_family.get(term, 0) + 1
                 rec = {"name": title[:150], "kind": kind,
                        "posture": KINDS[kind][1], "trigger": "law",
                        "country": "United States", "region": region,
@@ -718,6 +761,16 @@ def fetch_nagpra_notices(days=1095, per_page=100, max_pages=12):
             if len(rows) < per_page:
                 break
             time.sleep(0.3)
+    # Which families are actually producing. Eight of the twelve are unverified;
+    # this line is how you tell a wrong phrase from a family that does not exist.
+    for term, _k in _NAGPRA_QUERIES:
+        n = per_family.get(term, 0)
+        if n == 0:
+            print("  nagpra family kept NOTHING: %r -- wrong wording, or no such "
+                  "notice family" % term)
+    print("  nagpra: kept %d notice(s) across %d of %d families"
+          % (len(out), sum(1 for t, _ in _NAGPRA_QUERIES if per_family.get(t)),
+             len(_NAGPRA_QUERIES)))
     return out
 
 
@@ -1316,9 +1369,36 @@ def _fed_budget():
 
 
 def _portal_url_country(p):
+    """Unpack one registry entry into (url, country).
+
+    THE SIBLING REGISTRY STORES TUPLES, NOT DICTS. Entries look like
+    ('https://datos.gob.cl', 'Chile', 'cl') -- url, country name, ISO2. This
+    function originally handled only str and dict, so every portal raised
+    "'tuple' object has no attribute 'get'" and all three federation fetchers
+    failed on their first portal. The 2026-07-31 run produced 0 rows from 1,236
+    portals for exactly that reason, and it looked like a successful run because
+    the shards exited 0 after writing an empty part file.
+
+    Handles every shape the registry might use, and returns ("", "") for anything
+    unrecognised rather than raising -- one odd entry must not kill the sweep.
+
+    Some entries carry a bare host with no scheme ('data.ajman.ae'); those get
+    https:// prefixed, or the fetchers would build invalid URLs."""
+    url = country = ""
     if isinstance(p, str):
-        return p, ""
-    return (p.get("url") or ""), (p.get("country") or p.get("cc") or "")
+        url = p
+    elif isinstance(p, (list, tuple)):
+        if len(p) >= 1 and isinstance(p[0], str):
+            url = p[0]
+        if len(p) >= 2 and isinstance(p[1], str):
+            country = p[1]
+    elif isinstance(p, dict):
+        url = p.get("url") or p.get("base") or p.get("host") or ""
+        country = p.get("country") or p.get("cc") or p.get("name") or ""
+    url = (url or "").strip()
+    if url and not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    return url, (country or "").strip()
 
 
 def fetch_ckan_remains(per_ds=400):
@@ -1422,10 +1502,33 @@ def fetch_geonode_remains(per_ds=400):
 # field names and its terms.
 def fetch_wa_section18():
     """Western Australia s.18 consents to disturb Aboriginal sites (DPLH).
-    The s.18 register and the Aboriginal Heritage Inquiry System both exist and
-    are the WA equivalent of NSW's AHIP. Not shipped: DPLH's spatial licence has
-    previously required written permission for reuse (harvest_projects.py rejected
-    a DWER layer on the same ground). VERIFY THE LICENCE FIRST."""
+
+    LICENCE CHECKED 2026-07-31 -- REFUSED, for two independent reasons.
+
+    1. NOT OPEN DATA. The DPLH spatial layers on data.wa.gov.au (Aboriginal
+       Cultural Heritage Register DPLH-099, Historic DPLH-098, and the retired
+       DPLH-001) sit behind a licence agreement requiring active acceptance, and
+       download requires a subscription. They are free to VIEW through AHIS/ACHIS
+       or Locate, which is not the same as free to redistribute. That is the same
+       ground on which harvest_projects.py rejected a DWER layer.
+
+    2. IT IS A SITE REGISTER, which this harvester refuses on its own terms --
+       see _is_site_register(). DPLH itself states that the exact location and
+       extent of some places are withheld and replaced with a shaded region of at
+       least 4 km-squared "to preserve confidentiality". The custodian has already
+       decided these locations should not be published precisely; republishing
+       them, or even mirroring the buffered version, overrides a judgement that
+       was not ours to make.
+
+    Note the distinction that keeps NSW in and WA out: NSW AHIP records are
+    PERMITS -- an accountable actor, a decision, a date -- published as open data
+    under CC-BY. WA's equivalent is a register of PLACES. A permit register names
+    who authorised harm; a site register names where the dead are. This map
+    carries the first and refuses the second.
+
+    If DPLH publishes s.18 CONSENT DECISIONS as an open list -- applicant, date,
+    outcome, without site geometry -- that would be squarely in scope and should
+    be added. It is the decisions that belong here, never the places."""
     return []
 
 
@@ -1659,6 +1762,7 @@ def dedup(items):
 
 _SRC_COUNTS = {}
 _RUN_FLAGS = []
+_FAILED = set()
 _REFUSED = [0]      # datasets refused on policy (site registers)
 
 
@@ -1676,9 +1780,87 @@ def _run(name, fn):
         return got
     except Exception as e:
         _SRC_COUNTS.setdefault(name, 0)
+        _FAILED.add(name)
         _RUN_FLAGS.append("%s FAILED: %s" % (name, e))
         print("  %-28s FAILED: %s" % (name + ":", e))
+        # A crash is not a coverage gap, and the difference matters: the
+        # 2026-07-31 federation run failed on its first portal in all three
+        # fetchers, wrote an empty part file, and EXITED 0. GitHub showed a green
+        # tick on a run that harvested nothing from 1,236 portals. Printing the
+        # traceback here is what turns that into a five-minute diagnosis.
+        traceback.print_exc()
         return []
+
+
+def _run_all(sources, workers):
+    """Run every source, concurrently where it is safe to.
+
+    Order is preserved in the OUTPUT regardless of completion order, so a run is
+    reproducible and two runs of the same data produce the same file. Only the
+    waiting overlaps.
+
+    Per-source output is buffered and printed in source order once everything is
+    done -- interleaved log lines from six threads would be unreadable, and the
+    per-source diagnostic is the main debugging tool this harvester has."""
+    if workers <= 1:
+        out = []
+        for nm, fn in sources:
+            out += _run(nm, fn)
+        return out
+    import concurrent.futures as _cf
+    import threading
+
+    # contextlib.redirect_stdout swaps sys.stdout PROCESS-WIDE, so with real
+    # threads one source's redirect captures another's output and the logs come
+    # out shuffled or missing. Replace sys.stdout ONCE with a router that keeps a
+    # separate buffer per thread; each fetcher then writes only to its own.
+    class _Router(object):
+        def __init__(self, real):
+            self.real = real
+            self.local = threading.local()
+        def write(self, text):
+            buf = getattr(self.local, "buf", None)
+            (buf.write(text) if buf is not None else self.real.write(text))
+        def flush(self):
+            self.real.flush()
+
+    buffers = {}
+    lock = threading.Lock()
+    router = _Router(sys.stdout)
+
+    def one(nm, fn):
+        buf = io.StringIO()
+        router.local.buf = buf
+        try:
+            got = _run(nm, fn)
+        finally:
+            router.local.buf = None
+            with lock:
+                buffers[nm] = buf.getvalue()
+        return nm, got
+
+    results = {}
+    t0 = time.time()
+    real_stdout = sys.stdout
+    sys.stdout = router
+    with _cf.ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = [ex.submit(one, nm, fn) for nm, fn in sources]
+        for f in _cf.as_completed(futs):
+            try:
+                nm, got = f.result()
+                results[nm] = got
+            except Exception as e:
+                _RUN_FLAGS.append("worker crashed: %s" % e)
+                traceback.print_exc()
+    sys.stdout = real_stdout
+    for nm, _fn in sources:
+        sys.stdout.write(buffers.get(nm, ""))
+    print("  (%d sources on %d workers in %.0fs)"
+          % (len(sources), workers, time.time() - t0))
+    out = []
+    for nm, _fn in sources:
+        out += results.get(nm, [])
+    return out
 
 
 def _print_diagnostics():
@@ -1695,6 +1877,7 @@ def _print_diagnostics():
     zero = sorted(k for k, v in _SRC_COUNTS.items() if v == 0)
     if zero:
         print("  ZERO-YIELD (review): " + ", ".join(zero))
+    _print_triage(zero)
     print("  geocoder calls used: %d / %d" % (_GEO_CALLS[0], _GEO_MAX))
     print("  refused on policy:   %d dataset(s) that are site registers, not events"
           % _REFUSED[0])
@@ -1703,6 +1886,75 @@ def _print_diagnostics():
         for m in _RUN_FLAGS:
             print("    - " + m)
     print("=== END DIAGNOSTIC ===\n")
+
+
+# A zero is not one thing. Some sources are DELIBERATELY empty (refused on licence
+# or policy), some are waiting on a credential you can supply in two minutes, and
+# some are genuinely broken. Sorting them here means run 1 tells you what to fix
+# instead of leaving you to read 40 lines of log and guess.
+_ZERO_EXPECTED = {
+    "wa_section18":       "REFUSED on purpose -- not open data, and a site register. "
+                          "See the docstring; this will never produce.",
+    "spain_fosas":        "REFUSED on purpose -- Ley 20/2022 preservacion especial.",
+    "eamena":             "Account-gated, and a site register. Not expected to produce.",
+    "ireland_excavation": "Public but copyright rests with report authors. Not shipped.",
+    "uk_moj_licences":    "FOI-only; no register exists to read.",
+    "queensland_chmp":    "No machine-readable endpoint found.",
+    "colombia_ubpd":      "No machine-readable endpoint found yet.",
+    "mexico_cnb":         "No machine-readable endpoint found yet.",
+    "icmp":               "No machine-readable endpoint found yet.",
+}
+_ZERO_NEEDS_KEY = {}
+_ZERO_DISCOVERY = {
+    "sahris": "Discovery fetcher. Open sahris.sahra.org.za, watch the network tab "
+              "while searching cases, set SAHRIS_PATHS to the JSON path.",
+    "nps_nagpra_grid": "Discovery fetcher. If it printed no FOUND line, set "
+                       "NPS_GRID_PATHS from the browser network tab.",
+}
+_ZERO_NEEDS_KEY_REAL = {
+    "courtlistener":  ("COURTLISTENER_TOKEN", "courtlistener.com -> Profile -> API"),
+    "tribal_comments": ("REGULATIONS_API_KEY", "api.data.gov/signup"),
+}
+_ZERO_NEEDS_KEY = _ZERO_NEEDS_KEY_REAL
+
+
+def _print_triage(zero):
+    """Sort the zeros into: expected, fixable now, and actually broken."""
+    if not zero:
+        return
+    expected, keys, broken, disc = [], [], [], []
+    for k in zero:
+        if k in _ZERO_DISCOVERY:
+            disc.append(k)
+        elif k in _ZERO_EXPECTED:
+            expected.append(k)
+        elif k in _ZERO_NEEDS_KEY and not os.environ.get(_ZERO_NEEDS_KEY[k][0]):
+            keys.append(k)
+        else:
+            # A key-needing source WITH its key set that still returned nothing is
+            # not waiting on you -- it is broken, and belongs in the last group.
+            broken.append(k)
+    if expected:
+        print("\n  -- zero BY DESIGN (%d). Nothing to do: --" % len(expected))
+        for k in expected:
+            print("     %-22s %s" % (k, _ZERO_EXPECTED[k]))
+    if keys:
+        print("\n  -- zero FOR WANT OF A CREDENTIAL (%d). Two minutes each: --"
+              % len(keys))
+        for k in keys:
+            env, where = _ZERO_NEEDS_KEY[k]
+            print("     %-22s %s not set -- get one free at %s" % (k, env, where))
+    if disc:
+        print("\n  -- zero PENDING DISCOVERY (%d). One browser check each: --" % len(disc))
+        for k in disc:
+            print("     %-22s %s" % (k, _ZERO_DISCOVERY[k]))
+    if broken:
+        print("\n  -- zero UNEXPECTEDLY (%d). These should produce and did not: --"
+              % len(broken))
+        for k in broken:
+            print("     %-22s check the per-source line above for an error" % k)
+        print("     A source that FAILED has a network or endpoint problem.")
+        print("     A source that returned 0 rows has a filter or query problem.")
 
 
 def _carry_sources(pred, label):
@@ -1897,6 +2149,7 @@ def _finish(items):
 # Because the base is huge and the signal thin, this does NOT reuse _is_remains().
 # It requires an explicit multi-word phrase, which is exactly what kills the
 # place-name matches: "grave" alone is a French village, "unmarked grave" is not.
+CL_DAYS = int(os.environ.get("CL_DAYS", "1825"))   # five years
 PROJECTS_GZ = ("https://raw.githubusercontent.com/WelcomeToYourGalaxy/"
                "local-map/main/projects.json.gz")
 
@@ -2142,6 +2395,419 @@ def fetch_projects_on_burial_ground():
           % (len(pts), scanned, len(out), XSPATIAL_METRES))
     return out
 
+
+# ---------------------------------------------------------------------------
+# LITIGATION -- CourtListener
+# ---------------------------------------------------------------------------
+# Cases are where the rule actually changes. A permit register tells you a decision
+# was made; a judgment tells you whether the scheme that produced it survives.
+#
+# Uses the v4 search API. A token is NOT strictly required, but the free
+# unauthenticated allowance is small and a token raises it, so this reads
+# COURTLISTENER_TOKEN from the environment and says plainly when it is missing
+# rather than hammering an anonymous endpoint from CI.
+#
+# Deliberate limits:
+#  * The court is the accountable actor, so a case is plotted at the COURT, not at
+#    the burial ground it concerns. A judgment is not an unearthing.
+#  * `kind` is "review" and posture "watch". A filed case is an argument, not an
+#    outcome, and this map should not imply a court has ruled when it has not.
+#  * Court -> coordinates uses a small table of the courts that actually produce
+#    this litigation. A case from an unmapped court is skipped rather than dropped
+#    onto a country centroid where it would read as a located event.
+COURTLISTENER = "https://www.courtlistener.com/api/rest/v4/search/"
+CL_QUERIES = [
+    "NAGPRA",
+    "\"Native American Graves Protection\"",
+    "\"repatriation of human remains\"",
+    "\"burial ground\" desecration",
+    "\"unmarked graves\"",
+    "\"cemetery relocation\" injunction",
+    "\"Section 106\" \"historic properties\" burial",
+    "\"Archaeological Resources Protection Act\"",
+]
+# Seats of the courts that generate this litigation. Approximate to the courthouse
+# city, which is the accountable venue -- not the site in dispute.
+CL_COURTS = {
+    "scotus": (38.8906, -77.0044), "ca9": (37.7823, -122.4181),
+    "ca10": (39.7420, -104.9876), "ca8": (38.6291, -90.1901),
+    "ca5": (29.9490, -90.0740), "cadc": (38.8934, -77.0146),
+    "ca1": (42.3546, -71.0552), "ca2": (40.7128, -74.0060),
+    "ca4": (37.5385, -77.4344), "ca11": (33.7590, -84.3900),
+    "cafc": (38.8977, -77.0365), "ca7": (41.8789, -87.6300),
+    "ca6": (39.1010, -84.5120), "ca3": (39.9490, -75.1500),
+    "azd": (33.4484, -112.0740), "cand": (37.7823, -122.4181),
+    "cacd": (34.0537, -118.2428), "caed": (38.5816, -121.4944),
+    "dcd": (38.8934, -77.0146), "hid": (21.3069, -157.8583),
+    "nmd": (35.0844, -106.6504), "sdd": (44.3683, -100.3510),
+    "ndd": (46.8083, -100.7837), "oklahoma": (35.4676, -97.5164),
+    "wawd": (47.6062, -122.3321), "ord": (45.5152, -122.6784),
+    "akd": (61.2181, -149.9003), "mnd": (44.9778, -93.2650),
+    "utd": (40.7608, -111.8910), "nvd": (36.1699, -115.1398),
+    "mtd": (46.5891, -112.0391), "wyd": (41.1400, -104.8202),
+    "iand": (41.5868, -93.6250), "tennessee": (36.1627, -86.7816),
+}
+
+
+def fetch_courtlistener():
+    """US case law mentioning burial, repatriation or grave protection."""
+    out = []
+    token = os.environ.get("COURTLISTENER_TOKEN", "").strip()
+    if not token:
+        print("  courtlistener: no COURTLISTENER_TOKEN set. The free tier is small "
+              "and anonymous CI polling is rude, so this source is skipped. Get a "
+              "token free at courtlistener.com and add it as a repository secret.")
+        return out
+    since = (dt.date.today() - dt.timedelta(days=CL_DAYS)).isoformat()
+    seen = set()
+    for q in CL_QUERIES:
+        url = COURTLISTENER + "?" + urllib.parse.urlencode(
+            {"q": q, "type": "o", "order_by": "dateFiled desc",
+             "filed_after": since})
+        try:
+            data = _get_json_auth(url, {"Authorization": "Token " + token})
+        except Exception as e:
+            print("  courtlistener %s failed: %s" % (q[:28], e))
+            continue
+        hits = (data or {}).get("results") or []
+        print("  courtlistener %-42s %d hit(s)" % (q[:42], len(hits)))
+        for r in hits:
+            cid = r.get("cluster_id")
+            if not cid or cid in seen:
+                continue
+            blob = " ".join(str(r.get(k) or "") for k in ("caseName", "suitNature"))
+            snips = " ".join((o or {}).get("snippet") or "" for o in (r.get("opinions") or []))
+            if not _is_remains(blob + " " + snips):
+                continue
+            court_id = (r.get("court_id") or "").lower()
+            pt = CL_COURTS.get(court_id)
+            if not pt:
+                continue                 # unmapped court: skip, never guess a point
+            seen.add(cid)
+            rec = {
+                "name": (r.get("caseName") or "Unnamed case")[:150],
+                "kind": "review",
+                "posture": KINDS["review"][1],
+                "trigger": "law",
+                "country": "United States",
+                "region": r.get("court") or "",
+                "count": None,
+                "held_by": "",
+                "actor": r.get("court") or "",
+                "status": r.get("status") or "",
+                "url": "https://www.courtlistener.com" + (r.get("absolute_url") or ""),
+                "date": r.get("dateFiled") or "",
+                "deadline": "",
+                "desc": ("Litigation. Plotted at the COURT, not at the ground in "
+                         "dispute -- a judgment is not an unearthing. %s%s%s"
+                         % (r.get("court") or "",
+                            (", docket " + r["docketNumber"]) if r.get("docketNumber") else "",
+                            (". " + _strip_marks(snips)) if snips else ""))[:600],
+                "source": "courtlistener",
+            }
+            _place(rec, pt[0], pt[1], GEO_EXACT)
+            rec["impact"] = 2
+            out.append(rec)
+    print("  courtlistener: kept %d case(s)" % len(out))
+    return out
+
+
+def _strip_marks(text):
+    """CourtListener wraps matches in <mark>; snippets are plain text here."""
+    return re.sub(r"<[^>]+>", "", text or "").replace("\n", " ").strip()
+
+
+def _get_json_auth(url, headers):
+    hdr = {"User-Agent": UA}
+    hdr.update(headers or {})
+    req = urllib.request.Request(url, headers=hdr)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+# ---------------------------------------------------------------------------
+# TRIBAL AND COMMUNITY OBJECTIONS -- Regulations.gov comments
+# ---------------------------------------------------------------------------
+# The permit record never tells you who objected. Opposition is a speech act by a
+# named party, and for US federal rulemaking it is filed here: 20 million public
+# comments, each attached to a docket, each with a submitter.
+#
+# This is the only structured source of opposition anywhere in the roster. Every
+# other feed records what an authority DECIDED; this records what someone SAID
+# about it, on the record, in time to matter.
+#
+# Two design calls worth arguing with:
+#
+#  * PLOTTED AT THE AGENCY, not at the ground. A comment is directed at a federal
+#    decision-maker, and the decision-maker is the accountable actor. That means
+#    they stack in Washington DC, which looks odd on a map and is nonetheless
+#    where the decision sits. The alternative -- guessing a location from the
+#    docket -- would invent geography.
+#  * TITLE-ONLY IDENTIFICATION. The comment LIST endpoint returns a title but not
+#    the submitter organisation; that needs a per-comment detail request, which at
+#    1,000 requests/hour would be the entire budget. Regulations.gov titles almost
+#    always read "Comment submitted by <Organization>", so the organisation is read
+#    from the title. Comments from individuals are therefore invisible here, which
+#    is a real gap: a tribal member commenting personally will not appear.
+REGULATIONS_API = "https://api.regulations.gov/v4/comments"
+REG_QUERIES = ["NAGPRA", "human remains", "burial ground", "sacred site",
+               "tribal consultation", "unmarked graves"]
+REG_DAYS = int(os.environ.get("REG_DAYS", "1095"))
+# Where the objection lands. Approximate to the agency's headquarters.
+REG_AGENCIES = {
+    "DOI": (38.8938, -77.0426),   "NPS": (38.8938, -77.0426),
+    "BIA": (38.8938, -77.0426),   "BLM": (38.8938, -77.0426),
+    "FWS": (38.8938, -77.0426),   "BOR": (38.8938, -77.0426),
+    "USACE": (38.8719, -77.0163), "COE": (38.8719, -77.0163),
+    "ACHP": (38.9026, -77.0365),  "EPA": (38.8942, -77.0282),
+    "FERC": (38.8977, -77.0122),  "USDA": (38.8877, -77.0300),
+    "FS": (38.8877, -77.0300),    "DOE": (38.8873, -77.0281),
+    "DOT": (38.8757, -77.0028),   "FHWA": (38.8757, -77.0028),
+    "HUD": (38.8843, -77.0214),   "DOD": (38.8719, -77.0563),
+    "NASA": (38.8830, -77.0163),  "SI": (38.8887, -77.0261),
+}
+
+
+def fetch_tribal_comments(per_page=250):
+    """Comments filed by tribes and communities on federal dockets touching burial."""
+    out = []
+    key = os.environ.get("REGULATIONS_API_KEY", "").strip()
+    if not key:
+        print("  tribal_comments: no REGULATIONS_API_KEY set. Free key at "
+              "api.data.gov/signup; add it as a repository secret. This is the only "
+              "structured source of OPPOSITION in the roster -- worth wiring up.")
+        return out
+    since = (dt.date.today() - dt.timedelta(days=REG_DAYS)).isoformat()
+    seen = set()
+    for term in REG_QUERIES:
+        url = REGULATIONS_API + "?" + urllib.parse.urlencode({
+            "filter[searchTerm]": term,
+            "filter[postedDate][ge]": since,
+            "page[size]": per_page,
+            "sort": "-postedDate"})
+        try:
+            data = _get_json_auth(url, {"X-Api-Key": key})
+        except Exception as e:
+            print("  tribal_comments %s failed: %s" % (term, e))
+            continue
+        rows = (data or {}).get("data") or []
+        print("  tribal_comments %-24s %d comment(s) returned" % (term, len(rows)))
+        for c in rows:
+            cid = c.get("id")
+            attrs = c.get("attributes") or {}
+            title = (attrs.get("title") or "").strip()
+            if not cid or cid in seen or not title:
+                continue
+            org = _comment_org(title)
+            if not org:
+                continue                      # no named organisation in the title
+            if not _is_objector(org):
+                continue                      # named, but not a community body
+            agency = (attrs.get("agencyId") or "").upper()
+            pt = REG_AGENCIES.get(agency)
+            if not pt:
+                continue                      # unmapped agency: skip, never guess
+            seen.add(cid)
+            rec = {
+                "name": ("Objection filed: " + org)[:150],
+                "kind": "review",
+                "posture": KINDS["review"][1],
+                "trigger": "objection",
+                "country": "United States",
+                "region": "",
+                "count": None,
+                "held_by": "",
+                "actor": agency,
+                "status": "Comment on the public record",
+                "url": "https://www.regulations.gov/comment/" + cid,
+                "date": _iso_date(attrs.get("postedDate")),
+                "deadline": "",
+                "desc": ("A named body objected on the record to a federal action "
+                         "touching %s. Plotted at the AGENCY the objection was filed "
+                         "with, not at the ground in question -- the agency is the "
+                         "accountable actor. Docket comment %s."
+                         % (term, cid))[:600],
+                "source": "tribal_comments",
+            }
+            _place(rec, pt[0], pt[1], GEO_EXACT)
+            rec["impact"] = 2
+            out.append(rec)
+    print("  tribal_comments: kept %d objection(s) from named bodies" % len(out))
+    return out
+
+
+_COMMENT_BY_RE = re.compile(
+    r"comments?\s+(?:submitted\s+)?(?:by|from|of)\s+(.{3,120})$", re.I)
+
+
+def _comment_org(title):
+    """Pull the organisation out of a 'Comment submitted by X' title."""
+    m = _COMMENT_BY_RE.search(title.strip().rstrip(".")) 
+    if not m:
+        return ""
+    org = m.group(1).strip(" ,;.")
+    # "... by John Smith, Navajo Nation" -> keep the whole thing; the objector
+    # test below looks for the body, not the person.
+    return org if len(org) > 3 else ""
+
+
+# A named Indigenous, tribal or descendant body. Deliberately the same shape as the
+# wire's objector vocabulary: a personal name alone is not an institution, and this
+# map is about bodies with standing.
+_OBJECTOR_ORGS = (
+    "tribe", "tribal", "tribes", "nation", "band", "pueblo", "rancheria",
+    "indian", "native", "indigenous", "first nation", "iwi", "aboriginal",
+    "confederated", "council", "thpo", "historic preservation officer",
+    "descendant", "traditional", "hawaiian", "alaska native", "village of",
+    "community of", "consortium", "intertribal", "inter-tribal",
+)
+
+
+def _is_objector(org):
+    o = (org or "").lower()
+    return any(t in o for t in _OBJECTOR_ORGS)
+
+
+# ---------------------------------------------------------------------------
+# SOUTH AFRICA -- SAHRIS heritage cases and permits
+# ---------------------------------------------------------------------------
+# The closest non-US analogue to the NSW AHIP feed, and the reason it is worth the
+# effort: SAHRIS holds heritage CASES and PERMIT APPLICATIONS under the National
+# Heritage Resources Act 25 of 1999, including s.38 development cases and permits
+# for excavation and for the disturbance of graves and burial grounds (s.36).
+#
+# That is a DECISION record, not a site register -- which is the line this map
+# draws. SAHRA's site inventory is refused for the same reason WA's is; the case
+# and permit stream is squarely in scope.
+#
+# SAHRIS runs on Drupal and is publicly accessible. Drupal exposes JSON in several
+# conventional ways depending on how Views were configured, and which of them is
+# live here could not be tested from the machine that wrote this. So this is a
+# DISCOVERY fetcher, like fetch_nps_nagpra_grid: it tries the conventional paths,
+# accepts the first that returns parseable records with recognisable fields, and
+# prints exactly what it found so the path can be pinned in SAHRIS_PATHS.
+SAHRIS_BASE = "https://sahris.sahra.org.za"
+SAHRIS_PATHS = [p for p in os.environ.get("SAHRIS_PATHS", "").split(",") if p.strip()] or [
+    "/node.json?type=heritage_case",
+    "/api/cases?_format=json",
+    "/jsonapi/node/heritage_case",
+    "/cases/json",
+    "/search/node.json",
+]
+_SAHRIS_FIELDS = ("title", "nid", "type", "created", "changed", "field_", "body")
+
+
+def fetch_sahris():
+    """South African heritage cases and permits mentioning burial or graves."""
+    out = []
+    found_path = None
+    for path in SAHRIS_PATHS:
+        url = SAHRIS_BASE + path
+        try:
+            data = _get_json(url)
+        except Exception as e:
+            print("  sahris %-34s no (%s)" % (path, str(e)[:40]))
+            continue
+        rows = _sahris_rows(data)
+        if not rows:
+            print("  sahris %-34s parsed, but no records in it" % path)
+            continue
+        blob = json.dumps(rows[0])[:2000].lower()
+        hits = sum(1 for f in _SAHRIS_FIELDS if f in blob)
+        if hits < 2:
+            print("  sahris %-34s records found, fields unrecognised" % path)
+            continue
+        print("  sahris FOUND -> %s (%d record(s), %d recognisable field(s))"
+              % (path, len(rows), hits))
+        found_path = path
+        for r in rows:
+            rec = _sahris_rec(r)
+            if rec:
+                out.append(rec)
+        break
+    if found_path is None:
+        print("  sahris: none of the conventional Drupal JSON paths answered.")
+        print("    Open %s in a browser, watch the network tab while searching"
+              % SAHRIS_BASE)
+        print("    cases, and set SAHRIS_PATHS to the path that returns JSON.")
+        print("    This is the strongest non-US permit feed available; worth the "
+              "five minutes.")
+    else:
+        print("  sahris: kept %d case(s)" % len(out))
+    return out
+
+
+def _sahris_rows(data):
+    """Drupal answers in several shapes; accept whichever came back."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for k in ("data", "nodes", "results", "rows", "list"):
+            v = data.get(k)
+            if isinstance(v, list):
+                return v
+    return []
+
+
+def _sahris_rec(r):
+    """One SAHRIS record -> one map record, or None if it is off-topic."""
+    if not isinstance(r, dict):
+        return None
+    node = r.get("node") if isinstance(r.get("node"), dict) else r
+    attrs = node.get("attributes") if isinstance(node.get("attributes"), dict) else node
+    title = _first_str(attrs, "title", "name", "label")
+    if not title:
+        return None
+    body = json.dumps(attrs)[:4000]
+    if not _is_remains(title + " " + body):
+        return None
+    if _is_site_register(title):
+        _REFUSED[0] += 1
+        return None
+    nid = _first_str(attrs, "nid", "id", "drupal_internal__nid")
+    rec = {
+        "name": title[:150],
+        # A heritage case is a decision in progress, not a completed disturbance.
+        "kind": "review",
+        "posture": KINDS["review"][1],
+        "trigger": "permit",
+        "country": "South Africa",
+        "region": _first_str(attrs, "field_province", "province") or "",
+        "count": _mni(body),
+        "held_by": "",
+        "actor": "SAHRA",
+        "status": _first_str(attrs, "field_case_status", "status") or "",
+        "url": (SAHRIS_BASE + "/node/" + nid) if nid else SAHRIS_BASE,
+        "date": _iso_date(_first_str(attrs, "created", "changed", "field_date")),
+        "deadline": "",
+        "desc": ("SAHRIS heritage case or permit application under the National "
+                 "Heritage Resources Act 25 of 1999. Plotted at national level "
+                 "unless the record names a province -- SAHRIS carries case "
+                 "geometry this map does not republish.")[:600],
+        "source": "sahris",
+    }
+    # National placement. Provinces would need a lookup, and guessing one would be
+    # worse than admitting the record is national.
+    _place(rec, -28.5, 24.7, GEO_ADMIN)
+    rec["impact"] = rate_remains(rec)
+    return rec
+
+
+def _first_str(d, *keys):
+    for k in keys:
+        v = d.get(k) if isinstance(d, dict) else None
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            for kk in ("value", "title", "target_id"):
+                if isinstance(v[0].get(kk), str) and v[0][kk].strip():
+                    return v[0][kk].strip()
+        if isinstance(v, dict):
+            for kk in ("value", "title"):
+                if isinstance(v.get(kk), str) and v[kk].strip():
+                    return v[kk].strip()
+    return ""
+
 def main():
     if os.environ.get("FED_MERGE") == "1":
         print("MODE: merge federation shard parts")
@@ -2170,30 +2836,60 @@ def main():
         with open("fed_remains_part_%d.json" % k, "w", encoding="utf-8") as f:
             json.dump(items, f, ensure_ascii=False, separators=(",", ":"))
         print("wrote fed_remains_part_%d.json with %d rows" % (k, len(items)))
+        # A shard that harvested nothing because every fetcher CRASHED must not
+        # report success. Zero rows from a working sweep is a finding; zero rows
+        # from three exceptions is a bug, and the run has to say so loudly enough
+        # that a green tick cannot hide it.
+        if not items and _FAILED:
+            print("\nSHARD FAILED: every federation fetcher raised (%s)."
+                  % ", ".join(sorted(_FAILED)))
+            print("This shard harvested nothing. Exiting non-zero so the run is "
+                  "not reported as a success.")
+            sys.exit(1)
         return
 
     print("MODE: daily refresh (all sources except federations)")
-    items = []
-    items += _run("nagpra_notices", fetch_nagpra_notices)
-    items += _run("us_burial_reviews", fetch_us_burial_reviews)
-    items += _run("nsw_ahip", fetch_nsw_ahip)
-    items += _run("ceqanet_burials", fetch_ceqanet_burials)
-    items += _run("uk_burial_planning", fetch_uk_burial_planning)
-    items += _run("osm_removed_burial_grounds", fetch_osm_removed_burial_grounds)
-    # pending roster -- each returns [] and documents why
-    for nm, fn in (("wa_section18", fetch_wa_section18),
-                   ("qld_chmp", fetch_qld_chmp),
-                   ("spain_fosas", fetch_spain_fosas),
-                   ("ireland_excavation", fetch_ireland_excavation),
-                   ("eamena", fetch_eamena),
-                   ("colombia_ubpd", fetch_colombia_ubpd),
-                   ("mexico_cnb", fetch_mexico_cnb),
-                   ("nps_nagpra_grid", fetch_nps_nagpra_grid),
-                   ("uk_moj_licences", fetch_uk_moj_licences),
-                   ("icmp", fetch_icmp),
-                   ("projects_crossfeed", fetch_projects_crossfeed),
-                   ("projects_on_burial_ground", fetch_projects_on_burial_ground)):
-        items += _run(nm, fn)
+
+    # SOURCES RUN IN PARALLEL. They are independent and almost entirely
+    # I/O-bound -- each one spends its life waiting on somebody else's server, not
+    # computing. Run sequentially, the harvest costs the SUM of every source's
+    # latency; run concurrently it costs roughly the SLOWEST one. Nothing is
+    # dropped, no query is narrowed, no budget is cut: identical work, overlapped.
+    #
+    # Threads rather than processes because the work is waiting, and because the
+    # fetchers share module state (_SRC_COUNTS, _REFUSED, the geocoder cache) that
+    # would have to be marshalled back across a process boundary.
+    #
+    # HARVEST_WORKERS caps concurrency. It is deliberately modest: these are public
+    # registers, several of them small government servers, and this harvester
+    # should not be the reason one falls over. Set it to 1 to go back to
+    # sequential, which is also the right move when debugging a single source.
+    workers = max(1, int(os.environ.get("HARVEST_WORKERS", "6")))
+    sources = [
+        ("nagpra_notices", fetch_nagpra_notices),
+        ("us_burial_reviews", fetch_us_burial_reviews),
+        ("nsw_ahip", fetch_nsw_ahip),
+        ("ceqanet_burials", fetch_ceqanet_burials),
+        ("uk_burial_planning", fetch_uk_burial_planning),
+        ("osm_removed_burial_grounds", fetch_osm_removed_burial_grounds),
+        # pending roster -- each returns [] and documents why
+        ("wa_section18", fetch_wa_section18),
+        ("qld_chmp", fetch_qld_chmp),
+        ("spain_fosas", fetch_spain_fosas),
+        ("ireland_excavation", fetch_ireland_excavation),
+        ("eamena", fetch_eamena),
+        ("colombia_ubpd", fetch_colombia_ubpd),
+        ("mexico_cnb", fetch_mexico_cnb),
+        ("nps_nagpra_grid", fetch_nps_nagpra_grid),
+        ("uk_moj_licences", fetch_uk_moj_licences),
+        ("icmp", fetch_icmp),
+        ("projects_crossfeed", fetch_projects_crossfeed),
+        ("projects_on_burial_ground", fetch_projects_on_burial_ground),
+        ("courtlistener", fetch_courtlistener),
+        ("tribal_comments", fetch_tribal_comments),
+        ("sahris", fetch_sahris),
+    ]
+    items = _run_all(sources, workers)
     items += _carry_sources(_is_fed, "federation sources")
     _finish(items)
 

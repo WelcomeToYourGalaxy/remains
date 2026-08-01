@@ -269,6 +269,9 @@
   /* a term with a plain-language definition on hover / tap */
   .gl{border-bottom:1px dotted var(--accent-soft);cursor:help;}
   .gl-inline{color:var(--dim);font-style:italic;}
+  .gd-dl{color:var(--harm);font-weight:600;}
+  .st-lens{color:var(--dim);border:1px solid var(--accent-soft);border-radius:3px;
+    padding:0 3px;margin-left:5px;font-size:9px;}
   .gl:hover{border-bottom-color:var(--accent-hi);color:var(--accent-hi);}
   /* Identical to .wire-intro: same family, size, colour and leading, so the two
      bodies of prose in the interface read as one voice rather than two. */
@@ -794,6 +797,32 @@ var GLOSS={
    records does not repeat the same parenthesis twenty times. */
 var _glodone={};
 function gloReset(){ _glodone={}; }
+
+/* Annotate specialist words WHERE THEY APPEAR IN PROSE. Labels were already
+   defined via glo(); the descriptions were not, which is where most of the jargon
+   actually is -- "repatriation", "disposition", "provenance", "deaccession",
+   "affiliation" all turn up mid-sentence in a source's own wording.
+
+   Longest terms first, so "repatriation notice" wins over "repatriation". Matches
+   on a word boundary, skips anything already inside a tag or an existing
+   annotation, and defines each term once per box. */
+var _GLO_SORTED=null;
+function glossTerms(html){
+  if(!html)return html;
+  if(!_GLO_SORTED){
+    _GLO_SORTED=Object.keys(GLOSS).sort(function(a,b){return b.length-a.length;});
+  }
+  for(var i=0;i<_GLO_SORTED.length;i++){
+    var term=_GLO_SORTED[i], k=term.toLowerCase();
+    if(_glodone[k])continue;
+    var re=new RegExp('(^|[\\s(\u2014,;:])('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')(?![^<]*>)(?=[\\s.,;:)\u2014]|$)','i');
+    var m=re.exec(html);
+    if(!m)continue;
+    var replaced=glo(term, m[2]);          /* marks it done, adds the parenthesis */
+    html=html.slice(0,m.index)+m[1]+replaced+html.slice(m.index+m[0].length);
+  }
+  return html;
+}
 function glo(term,shown){
   var k=String(term).toLowerCase(), d=GLOSS[term]||GLOSS[k];
   var label=esc(shown||term);
@@ -821,13 +850,14 @@ var KIND_LABEL={
   'harm-permit':'Permit to harm burial site','excavation':'Licensed excavation',
   'exhumation':'Exhumation / cemetery removal','removed-ground':'Burial ground no longer there',
   'mass-grave':'Mass-grave recovery','forensic-case':'Individual forensic recovery',
+  'transfer':'Deaccession or transfer',
   'discovery':'Inadvertent discovery',
   'looting':'Illicit disturbance','review':'Review flagging burials'};
 /* which glossary entry explains each kind */
 var KIND_GLOSS={'repatriation':'repatriation notice','disposition':'disposition',
   'reinterment':'reinterment','holding':'provenance','harm-permit':'AHIP',
   'excavation':'unearthing','exhumation':'exhumation','removed-ground':'lifecycle prefix',
-  'mass-grave':'mass grave','forensic-case':'exhumation',
+  'mass-grave':'mass grave','forensic-case':'exhumation','transfer':'deaccession',
   'discovery':'inadvertent discovery','looting':'looting',
   'review':'proximity flag'};
 function kindLabel(k){
@@ -895,6 +925,8 @@ var SOURCE_LABEL={
   'ceqanet_burials':'California CEQA','osm_removed_burial_grounds':'OSM removed grounds',
   'projects_crossfeed':'Live Projects map (text)',
   'projects_on_burial_ground':'Live Projects map (proximity)',
+  'courtlistener':'US case law (CourtListener)',
+  'tribal_comments':'Objections filed (Regulations.gov)',
   'nps_nagpra_grid':'US NAGPRA inventories','ckan_remains':'Open-data portals (CKAN)',
   'ods_remains':'Open-data portals (ODS)','geonode_remains':'Open-data portals (GeoNode)'};
 var fWindow=0, inclUndated=true, query='';
@@ -1137,7 +1169,8 @@ map.on('mousemove',function(e){
 function esc(s){return String(s==null?'':s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function popupHTML(r){
-  var h='<div class="pk">'+esc(r.name||'Record')+'</div>';
+  gloReset();                 /* each opened box defines its terms afresh */
+  var h='<div class="pk">'+glossTerms(esc(r.name||'Record'))+'</div>';
   h+='<span class="tag t-'+esc(r.posture||'watch')+'">'+esc(r.posture||'watch')+'</span>';
   if(r.kind)h+='<span class="tag t-plain">'+kindLabel(r.kind)+'</span>';
   if(r.trigger&&r.trigger!=='unknown')
@@ -1150,7 +1183,8 @@ function popupHTML(r){
   if(r.status)h+='<div class="kv"><span>Status:</span> '+esc(r.status)+'</div>';
   if(r.date)h+='<div class="kv"><span>Dated:</span> '+esc(r.date)+'</div>';
   if(r.deadline)h+='<div class="kv"><span>Deadline:</span> <b>'+esc(r.deadline)+'</b></div>';
-  h+='<div class="geo-note"><b>'+esc(GEO_LABEL[r.geo||'admin'])+'.</b> '+esc(r.desc||'')+'</div>';
+  h+='<div class="geo-note"><b>'+esc(GEO_LABEL[r.geo||'admin'])+'.</b> '
+    +glossTerms(esc(r.desc||''))+'</div>';
   if(r.url)h+='<a class="plink" href="'+esc(r.url)+'" target="_blank" rel="noopener">'
              +'Open the primary record &rarr;</a>';
   if(r.source)h+='<div class="kv" style="margin-top:8px;font-size:10px;"><span>Feed:</span> '
@@ -1182,6 +1216,8 @@ function isoLabel(c){ return ISO_NAME[c]||c; }
 /* ------------------------------------------------------------- entry box */
 function recTitle(r){ return (r.kind?(KIND_LABEL[r.kind]||r.kind):'Record'); }
 function openEntry(kind,title,html){
+  /* belt and braces: any caller that did not annotate still gets definitions */
+
   document.getElementById('entryKicker').textContent =
     kind==='record'?'Opened record':kind==='facility'?'Opened facility':'Opened unit';
   document.getElementById('entryTitle').textContent = title||'Entry';
@@ -1609,6 +1645,61 @@ function gbUnitClick(feat){
   });
 }
 
+/* --- how-to guides, keyed to the same service areas ----------------------
+   What to actually DO in this jurisdiction, in the order it has to be done, with
+   the deadline where one exists -- deadlines are what kill these.
+
+   Shown ABOVE the resources on purpose. A list of offices tells you who exists; a
+   guide tells you which window is open and how long you have. The second is what
+   somebody opening a unit in a hurry needs first.
+
+   Nine jurisdictions, not every one: a guide exists only where the lens work gave
+   a verified statutory hook. A thin guide naming the wrong office is worse than no
+   guide, because somebody acts on it and loses a window. */
+var GUIDES=null;
+function loadGuides(){
+  fetch('guides.json?_='+Date.now(),{cache:'no-store'})
+    .then(function(r){ if(!r.ok)throw 0; return r.json(); })
+    .then(function(j){ GUIDES=j; })
+    .catch(function(){ GUIDES=null; });
+}
+function guidesFor(scope){
+  if(!GUIDES||!GUIDES.guides)return [];
+  return GUIDES.guides.filter(function(g){ return g.serves===scope; });
+}
+function guideHTML(g){
+  var h='<details class="disc sub"><summary>'+esc(g.title)+'</summary><div class="body">';
+  h+='<div class="kv"><span>Under:</span> '+esc(g.hook)+'</div>';
+  h+='<div class="kv"><span>When it applies:</span> '+esc(g.when)+'</div>';
+  h+='<ol class="run">';
+  g.steps.forEach(function(st){
+    h+='<li><b>'+esc(st.do)+'</b><br>'+esc(st.how);
+    if(st.deadline) h+='<br><span class="gd-dl">Deadline: '+esc(st.deadline)+'</span>';
+    h+='</li>';
+  });
+  h+='</ol>';
+  h+='<div class="callout">'+esc(g.watch)+'</div>';
+  if(g.find) h+='<div class="ent-empty"><b>Search:</b> '+esc(g.find)+'</div>';
+  h+='</div></details>';
+  return h;
+}
+function unitGuideHTML(){
+  if(!gbISO)return '';
+  var hits=[];
+  for(var i=gbChain.length-1;i>=0;i--){
+    var n=gbChain[i];
+    if(n.lvl==='ADM0')continue;
+    hits=hits.concat(guidesFor(gbISO+'/'+gbCanon(gbISO,n.name)));
+  }
+  hits=hits.concat(guidesFor(gbISO));
+  if(!hits.length)return '';
+  var h='<div class="ent-sec">What to do here</div>';
+  h+='<div class="ent-empty" style="margin-bottom:6px;">Published procedure for this '
+    +'jurisdiction, in order. Not legal advice &mdash; offices and deadlines change.</div>';
+  hits.forEach(function(g){ h+=guideHTML(g); });
+  return h;
+}
+
 /* --- resources, attached by SERVICE AREA -------------------------------
    Built from lenses.json, which carries a `serves` list on every entry:
    GLOBAL, an ISO3, or ISO3/UnitName. The rule is jurisdiction of service, not
@@ -1630,15 +1721,36 @@ function buildResIndex(){
   });
 }
 function resFor(scope){ return (RES_INDEX&&RES_INDEX[scope])||[]; }
+/* Grouped by INTENTION, not by lens. The lenses are a research taxonomy -- they
+   answer "what kind of source is this". Intention answers "what am I trying to do",
+   which is the question somebody opening a unit actually has.
+
+   The regrouping is real, not a rename: "stop a disturbance" gathers the regulator
+   who issued the permit, the consultation duty that was owed, and the injunction
+   that could halt it -- three different lenses, one job. The lens is still shown on
+   each entry, so nothing is hidden. */
+function intentOrder(){
+  return (LENSES&&LENSES.intents)?LENSES.intents:[];
+}
 function resBlock(title,note,list){
   if(!list.length)return '';
-  var byLens={};
-  list.forEach(function(r){ (byLens[r.lens]=byLens[r.lens]||[]).push(r); });
+  var byIntent={};
+  list.forEach(function(r){
+    var k=(r.it&&r.it.intent)||'help';
+    (byIntent[k]=byIntent[k]||[]).push(r); });
   var h='<div class="ent-sec">'+esc(title)+'</div>';
   if(note) h+='<div class="ent-empty" style="margin-bottom:6px;">'+note+'</div>';
-  Object.keys(byLens).forEach(function(ln){
-    h+='<div class="lvl" style="display:block;margin:7px 0 2px;">'+esc(ln)+'</div>';
-    byLens[ln].forEach(function(r){
+  var order=intentOrder();
+  var keys=order.length?order.map(function(x){return x.key;}):Object.keys(byIntent);
+  keys.forEach(function(k){
+    if(!byIntent[k])return;
+    var meta=null;
+    for(var i=0;i<order.length;i++) if(order[i].key===k) meta=order[i];
+    h+='<div class="lvl" style="display:block;margin:9px 0 2px;">'
+      +esc(meta?meta.label:k)+'</div>';
+    if(meta&&meta.desc)
+      h+='<div class="ent-empty" style="margin:0 0 4px;">'+esc(meta.desc)+'</div>';
+    byIntent[k].forEach(function(r){
       var it=r.it, st=(LENS_STATUS&&LENS_STATUS.entries)?LENS_STATUS.entries[it.name]:null,
           dead=st&&st.state==='dead', href=(st&&st.final)||it.url;
       h+='<div class="li'+(dead?' dead':'')+'">'
@@ -1646,6 +1758,7 @@ function resBlock(title,note,list){
                        :'<span class="nolink">'+esc(it.name)+'</span>')
         +(it.located?'<span class="st st-find">located here</span>':'')
         +(dead?'<span class="st st-dead">gone</span>':'')
+        +'<span class="st st-lens">'+esc(r.lens)+'</span>'
         +'<div class="note">'+esc(it.note||'')+'</div>'
         +((!it.url&&it.find)?'<div class="note"><b>Search:</b> '+esc(it.find)+'</div>':'')
         +'</div>';
@@ -1724,6 +1837,7 @@ function unitHTML(feat,lvl){
       +'absence of <b>records</b>, not of events &mdash; coverage follows whichever '
       +'registers this jurisdiction publishes.</div>';
   }
+  h+=unitGuideHTML();
   h+=unitResourceHTML();
   return h;
 }
@@ -2246,7 +2360,7 @@ document.getElementById('layFind').addEventListener('change',function(){
   if(el) el.addEventListener('change',function(){ toggleEnv(k,this.checked); });
 });
 
-load(); loadWire(); loadLenses(); loadFindings(); gbWorld(false);
+load(); loadWire(); loadLenses(); loadFindings(); loadGuides(); gbWorld(false);
 </script>
 </body>
 </html>
