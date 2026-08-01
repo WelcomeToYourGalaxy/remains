@@ -32,7 +32,7 @@ jobs:
         env:
           WIRE_MAX_AGE_DAYS: '90'
           WIRE_BUDGET_MIN: '80'
-        run: python wire_remains.py
+        run: python -u wire_remains.py
       - name: Commit if changed
         # Do NOT merge. These jobs REGENERATE the file wholesale, so there is
         # nothing to reconcile -- and `git merge -X ours` cannot help anyway:

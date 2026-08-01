@@ -41,6 +41,12 @@ jobs:
 
       - name: Run harvester
         env:
+          # Free token from courtlistener.com; add as a repository secret.
+          # Absent, the litigation source skips itself and says so.
+          COURTLISTENER_TOKEN: ${{ secrets.COURTLISTENER_TOKEN }}
+          # Free key from api.data.gov/signup. The only structured source of
+          # OPPOSITION in the roster; absent, it skips itself and says so.
+          REGULATIONS_API_KEY: ${{ secrets.REGULATIONS_API_KEY }}
           # Nominatim politeness budget for this run (1 req/sec, hard-capped).
           # NAGPRA notices are geocoded to the holding institution's city; raise this
           # only if the diagnostic reports the budget exhausted.
@@ -55,7 +61,7 @@ jobs:
           # network tab on apps.cr.nps.gov/nagprapublic/Home/Inventory, copy the URL
           # the grid actually calls, and set it here (comma-separated for both grids).
           # NPS_GRID_PATHS: ""
-        run: python harvest_remains.py
+        run: python -u harvest_remains.py
 
       - name: Commit refreshed remains.json.gz
         # Do NOT merge. These jobs REGENERATE the file wholesale, so there is

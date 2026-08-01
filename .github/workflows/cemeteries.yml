@@ -76,7 +76,12 @@ jobs:
           OSM_BUDGET_MIN: '95'
           OSM_TILE_DEG: '2.5'
           OSM_MIN_DEG: '0.3125'
-        run: python harvest_cemeteries.py
+        # -u is not cosmetic. Python buffers stdout when it is a pipe, so a job
+        # cancelled at its timeout flushes NOTHING: run #10 left 63 shard logs with
+        # no harvest output at all, and the cause had to be inferred from the one
+        # shard that finished. Unbuffered means a cancelled job still shows exactly
+        # which tile it was on.
+        run: python -u harvest_cemeteries.py
       - uses: actions/upload-artifact@v4
         with:
           name: fac-shard-${{ matrix.shard }}
@@ -117,7 +122,7 @@ jobs:
           if [ -z "$TYPES" ]; then echo "no parts to merge"; exit 0; fi
           echo "merging facility types: $TYPES"
           for t in $TYPES; do
-            FAC_MERGE=1 FAC_TYPE=$t python harvest_cemeteries.py
+            FAC_MERGE=1 FAC_TYPE=$t python -u harvest_cemeteries.py
           done
           rm -f remains_local_*_part*.json
           python prune_tiles.py

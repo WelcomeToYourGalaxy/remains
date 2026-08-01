@@ -28,7 +28,7 @@ jobs:
         env:
           CHECK_TIMEOUT: '20'
           CHECK_SLEEP: '0.7'
-        run: python check_lenses.py
+        run: python -u check_lenses.py
       - name: Commit if changed
         # Do NOT merge. These jobs REGENERATE the file wholesale, so there is
         # nothing to reconcile -- and `git merge -X ours` cannot help anyway:

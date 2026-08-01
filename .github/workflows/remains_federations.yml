@@ -30,7 +30,7 @@ jobs:
           FED_SHARD: ${{ matrix.shard }}
           FED_SHARDS: '6'
           FED_REMAINS_MAX_MIN: '150'
-        run: python harvest_remains.py
+        run: python -u harvest_remains.py
       - uses: actions/upload-artifact@v4
         with:
           name: fed-remains-part-${{ matrix.shard }}
