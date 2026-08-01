@@ -1,0 +1,257 @@
+{
+ "_meta": {
+  "what": "Per-jurisdiction how-to guides, keyed to the same service areas as the resources, so they surface when you open that unit on the map.",
+  "why_only_nine": "Guides exist only where the lens work gave a verified statutory hook. A thin guide that names the wrong office is worse than no guide, because somebody acts on it and loses a window.",
+  "not_legal_advice": "This is a description of published procedure, not legal advice. Deadlines and offices change; verify before you rely on one.",
+  "count": 9
+ },
+ "guides": [
+  {
+   "serves": "USA",
+   "title": "United States — federal land, federal money, or a federal permit",
+   "hook": "NAGPRA (25 U.S.C. 3001, 43 CFR Part 10) and NHPA §106 (54 U.S.C. 306108, 36 CFR Part 800)",
+   "when": "Any project with federal funding, a federal permit, or on federal or tribal land — which is far more projects than people expect. A Clean Water Act §404 permit from the Corps is enough to trigger §106.",
+   "steps": [
+    {
+     "do": "Find out whether §106 applies at all",
+     "how": "Ask the lead federal agency in writing whether the project is an undertaking under 36 CFR 800.16(y). If any federal permit, licence, funding or approval is involved, it is. Agencies sometimes decide it is not; that decision is itself challengeable."
+    },
+    {
+     "do": "Ask to be a consulting party",
+     "how": "36 CFR 800.2(c)(5) lets any individual or organisation with a demonstrated interest request consulting-party status. Put it in writing to the agency official, state your interest, and ask for the Area of Potential Effects. Consulting parties get the documents; the public does not.",
+     "deadline": "As early as possible — rights shrink once the agency has finished identification."
+    },
+    {
+     "do": "If you are a tribe, do not rely on being invited",
+     "how": "36 CFR 800.2(c)(2)(ii) requires the agency to consult tribes that attach religious or cultural significance to a property, whether or not it is on tribal land, and regardless of distance. Write to the agency asserting that interest and copy your THPO."
+    },
+    {
+     "do": "When remains are found mid-project on federal or tribal land",
+     "how": "43 CFR 10.4 requires work to STOP, the area to be protected, and notice to the responsible official. The statutory pause is 30 days after certification of notice before work may resume.",
+     "deadline": "Ceasing work is immediate. The 30-day protection period runs from notice."
+    },
+    {
+     "do": "Object formally rather than commenting informally",
+     "how": "If you cannot resolve an adverse effect, 36 CFR 800.7 lets a consulting party object and bring the ACHP in. An unresolved objection escalates; a comment in a meeting does not."
+    },
+    {
+     "do": "Watch for foreclosure",
+     "how": "NHPA §110(k) bars an agency from granting assistance to an applicant who intentionally destroyed a historic property to avoid §106. If damage happened before consultation, say so in writing and cite §110(k)."
+    }
+   ],
+   "watch": "§106 is a PROCESS requirement, not a preservation requirement. An agency that consults properly may still approve destruction. The leverage is in the record: a defective process is reviewable, a lawful one is not.",
+   "find": "36 CFR Part 800 consulting party request Section 106"
+  },
+  {
+   "serves": "USA",
+   "title": "United States — getting ancestors back from a museum or agency",
+   "hook": "NAGPRA inventories, summaries and notices (43 CFR 10.9–10.10)",
+   "when": "Any museum or agency that receives federal funds and holds Native American human remains or funerary objects.",
+   "steps": [
+    {
+     "do": "Check what the institution has already admitted holding",
+     "how": "The National NAGPRA databases publish inventories, summaries and notices. Search the institution by name before writing to it — its own filing is the strongest thing you can quote back."
+    },
+    {
+     "do": "Request the inventory directly if nothing is published",
+     "how": "Institutions must inventory holdings and consult. A failure to file is itself actionable and is what civil penalties under 43 CFR 10.12 exist for."
+    },
+    {
+     "do": "Read a 'culturally unidentifiable' finding as contestable",
+     "how": "It describes the state of the institution's paperwork, not a fact about the dead. The 2024 revisions to 43 CFR Part 10 shifted the burden toward deferring to tribal knowledge; a finding made under the old approach can be revisited."
+    },
+    {
+     "do": "Watch the Federal Register for the notice",
+     "how": "A Notice of Inventory Completion or Intent to Repatriate opens a claim window. Competing claims must be filed inside it.",
+     "deadline": "30 days from publication is the usual window. Miss it and you are arguing to reopen."
+    },
+    {
+     "do": "Escalate to the Review Committee",
+     "how": "The NAGPRA Review Committee hears disputes over affiliation and can issue findings. It is slow and non-binding, and it creates a public record that litigation and press can both use."
+    }
+   ],
+   "watch": "The institution decides affiliation — the finding that triggers its own duty to return. That conflict is structural, not accidental, and it is the reason so much sits in limbo.",
+   "find": "National NAGPRA notices database inventory completion"
+  },
+  {
+   "serves": "AUS/New South Wales",
+   "title": "New South Wales — an AHIP is a licence to destroy",
+   "hook": "National Parks and Wildlife Act 1974 s.86–s.90; Aboriginal Heritage Impact Permits",
+   "when": "Anywhere in NSW. An AHIP lawfully authorises harm to Aboriginal objects, including burials.",
+   "steps": [
+    {
+     "do": "Check whether an AHIP has been applied for or granted",
+     "how": "Heritage NSW publishes AHIP boundaries as an open spatial layer — this map already carries it. A granted AHIP means harm is already authorised."
+    },
+    {
+     "do": "Get into the consultation while it is open",
+     "how": "Applicants must consult registered Aboriginal parties under the Aboriginal cultural heritage consultation requirements. Register your interest with Heritage NSW so you appear on the list the applicant must contact.",
+     "deadline": "Registration windows are short and advertised locally. Missing one removes you from the process for that application."
+    },
+    {
+     "do": "Harm without a permit is an offence",
+     "how": "s.86 makes it an offence to harm an Aboriginal object whether or not you knew it was there — knowledge is a defence question, not an element. Report suspected unpermitted harm to Heritage NSW immediately."
+    },
+    {
+     "do": "Ask for a stop-work order",
+     "how": "s.91AA interim protection orders and stop-work orders exist and are used. They need evidence of imminent harm, which is why the report has to be immediate."
+    }
+   ],
+   "watch": "NSW publishes more of this than almost anywhere on earth, which is why half this map is NSW. Good publication is not the same as good protection — an AHIP register is a record of permitted destruction.",
+   "find": "Heritage NSW Aboriginal Heritage Impact Permit consultation requirements"
+  },
+  {
+   "serves": "AUS/Western Australia",
+   "title": "Western Australia — s.18 consent and its aftermath",
+   "hook": "Aboriginal Heritage Act 1972 s.17–s.18",
+   "when": "Anywhere in WA. s.18 consent from the Minister authorises use of land that will damage an Aboriginal site.",
+   "steps": [
+    {
+     "do": "Understand what s.18 does",
+     "how": "It is Ministerial consent to damage. Once granted, the damage is lawful. Juukan Gorge was destroyed under a valid s.18 consent, which is the entire point of the 2020 'Never Again' inquiry."
+    },
+    {
+     "do": "Note that the Act protects unregistered sites too",
+     "how": "The AHA protects all Aboriginal cultural heritage whether or not it is on the register. 'Not on the register' is not a defence and should never be accepted as one."
+    },
+    {
+     "do": "Engage before the s.18 goes to the Committee",
+     "how": "Applications are assessed by the Aboriginal Cultural Heritage Committee before the Minister decides. Traditional owner views submitted at that stage are on the record; afterwards you are appealing."
+    },
+    {
+     "do": "Ask about conditions and re-consultation",
+     "how": "Post-Juukan practice has tightened conditions on notification and new information. If material facts changed after consent, say so in writing to DPLH and the Minister."
+    }
+   ],
+   "watch": "The 2021 replacement Act was repealed after five weeks, so the 1972 Act governs. Check which regime applies before relying on any guidance written between 2021 and 2023 — much of it describes a law that no longer exists.",
+   "find": "Western Australia Aboriginal Heritage Act section 18 consent process DPLH"
+  },
+  {
+   "serves": "GBR/England",
+   "title": "England — you cannot lawfully move remains without a licence",
+   "hook": "Burial Act 1857 s.25 (Ministry of Justice licence); Disused Burial Grounds Acts",
+   "when": "Any exhumation or removal of human remains from a burial ground in England, including archaeological excavation.",
+   "steps": [
+    {
+     "do": "Establish whether a licence exists",
+     "how": "Removal requires a s.25 licence from the Ministry of Justice, or a faculty from the diocese where the ground is consecrated Church of England land. Ask the developer and the local authority to produce it."
+    },
+    {
+     "do": "Check the planning condition, not just the permission",
+     "how": "Archaeological work is usually secured by condition under NPPF policy. The condition names a written scheme of investigation — request it. It states what happens when remains are found."
+    },
+    {
+     "do": "Comment during the planning window",
+     "how": "Objections must land inside the consultation period on the planning application. This is the realistic point of influence; after permission, you are arguing about conditions.",
+     "deadline": "Usually 21 days from validation of the application."
+    },
+    {
+     "do": "Escalate to the county archaeologist or Historic England",
+     "how": "The local authority archaeological adviser advises on conditions. Historic England is a statutory consultee for designated assets. Both write into the record."
+    }
+   ],
+   "watch": "Licences are issued in volume and are not published as a register — they are released through FOI. That absence is why England is thin on this map, not the absence of exhumations.",
+   "find": "Ministry of Justice burial licence section 25 exhumation application"
+  },
+  {
+   "serves": "GBR/Scotland",
+   "title": "Scotland — a different regime from England, and the coast is eroding",
+   "hook": "Burial and Cremation (Scotland) Act 2016; Historic Environment Scotland Act 2014",
+   "when": "Any exhumation in Scotland, and any eroding coastal site exposing remains.",
+   "steps": [
+    {
+     "do": "Do not apply English procedure",
+     "how": "Scotland has its own regime. Exhumation is generally authorised by the sheriff court or under the 2016 Act, not by an MoJ licence."
+    },
+    {
+     "do": "Report eroding remains rather than assuming someone knows",
+     "how": "Coastal erosion exposes burials with no applicant, no permit and nobody to serve notice on. SCAPE and the SCHARP project exist precisely to record these, and depend on public reporting."
+    },
+    {
+     "do": "Use the planning route for development",
+     "how": "Historic Environment Scotland is the statutory consultee. Comment inside the planning window and ask for the archaeological condition."
+    }
+   ],
+   "watch": "Erosion is the one cause of unearthing with no accountable party. There is nobody to object to, which is why recording it is the whole intervention.",
+   "find": "SCAPE Trust SCHARP coastal erosion report archaeological site Scotland"
+  },
+  {
+   "serves": "NZL",
+   "title": "Aotearoa New Zealand — kōiwi tangata and archaeological authority",
+   "hook": "Heritage New Zealand Pouhere Taonga Act 2014, s.42–s.48",
+   "when": "Any work that may modify or destroy an archaeological site, which includes any site associated with human activity before 1900.",
+   "steps": [
+    {
+     "do": "Know that the pre-1900 rule is very wide",
+     "how": "An archaeological authority is required to modify ANY pre-1900 site, recorded or not. 'It is not on ArchSite' is not a defence."
+    },
+    {
+     "do": "Engage tangata whenua first, not last",
+     "how": "Authority applications require consultation with tangata whenua. Iwi and hapū views carry weight the process is built to receive, and are far more effective before the application than after."
+    },
+    {
+     "do": "Understand what happens if kōiwi are found",
+     "how": "Work stops, and the accidental discovery protocol in the authority applies. Police and the coroner are notified first, because age is not yet known; tangata whenua and Heritage New Zealand follow."
+    },
+    {
+     "do": "Treat wāhi tapu locations as restricted",
+     "how": "Precise locations are deliberately unpublished. Do not seek to publish them, and be wary of anyone who does."
+    }
+   ],
+   "watch": "This is among the strongest regimes anywhere, and it still works through authorities to modify — permission to disturb, granted properly.",
+   "find": "Heritage New Zealand archaeological authority application koiwi tangata protocol"
+  },
+  {
+   "serves": "CAN",
+   "title": "Canada — jurisdiction is provincial, and the schools are their own process",
+   "hook": "Provincial heritage and cemeteries legislation; federal Impact Assessment Act for federal projects",
+   "when": "Any burial disturbance in Canada. There is no federal equivalent of NAGPRA.",
+   "steps": [
+    {
+     "do": "Find the provincial statute first",
+     "how": "Ontario's Funeral, Burial and Cremation Services Act, BC's Heritage Conservation Act, Alberta's Historical Resources Act — each differs. National guidance will mislead you."
+    },
+    {
+     "do": "For federal projects, use the impact assessment",
+     "how": "The Impact Assessment Agency process requires Indigenous engagement and produces a public registry. Comment windows are published and short."
+    },
+    {
+     "do": "Residential school investigations follow their own path",
+     "how": "Community-led searches are directed by the affected Nation, not by heritage regulators. The NCTR holds the records; approach the Nation, not the site."
+    },
+    {
+     "do": "Do not treat a ground-penetrating radar result as a finding",
+     "how": "GPR indicates anomalies, not confirmed burials. Communities are explicit about this, and it is repeatedly misreported."
+    }
+   ],
+   "watch": "The absence of a federal statute is the structural fact. Protection depends on which province the ground is in.",
+   "find": "provincial cemeteries act burial site disposition Indigenous Canada"
+  },
+  {
+   "serves": "ESP",
+   "title": "España — fosas comunes y el derecho a buscar",
+   "hook": "Ley 20/2022 de Memoria Democrática",
+   "when": "Civil War and dictatorship-era mass graves.",
+   "steps": [
+    {
+     "do": "The State now carries the duty to search",
+     "how": "Ley 20/2022 makes the search for the disappeared a State obligation rather than something families must fund and organise themselves. That reversal is the whole point of the law."
+    },
+    {
+     "do": "Start from the official map",
+     "how": "The Mapa de Fosas is the State's own georeferenced record. A family looking for a named grave is better served by it than by any global map."
+    },
+    {
+     "do": "Sites carry special protection",
+     "how": "Article 17 places located graves under preservación especial. That protection is also why this map blurs them."
+    },
+    {
+     "do": "Work through the autonomous community",
+     "how": "Exhumation is administered regionally, and several communities have their own memory laws and their own budgets. The regional office is the practical door."
+    }
+   ],
+   "watch": "The law changed the duty; it did not by itself change the pace. Regional capacity and political will still determine whether a grave is opened.",
+   "find": "Mapa de Fosas Memoria Democrática solicitud exhumación"
+  }
+ ]
+}
