@@ -339,28 +339,110 @@ def _write_rows(path, rows):
             json.dump(rows, f, ensure_ascii=False, separators=(",", ":"))
 
 
+# ---------------------------------------------------------------------------
+# RESUMABLE SWEEPS
+# ---------------------------------------------------------------------------
+# A global sweep does not reliably fit in one CI job. The 2026-07-31 run was killed
+# at the 180-minute job timeout with a 160-minute harvest budget: one slow tile
+# pushed it past the margin, the job was cancelled BEFORE the write, and all 16
+# shards produced nothing. Three hours of querying, zero artifacts.
+#
+# Making the budget smaller only trades coverage for the same fragility. The answer
+# is to stop requiring one run to finish: record which tiles are DONE, commit that
+# with the layer, and skip them next time. A run that gets a third of the way
+# through banks a third; three runs finish the sweep. Progress becomes monotonic
+# instead of all-or-nothing.
+#
+# Both memos live in the same file. `empty` is a coverage optimisation (ocean, and
+# it rotates). `done` is progress, and it is cleared when a full sweep completes so
+# the next one starts fresh rather than never re-checking anything.
 EMPTIES_FILE = "osm_empty_tiles.json"
+
+
+def _memo_out():
+    """Where THIS process writes its memo.
+
+    Sharded runs must write a PER-SHARD file. Sixteen shards uploading the same
+    filename with merge-multiple:true collide, and the last writer wins -- which
+    would silently discard the resume progress of fifteen shards and make the whole
+    resumable design a no-op. Each shard writes its own; the merge job unions them
+    back into EMPTIES_FILE."""
+    sh = os.environ.get("FAC_SHARD")
+    if sh not in (None, ""):
+        return "osm_empty_tiles_part%s.json" % sh
+    return EMPTIES_FILE
+
+
+# How long a resume marker may survive before it is treated as a bug rather than
+# progress. The failure it guards against: one shard fails persistently, `done`
+# therefore never clears, and every later run skips tiles it has already banked --
+# so the layer looks healthy and quietly stops picking up new cemeteries forever.
+# Fourteen days is two weekly sweeps; if the marker is older than that, resuming is
+# no longer what is happening and the sweep restarts.
+DONE_MAX_AGE_DAYS = int(os.environ.get("DONE_MAX_AGE_DAYS", "14"))
+
+
+def _load_memo():
+    try:
+        with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
+            j = json.load(fh)
+        empty = set(j.get("empty", []))
+        done = set(j.get("done", []))
+        started = j.get("sweep_started")
+        if done and started:
+            try:
+                age = (time.time() - float(started)) / 86400.0
+                if age > DONE_MAX_AGE_DAYS:
+                    print("  resume marker is %.0f days old (limit %d) -- a sweep "
+                          "has been stuck. Discarding it and starting fresh, so "
+                          "banked tiles get re-checked." % (age, DONE_MAX_AGE_DAYS))
+                    done = set()
+            except Exception:
+                pass
+        return empty, done
+    except Exception:
+        return set(), set()
 
 
 def _load_empties():
     """Tiles that yielded nothing last sweep. Most of the grid is ocean."""
+    return _load_memo()[0]
+
+
+def _save_memo(empties, done, complete):
+    """Persist the empty-tile optimisation and the resume marker.
+
+    `complete` means this shard finished every tile it was given. When a shard
+    completes, its tiles drop out of `done` -- otherwise the sweep would skip them
+    forever and never notice new cemeteries."""
     try:
-        with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
-            return set(json.load(fh).get("empty", []))
-    except Exception:
-        return set()
+        if complete:
+            done = set()
+        # Stamp when this sweep began banking, so a marker that never clears can be
+        # detected and discarded rather than freezing the layer indefinitely.
+        started = None
+        if done:
+            try:
+                with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
+                    started = json.load(fh).get("sweep_started")
+            except Exception:
+                started = None
+            if not started:
+                started = time.time()
+        with open(_memo_out(), "w", encoding="utf-8") as fh:
+            json.dump({"note": "empty = tiles that returned nothing, skipped next "
+                               "sweep except a rotating eighth. done = tiles already "
+                               "swept by a run that ran out of budget, skipped until "
+                               "the sweep completes, then cleared.",
+                       "empty_count": len(empties), "done_count": len(done),
+                       "sweep_started": started,
+                       "empty": sorted(empties), "done": sorted(done)}, fh)
+    except Exception as e:
+        print("  could not save %s: %s" % (EMPTIES_FILE, e))
 
 
 def _save_empties(empties):
-    try:
-        with open(EMPTIES_FILE, "w", encoding="utf-8") as fh:
-            json.dump({"note": "Tiles that returned no facilities. Skipped on the "
-                               "next sweep except for a rotating eighth, so every "
-                               "tile is re-checked within eight runs.",
-                       "count": len(empties),
-                       "empty": sorted(empties)}, fh)
-    except Exception as e:
-        print("  could not save %s: %s" % (EMPTIES_FILE, e))
+    _save_memo(empties, set(), True)
 
 
 def harvest(ftype):
@@ -391,9 +473,13 @@ def harvest(ftype):
     # Tiles that returned nothing last sweep are skipped, except for a rotating
     # eighth that is always re-checked -- so every tile is revisited within eight
     # runs and newly mapped features are still found. Most of the grid is ocean.
-    empties = _load_empties()
+    empties, done = _load_memo()
     rot = int(os.environ.get("OSM_ROTATION", str(int(time.time() // 604800) % 8)))
     recheck_all = os.environ.get("OSM_RECHECK_ALL") == "1"
+    if recheck_all:
+        done = set()
+    if done:
+        print("  resuming: %d tile(s) already swept by an earlier run" % len(done))
 
     t_end = time.time() + BUDGET_MIN * 60
     out = {} if combined else []
@@ -401,11 +487,14 @@ def harvest(ftype):
     ok = split = gaveup = skipped = preskipped = 0
     for (s_, w, n, e) in grid:
         key = "%.3f,%.3f" % (s_, w)
+        if key in done:
+            preskipped += 1
+            continue                     # swept by an earlier run; resume past it
         if (not recheck_all) and key in empties and (hash(key) % 8) != rot:
             preskipped += 1
             continue
         if time.time() > t_end:
-            skipped += 1; continue
+            skipped += 1; continue       # out of budget: leave it for the next run
         label = "%s %.1f,%.1f" % (ftype, s_, w)
         before = sum(len(v) for v in out.values()) if combined else len(out)
         a, g, sp = _fetch_recursive(sel, s_, w, n, e, t_end, out, label, stats,
@@ -419,9 +508,14 @@ def harvest(ftype):
                 empties.discard(key)
         if sp > 0: split += 1
         gaveup += g
+        done.add(key)                    # banked, whether or not it yielded rows
         time.sleep(0.4)
 
-    _save_empties(empties)
+    complete = (skipped == 0)
+    _save_memo(empties, done, complete)
+    if not complete:
+        print("  RAN OUT OF BUDGET with %d tile(s) unswept. Progress is saved: the "
+              "next run resumes from here rather than starting over." % skipped)
     types = sorted(out.keys()) if combined else [ftype]
     for t in types:
         rows = _dedup(out[t] if combined else out)
@@ -444,6 +538,56 @@ def _dedup(rows):
             continue
         seen.add(key); merged.append(row)
     return merged
+
+
+def merge_memos():
+    """Union the per-shard memos back into one file.
+
+    Each shard only ever swept its own sixteenth of the grid, so the sets are
+    disjoint and a plain union is correct. A shard that completed contributes an
+    empty `done`; a shard that ran out of budget contributes its progress. The
+    sweep as a whole is only complete when every shard's `done` came back empty."""
+    parts = sorted(glob.glob("osm_empty_tiles_part*.json"))
+    if not parts:
+        print("  memo: no shard memos to merge")
+        return
+    empty, done = set(), set()
+    for p in parts:
+        try:
+            with open(p, "r", encoding="utf-8") as fh:
+                j = json.load(fh)
+            empty |= set(j.get("empty", []))
+            done |= set(j.get("done", []))
+        except Exception as e:
+            print("  memo: %s unreadable: %s" % (p, e))
+    complete = not done
+    started = None
+    if done:
+        try:
+            with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
+                started = json.load(fh).get("sweep_started")
+        except Exception:
+            started = None
+        if not started:
+            started = time.time()
+    with open(EMPTIES_FILE, "w", encoding="utf-8") as fh:
+        json.dump({"note": "empty = tiles that returned nothing, skipped next sweep "
+                           "except a rotating eighth. done = tiles swept by a run "
+                           "that ran out of budget, skipped until the sweep "
+                           "completes, then cleared.",
+                   "empty_count": len(empty), "done_count": len(done),
+                   "sweep_started": started,
+                   "empty": sorted(empty), "done": sorted(done)}, fh)
+    for p in parts:
+        try:
+            os.remove(p)
+        except Exception:
+            pass
+    if complete:
+        print("  memo: sweep COMPLETE across all shards -- resume marker cleared")
+    else:
+        print("  memo: %d tile(s) banked, %d known-empty. The next run resumes from "
+              "here." % (len(done), len(empty)))
 
 
 def merge(ftype):
@@ -567,6 +711,7 @@ def main():
     if os.environ.get("FAC_MERGE") == "1":
         for t in types:
             merge(t)
+        merge_memos()
         return
     for t in types:
         harvest(t)
