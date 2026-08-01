@@ -35,12 +35,12 @@ Tunables (env):
     CHECK_SLEEP     politeness pause between requests (default 0.7)
 """
 
-import json
+import json, os, sys, time, datetime
 import ssl
+import urllib.request, urllib.error, urllib.parse
 
 # Hosts whose TLS chain is known-broken; see the note in _check().
-_TLS_BROKEN_HOSTS = {"apps.cr.nps.gov"}, os, sys, time, datetime
-import urllib.request, urllib.error, urllib.parse
+_TLS_BROKEN_HOSTS = {"apps.cr.nps.gov"}
 
 LENSES = os.environ.get("LENSES_FILE", "lenses.json")
 STATUS = os.environ.get("LENSES_STATUS", "lenses_status.json")
