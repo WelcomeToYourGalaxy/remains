@@ -703,18 +703,35 @@ def _write_type(ftype, rows, nparts):
 
 def main():
     want = os.environ.get("FAC_TYPE", "all").lower()
-    types = list(SETS.keys()) if want in ("", "all") else [want]
-    for t in types:
-        if t not in SETS:
-            print("unknown FAC_TYPE %r; choose from %s" % (t, ", ".join(SETS)))
-            sys.exit(2)
+
+    # "all" means ONE COMBINED SWEEP, not four sequential ones.
+    #
+    # This line is why run #10 burned twelve hours and produced one artifact out of
+    # sixty-four. FAC_TYPE=all expanded to the four types and called harvest() once
+    # per type -- 131 tiles x 4 = 524 Overpass queries per shard -- so the union
+    # query written to make one sweep serve all four types was never reached. The
+    # one shard that finished took 1h57m; the other sixty-three hit the 2h timeout.
+    #
+    # harvest("all") issues a single union query per tile and sorts the answers by
+    # their own tags. Same coverage, a quarter of the requests.
+    if want in ("", "all"):
+        if os.environ.get("FAC_MERGE") == "1":
+            for t in SETS:
+                merge(t)
+            merge_memos()
+            return
+        harvest("all")
+        return
+
+    if want not in SETS:
+        print("unknown FAC_TYPE %r; choose from %s, or 'all' for one combined sweep"
+              % (want, ", ".join(SETS)))
+        sys.exit(2)
     if os.environ.get("FAC_MERGE") == "1":
-        for t in types:
-            merge(t)
+        merge(want)
         merge_memos()
         return
-    for t in types:
-        harvest(t)
+    harvest(want)
 
 
 if __name__ == "__main__":
