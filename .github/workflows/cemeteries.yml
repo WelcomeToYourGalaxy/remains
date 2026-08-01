@@ -32,17 +32,37 @@ permissions:
 jobs:
   shards:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # SMALL JOBS, NOT LONGER ONES.
+    #
+    # The 2026-07-31 run died at a 180-minute timeout with a 160-minute budget. The
+    # instinct is to raise the timeout -- the hosted-runner ceiling is 360, so 180
+    # was self-imposed. But a longer job just means more work at risk when one
+    # finally does fail.
+    #
+    # Total work is fixed and so is wall clock: 8,352 tiles take the same time
+    # whether they are cut into 16 pieces or 64, because the shards run in waves
+    # either way. What changes is the size of ONE job. At 64 shards each job is 130
+    # tiles -- about 39 minutes at the observed rate, 76 minutes at the worst rate
+    # seen -- so a 120-minute timeout is never close, and no job carries more than
+    # ~1% of the sweep.
+    #
+    # That removes the reason the resume machinery existed. It stays as a backstop
+    # (a shard that DOES fail still banks its tiles), but on a healthy run every
+    # shard completes, `done` clears, and none of its side effects apply.
+    timeout-minutes: 120
     strategy:
       fail-fast: false          # one bad shard must not kill the others
-      # ONE query per tile now covers all four facility types, so the facility
-      # dimension is gone from the matrix: 32 jobs become 16, all of which fit in a
-      # single wave instead of three. A free public repo gets 20 concurrent jobs
-      # across the whole account, so 16 leaves headroom for the daily harvest and
-      # the wire.
+      # 64 shards at 16 concurrent = 4 waves. A free public repo gets 20 concurrent
+      # jobs account-wide, so 16 leaves headroom for the daily harvest and the wire.
+      # Wall clock is unchanged from 16 shards -- the work is the same, the waves
+      # just come in smaller pieces -- but any single failure now costs 130 tiles
+      # instead of 522, and GitHub lets you re-run one failed shard on its own.
       max-parallel: 16
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -52,15 +72,19 @@ jobs:
         env:
           FAC_TYPE: all
           FAC_SHARD: ${{ matrix.shard }}
-          FAC_SHARDS: '16'
-          OSM_BUDGET_MIN: '160'
+          FAC_SHARDS: '64'
+          OSM_BUDGET_MIN: '95'
           OSM_TILE_DEG: '2.5'
           OSM_MIN_DEG: '0.3125'
         run: python harvest_cemeteries.py
       - uses: actions/upload-artifact@v4
         with:
           name: fac-shard-${{ matrix.shard }}
-          path: remains_local_*_part${{ matrix.shard }}.json
+          # The memo rides along with the data. Without it the resume marker dies
+          # with the runner and every run restarts from tile zero.
+          path: |
+            remains_local_*_part${{ matrix.shard }}.json
+            osm_empty_tiles_part${{ matrix.shard }}.json
           if-no-files-found: warn
           retention-days: 2
 
