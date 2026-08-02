@@ -2606,8 +2606,21 @@ def fetch_courtlistener():
                 continue
             court_id = (r.get("court_id") or "").lower()
             pt = CL_COURTS.get(court_id)
+            geo = GEO_EXACT
             if not pt:
-                continue                 # unmapped court: skip, never guess a point
+                # The 2026-08-02 run returned 22 cases and kept NONE, because
+                # CL_COURTS holds ~34 hand-listed courts and US case law comes from
+                # hundreds. Dropping an unmapped court threw away the whole source.
+                #
+                # A case still has an accountable venue even when its coordinates
+                # are unknown, so it is placed at national level and marked `admin`
+                # -- the same treatment SAHRIS gets. That is honest about not
+                # knowing the city while keeping the record. Unmapped court ids are
+                # printed so the table can be extended from real data instead of
+                # guesswork.
+                _CL_UNMAPPED[court_id or "?"] = _CL_UNMAPPED.get(court_id or "?", 0) + 1
+                pt = (39.8283, -98.5795)     # geographic centre of the US
+                geo = GEO_ADMIN
             seen.add(cid)
             rec = {
                 "name": (r.get("caseName") or "Unnamed case")[:150],
@@ -2630,11 +2643,19 @@ def fetch_courtlistener():
                             (". " + _strip_marks(snips)) if snips else ""))[:600],
                 "source": "courtlistener",
             }
-            _place(rec, pt[0], pt[1], GEO_EXACT)
+            _place(rec, pt[0], pt[1], geo)
             rec["impact"] = 2
             out.append(rec)
+    if _CL_UNMAPPED:
+        top = sorted(_CL_UNMAPPED.items(), key=lambda kv: -kv[1])[:12]
+        print("  courtlistener: %d case(s) placed nationally, court not in CL_COURTS: %s"
+              % (sum(_CL_UNMAPPED.values()),
+                 ", ".join("%s x%d" % (k, v) for k, v in top)))
     print("  courtlistener: kept %d case(s)" % len(out))
     return out
+
+
+_CL_UNMAPPED = {}
 
 
 def _strip_marks(text):
@@ -2723,18 +2744,39 @@ def fetch_tribal_comments(per_page=250):
             title = (attrs.get("title") or "").strip()
             if not cid or cid in seen or not title:
                 continue
-            org = _comment_org(title)
-            if not org:
-                continue                      # no named organisation in the title
+            # The list endpoint does not carry the submitter organisation, so it
+            # is read from the title. The first version required the title to match
+            # "Comment submitted by X" and then tested X -- but most regulations.gov
+            # titles are not in that form, so the 2026-08-02 run saw 1,302 comments
+            # and kept 2.
+            #
+            # Now: use the "submitted by" name when the title has one, and
+            # otherwise test the whole title. A named body usually appears in it
+            # either way, and a comment that names no body is still skipped.
+            org = _comment_org(title) or title
             if not _is_objector(org):
-                continue                      # named, but not a community body
+                continue                      # no community body named anywhere
             agency = (attrs.get("agencyId") or "").upper()
             pt = REG_AGENCIES.get(agency)
+            cgeo = GEO_EXACT
             if not pt:
-                continue                      # unmapped agency: skip, never guess
+                # Same correction as the courts: an unmapped agency is still a real
+                # objection. Place it nationally rather than discarding it.
+                _REG_UNMAPPED[agency or "?"] = _REG_UNMAPPED.get(agency or "?", 0) + 1
+                pt = (38.8951, -77.0364)      # Washington DC
+                cgeo = GEO_ADMIN
             seen.add(cid)
+            # When the org came from a whole title rather than a "submitted by"
+            # clause, trim it so the record reads as a name and not a sentence.
+            label = org.strip()
+            for cut in (" objection", " comment", " re:", " regarding", " on the",
+                        " on proposed", " to proposed"):
+                i = label.lower().find(cut)
+                if i > 3:
+                    label = label[:i]
+                    break
             rec = {
-                "name": ("Objection filed: " + org)[:150],
+                "name": ("Objection filed: " + label.strip(" ,.;:-"))[:150],
                 "kind": "review",
                 "posture": KINDS["review"][1],
                 "trigger": "objection",
@@ -2754,11 +2796,19 @@ def fetch_tribal_comments(per_page=250):
                          % (term, cid))[:600],
                 "source": "tribal_comments",
             }
-            _place(rec, pt[0], pt[1], GEO_EXACT)
+            _place(rec, pt[0], pt[1], cgeo)
             rec["impact"] = 2
             out.append(rec)
+    if _REG_UNMAPPED:
+        top = sorted(_REG_UNMAPPED.items(), key=lambda kv: -kv[1])[:12]
+        print("  tribal_comments: %d placed at DC, agency not in REG_AGENCIES: %s"
+              % (sum(_REG_UNMAPPED.values()),
+                 ", ".join("%s x%d" % (k, v) for k, v in top)))
     print("  tribal_comments: kept %d objection(s) from named bodies" % len(out))
     return out
+
+
+_REG_UNMAPPED = {}
 
 
 _COMMENT_BY_RE = re.compile(
