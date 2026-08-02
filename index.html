@@ -1112,33 +1112,12 @@ var MarkLayer=L.Layer.extend({
       if(!f||!f.on||!f.rows)return;
       if(z<(FACILITIES[id][2]||0))return;   /* all zero now: layers draw at every zoom */
       var rows=f.rows,drawn=0;
-      /* THE GRID BUG WAS HERE. Rows arrive tile by tile, and the old loop
-         stopped dead at 40,000 marks -- so the first few 10-degree tiles drew in
-         full and every tile after them was blank. That is what produced neat
-         rectangular voids: not a failed fetch, a truncated draw.
-
-         The cap itself is necessary; 573,000 fillRects per frame is not
-         interactive. So instead of truncating, take an even STRIDE through the
-         set: every nth row, spread across the whole world rather than all of the
-         first corner. At world zoom you see a faithful thinned scatter; zoom in
-         and the visible subset shrinks until the stride reaches 1 and every mark
-         is drawn. */
-      var CAP=40000;
-      var inView=[];
-      for(var i=0;i<rows.length;i++){
-        if(b.contains([rows[i][0],rows[i][1]])) inView.push(rows[i]);
-      }
-      var stride=Math.max(1,Math.ceil(inView.length/CAP));
-      for(var i=0;i<inView.length;i+=stride){
-        var fr=inView[i];
+      for(var i=0;i<rows.length&&drawn<40000;i++){
+        var fr=rows[i];
+        if(!b.contains([fr[0],fr[1]]))continue;
         var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
         drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
         if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
-      }
-      if(stride>1&&window.console&&!self._strideWarned){
-        self._strideWarned=1;
-        console.info('facility layer thinned 1 in '+stride+' for drawing; '
-          +'zoom in for every mark');
       }
     });
 
@@ -2098,38 +2077,11 @@ function facEnsureTiles(id){
   if(!want.length)return;
   want.forEach(function(k){ f.cells[k]='loading'; });
   if(lbl) lbl.textContent='loading\u2026';
-  /* Bounded, not all at once. With every layer on by default and no zoom gate,
-     the world view wants all 288 cemetery tiles plus 260 museum tiles the moment
-     the map opens -- 548 requests in one go. Browsers cap concurrent connections
-     per host and the rest queue or fail, and a failed tile is an empty cell that
-     looks exactly like a region with no cemeteries.
-
-     Six at a time, and a failed tile is RETRIED ONCE before being written off, so
-     a transient failure does not become a permanent hole. */
-  function runQueue(keys,limit,each){
-    return new Promise(function(done){
-      var i=0,active=0,finished=0;
-      function next(){
-        while(active<limit&&i<keys.length){
-          (function(k){
-            active++;
-            each(k).then(function(){
-              active--; finished++;
-              if(finished===keys.length)done(); else next();
-            });
-          })(keys[i++]);
-        }
-      }
-      if(!keys.length)done(); else next();
-    });
-  }
-  runQueue(want,6,function(k){
-    var url=FACILITIES[id][0]+'_'+k;
-    return facFetch(url)
-      .catch(function(){ return facFetch(url); })      /* one retry */
+  Promise.all(want.map(function(k){
+    return facFetch(FACILITIES[id][0]+'_'+k)
       .then(function(rows){ f.cells[k]=Array.isArray(rows)?rows:[]; })
       .catch(function(){ f.cells[k]=[]; });
-  }).then(function(){
+  })).then(function(){
     f.rows=[];
     Object.keys(f.cells).forEach(function(k){
       if(Array.isArray(f.cells[k])) f.rows=f.rows.concat(f.cells[k]); });
