@@ -155,6 +155,196 @@ so that is treated as failure and the tile is recursively quarter-split down to 
 floor. Cemeteries are far denser than courthouses, so the grid is 2.5° with a
 0.3125° floor and 24 shards.
 
+### Western Australia — checked, and refused on two grounds
+
+The WA s.18 regime is the largest harm-permit feed still missing, and it was the
+open question left over from the NSW build. Checked 2026-07-31; it stays out.
+
+**It is not open data.** The DPLH spatial layers on data.wa.gov.au (Aboriginal
+Cultural Heritage Register DPLH-099, Historic DPLH-098, the retired DPLH-001) sit
+behind a licence agreement requiring active acceptance, and download requires a
+subscription. Free to *view* through AHIS/ACHIS or Locate is not free to
+*redistribute* — the same ground on which the projects harvester rejected a DWER
+layer.
+
+**And it is a site register**, which this harvester refuses on its own terms. DPLH
+states that the exact location and extent of some places are withheld and replaced
+with a shaded region of at least 4 km² "to preserve confidentiality". The custodian
+has already decided those locations should not be published precisely. Republishing
+them — or even mirroring the buffered version — overrides a judgement that was not
+ours to make.
+
+**The distinction that keeps NSW in and WA out** is worth stating plainly, because
+it is the whole design in one comparison. NSW AHIP records are **permits**: an
+accountable actor, a decision, a date, published as open data under CC-BY. WA's
+equivalent is a register of **places**. A permit register names who authorised harm;
+a site register names where the dead are. This map carries the first and refuses the
+second.
+
+If DPLH ever publishes s.18 **consent decisions** as an open list — applicant, date,
+outcome, without site geometry — that is squarely in scope and should be added. It is
+the decisions that belong here, never the places.
+
+### NAGPRA notice families — now twelve, not four
+
+The Federal Register fetcher queried four notice families, all of which announce a
+**completed** decision. Eight more were added:
+
+| Family | Kind | Why |
+|---|---|---|
+| Receipt of a Request for Repatriation (3 wordings) | `holding` | The **pending** queue. A map of completed returns shows the system working; the pending side shows what is stuck, which is usually the story. |
+| Deaccession / Notice of Transfer (3 wordings) | `transfer` | Remains **leaving a collection without going home** — sold, or moved between institutions. |
+| Corrections to Inventory / Intent (2) | `review` | How a wrong affiliation finding gets undone. Few in number, disproportionately important. |
+
+`transfer` is a new kind, posture **watch**, deliberately separate from
+`reinterment`: a transfer is not a return, and merging them would report custody
+changes as redress.
+
+**Eight of the twelve are unverified** — the Federal Register was unreachable from
+the machine that wrote them, so the exact notice wording could not be confirmed. The
+harvester now prints a per-family tally and names any family that kept nothing, so
+run 1 tells you which wordings are wrong. Neither failure mode can corrupt the data:
+the title check already rejects anything that is not that notice, so a bad phrase
+yields zero rather than noise.
+
+### The federation bug, and why the run looked green
+
+The 2026-07-31 federation run reported success on GitHub and harvested **nothing
+from 1,236 portals**. Two separate defects:
+
+**The registry stores tuples, not dicts.** Entries look like
+`('https://datos.gob.cl', 'Chile', 'cl')`. `_portal_url_country()` handled `str`
+and `dict` only, so every portal raised `'tuple' object has no attribute 'get'` and
+all three fetchers died on their first item. Now handles tuples, lists, dicts and
+bare strings, prefixes a missing scheme, and returns `("", "")` for anything
+unrecognised rather than raising — one odd entry must not kill a sweep. Verified
+against the real registry: **1,236 of 1,236 entries unpack, across 154 countries.**
+
+**A shard that crashed exited 0.** `_run()` catches per-source exceptions so one
+failure cannot kill a harvest — correct in general, wrong here, because when *all*
+fetchers crash the shard writes an empty part file and reports success. Zero rows
+from a working sweep is a finding; zero rows from three exceptions is a bug, and a
+green tick was hiding the difference. A shard that harvested nothing **and** had
+every fetcher raise now prints the failing sources and exits 1. `_run()` also prints
+a traceback, which is what turns this class of failure into a five-minute diagnosis.
+
+What the registry actually reaches, once it runs: France 216, Indonesia 148,
+Thailand 94, Argentina 87, Brazil 67, Germany 35, Mexico 34, Italy 22, Greece 21,
+Spain 18, Ukraine 17, Vietnam 13, Costa Rica 13, Ecuador 12, Bolivia 10, Ethiopia
+10, Colombia 8, Guatemala 8, Nepal 8, Philippines 8, Chile 7, Peru 4 — **89% of the
+1,236 portals are non-Anglophone.**
+
+### South Africa → SAHRIS (discovery fetcher)
+
+The closest non-US analogue to the NSW AHIP feed, and the best answer available to
+the coverage problem. SAHRIS holds heritage **cases and permit applications** under
+the National Heritage Resources Act 25 of 1999 — including s.38 development cases
+and permits for excavation and for disturbance of graves and burial grounds under
+s.36.
+
+That is a **decision record, not a site register**, which is exactly the line this
+map draws. SAHRA's site inventory is refused for the same reason WA's is; the case
+and permit stream is squarely in scope.
+
+SAHRIS runs on Drupal and is publicly accessible, but which JSON path is live could
+not be tested from here. So `fetch_sahris()` is a **discovery fetcher** like the NPS
+grids: it tries the conventional Drupal paths (`/jsonapi/…`, `/node.json`,
+`?_format=json`), accepts the first returning parseable records with recognisable
+fields, and prints what it found. Set `SAHRIS_PATHS` to pin it.
+
+Records are plotted **nationally**, at admin precision, unless the record names a
+province. SAHRIS carries case geometry that this map does not republish.
+
+### Reading run 1: the zero-yield triage
+
+A zero is not one thing, and the log now says which kind it is:
+
+- **Zero by design** — refused on licence or policy (WA, EAMENA, Spain, Ireland).
+  Nothing to do; these will never produce.
+- **Zero for want of a credential** — names the missing environment variable and
+  where to get it free. Only appears when the key is genuinely absent.
+- **Zero unexpectedly** — everything else. A source that *failed* has a network or
+  endpoint problem; a source that returned *0 rows* has a filter or query problem.
+  A source whose key **is** set and still returned nothing lands here, not in the
+  credential group, because it is broken rather than waiting.
+
+This matters more than usual on this build: the machine that wrote the last several
+sources could not reach any external host, so eight NAGPRA notice families, the two
+API-keyed feeds and seven curated wire feeds are all **schema-verified but not
+live-verified**. The triage is how one run converts that into a short, specific fix
+list.
+
+### War dead and the disappeared → the wire, not the map
+
+DPAA has no clean public API — its data sits behind a Salesforce-hosted app, and
+scraping that would be fragile. But recovery of the war dead and of the disappeared
+happens in Papua New Guinea, the Philippines, Vietnam, Bosnia, Guatemala, Colombia,
+and **none of it appears in a permit register**, because no permit regime governs it.
+Announcements are how it becomes public.
+
+So seven bodies were added to the wire rather than the map: DPAA, CWGC, ICMP, ICRC,
+IWGIA, Cultural Survival, Survival International. Twelve curated feeds now. Every URL
+is **unverified** — the wire prints an item count per feed on every run, and a feed
+reporting 0 across several runs should be deleted from `CURATED`.
+
+### Objections → Regulations.gov comments
+
+**The only structured source of opposition anywhere in the roster.** Every other
+feed records what an authority *decided*; this records what someone *said about it*,
+on the record, in time to matter. 20 million public comments, each attached to a
+docket and a submitter.
+
+`fetch_tribal_comments()` searches comments for NAGPRA, human remains, burial
+ground, sacred site, tribal consultation and unmarked graves, then keeps those filed
+by a **named** Indigenous, tribal or descendant body.
+
+Two design calls worth arguing with:
+
+**Plotted at the agency, not at the ground.** A comment is directed at a federal
+decision-maker, and the decision-maker is the accountable actor. That means these
+stack in Washington DC, which looks odd on a map and is nonetheless where the
+decision sits. Guessing a location from the docket would invent geography.
+
+**Identified from the title only.** The comment *list* endpoint returns a title but
+not the submitter organisation — that needs a per-comment detail request, and at
+1,000 requests/hour that would consume the entire budget. Regulations.gov titles
+almost always read `Comment submitted by <Organization>`, so the organisation is read
+from there. **Comments from individuals are therefore invisible**, which is a real
+gap: a tribal member commenting personally will not appear. Only bodies with a name
+do.
+
+Verified against the filters: a tribe is kept, a mining corporation is dropped, a law
+firm is dropped, an unmapped agency is skipped rather than guessed, and an untitled
+comment is dropped.
+
+Needs `REGULATIONS_API_KEY` (free at api.data.gov/signup, added as a repository
+secret). Without it the source skips itself with an explanation.
+
+### Litigation → CourtListener
+
+`fetch_courtlistener()` queries the v4 search API for US case law mentioning
+burial, repatriation, unmarked graves, Section 106 and ARPA. Cases are where the
+rule changes: a permit register tells you a decision was made, a judgment tells you
+whether the scheme that produced it survives.
+
+Three deliberate limits:
+
+- **Plotted at the court, not at the ground in dispute.** The court is the
+  accountable actor and a judgment is not an unearthing.
+- **`kind` is `review`, posture `watch`.** A filed case is an argument, not an
+  outcome; the map must not imply a court has ruled when it has not.
+- **An unmapped court is skipped, never guessed.** `CL_COURTS` holds the seats of
+  the courts that actually produce this litigation. Dropping an unrecognised case
+  on a country centroid would make it read as a located event.
+
+Needs `COURTLISTENER_TOKEN` (free, from courtlistener.com, added as a repository
+secret). Without it the source skips itself with an explanation rather than
+hammering the anonymous endpoint from CI — the free allowance is small and it is
+shared with everyone else using the service.
+
+Queries are issued **one per phrase** rather than as a single long `OR`, which is
+what the API documentation asks for: computation grows linearly with each `OR`.
+
 ### Cross-feed from the Live Projects map
 
 `WelcomeToYourGalaxy/local-map` tracks ~268,000 pre- and post-permit projects
@@ -240,6 +430,80 @@ still coarsened by the placement gate like every other kind that identifies a bu
 location. Making a mark look quieter must never make it more precise, and there is a
 test asserting the render branch touches nothing but drawing.
 
+### Resources group by intention, not by lens
+
+The lenses are a **research taxonomy** — they answer "what kind of source is this".
+Intention answers "what am I trying to do", which is the question somebody opening a
+unit actually has. Six intentions now regroup all 172 entries across the twelve
+lenses:
+
+| Intention | Entries |
+|---|---|
+| Find out who is holding them | 27 |
+| Get them home | 18 |
+| Stop a disturbance | 52 |
+| Change the rule itself | 27 |
+| Find and identify the dead | 26 |
+| Get help and check the work | 22 |
+
+The regrouping is real rather than a rename. **"Stop a disturbance" gathers four
+lenses into one place** — the regulator who issued the permit, the consultation duty
+that was owed, the instrument it was issued under, and the injunction that could halt
+it. Three of those live in different lenses; they are one job.
+
+The lens is still shown as a chip on every entry, so nothing is hidden — you can see
+that a given item came from *remedies* rather than *regulators* if that matters.
+
+### The harvest runs its sources in parallel
+
+Sources are independent and almost entirely I/O-bound: each spends its life waiting
+on somebody else's server. Run sequentially the harvest costs the **sum** of every
+source's latency; run concurrently it costs roughly the **slowest one**.
+
+**Nothing is dropped, no query narrowed, no budget cut** — identical work,
+overlapped. Output order is fixed to source order regardless of completion order, so
+two runs of the same data produce the same file. Measured on a harness: 5.9× faster.
+
+Two details worth knowing. `contextlib.redirect_stdout` swaps `sys.stdout`
+process-wide, so with real threads one source's redirect captures another's output;
+logs are routed through a per-thread buffer instead and printed in source order, or
+the per-source diagnostic — this harvester's main debugging tool — would come out
+shuffled. And `HARVEST_WORKERS` is deliberately modest at 6: several of these are
+small government servers, and this harvester should not be why one falls over. Set it
+to 1 to go sequential when debugging a single source.
+
+### Per-jurisdiction how-to guides → `guides.json`
+
+Nine guides, keyed to the same service areas as the resources, so they surface when
+you open that unit — and shown **above** the resources. A list of offices tells you
+who exists; a guide tells you which window is open and how long you have. The second
+is what somebody opening a unit in a hurry needs first.
+
+| Jurisdiction | Statutory hook |
+|---|---|
+| USA (federal projects) | NAGPRA 43 CFR Part 10; NHPA §106, 36 CFR Part 800 |
+| USA (getting ancestors back) | NAGPRA inventories, summaries, notices |
+| New South Wales | NPW Act 1974 s.86–s.90, AHIP |
+| Western Australia | Aboriginal Heritage Act 1972 s.17–s.18 |
+| England | Burial Act 1857 s.25 |
+| Scotland | Burial and Cremation (Scotland) Act 2016 |
+| Aotearoa New Zealand | Heritage NZ Pouhere Taonga Act 2014 s.42–s.48 |
+| Canada | Provincial statutes; Impact Assessment Act |
+| España | Ley 20/2022 de Memoria Democrática |
+
+**Nine, not seventy-six.** The projects map ships 76 country guides; this ships nine,
+because a guide exists only where the lens work already gave a *verified* statutory
+hook. A thin guide that names the wrong office is worse than no guide — somebody acts
+on it and loses a window.
+
+Deadlines are called out separately and in the harm colour, because deadlines are what
+kill these: 21 days on an English planning objection, 30 days on a NAGPRA claim window,
+30 days of statutory protection after a discovery on federal land.
+
+Each guide ends with what the procedure will not do for you — §106 is a process
+requirement, not a preservation requirement; an AHIP register is a record of permitted
+destruction; Ley 20/2022 changed the duty without by itself changing the pace.
+
 ### The `reform` lens — changing the law, not fighting one incident under it
 
 `remedies` answers "how do I stop this dig". `law` lists the instruments. Neither
@@ -323,6 +587,62 @@ full under **Plain-language glossary** in the map key.
 One rule enforced by test: **no term is defined using another term from the list.** A
 glossary that explains "repatriation" with "funerary objects" has not explained
 anything.
+
+### The cemetery sweep: small jobs, not longer ones
+
+The 2026-07-31 run died at a 180-minute timeout with a 160-minute budget. The
+instinct is to raise the timeout — the hosted-runner ceiling is 360, so 180 was
+self-imposed. But a longer job only means **more work at risk** when one eventually
+does fail.
+
+The real lever is shard count. Total work is fixed and so is wall clock: 8,352 tiles
+take the same time cut into 16 pieces or 64, because the shards run in waves either
+way. What changes is the size of **one job**.
+
+| shards | tiles/job | at 18s/tile | at 35s/tile | wall clock |
+|---|---|---|---|---|
+| 16 | 522 | 157 min | 304 min | ~5 h |
+| **64** | **130** | **39 min** | **76 min** | **~5 h** |
+
+At 64 shards no job is close to its 120-minute timeout even at the worst rate
+observed, and no single failure costs more than ~1% of the sweep — which GitHub lets
+you re-run on its own.
+
+That removes the reason the resume machinery existed. It stays as a **backstop**: a
+shard that does fail still banks its tiles. On a healthy run every shard completes,
+`done` clears, and none of its side effects apply.
+
+The one failure small jobs do not fix is **silent staleness**: if a shard failed
+persistently, `done` would never clear, later runs would keep skipping banked tiles,
+and the layer would look healthy while quietly never picking up a new cemetery again.
+The sweep now records when it started banking, and a marker older than
+`DONE_MAX_AGE_DAYS` (14, i.e. two weekly sweeps) is discarded with a message —
+resuming is no longer what is happening, so it restarts.
+
+
+
+The 2026-07-31 run was **cancelled at the 180-minute job timeout with a 160-minute
+harvest budget**. One slow tile ate the 20-minute margin, the job was killed before
+the write, and all 16 shards produced nothing: three hours of querying, zero
+artifacts.
+
+Shrinking the budget only trades coverage for the same fragility. So the sweep no
+longer has to finish in one run. Every tile a shard completes is banked in
+`osm_empty_tiles.json` under `done`, committed with the layer, and skipped next time.
+A run that gets a third of the way through banks a third; three runs finish the
+sweep. **Progress is monotonic instead of all-or-nothing.** When every shard
+completes, `done` clears, so the next sweep starts fresh rather than never
+re-checking anything.
+
+Budget is now **110 minutes inside a 165-minute job** — 55 minutes of margin for a
+slow tile, the write, gzip and upload.
+
+One trap worth recording: the memo is written **per shard**
+(`osm_empty_tiles_part7.json`) and unioned by the merge job. Sixteen shards uploading
+the same filename under `merge-multiple: true` collide, last writer wins, and fifteen
+shards' progress vanishes — which would have made the whole resumable design a no-op
+while appearing to work. Each shard sweeps a disjoint sixteenth of the grid, so the
+union is exact.
 
 ### The facility layers are tiled, not global files
 
