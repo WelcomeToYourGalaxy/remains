@@ -1178,14 +1178,17 @@ var MarkLayer=L.Layer.extend({
         drawMark(ctx,p.x,p.y,rad,col,r.geo||'admin');
         this._hit.push({x:p.x,y:p.y,r:Math.max(rad*1.6,7),rec:r});
       }
-      if(findOn){
-        for(var fi=0;fi<FINDINGS.length;fi++){
-          var f=FINDINGS[fi];
-          if(f.lat==null)continue;
-          var fpt=m.latLngToContainerPoint([f.lat,f.lng]);
-          drawFinding(ctx,fpt.x,fpt.y,f);
-          this._hit.push({x:fpt.x,y:fpt.y,r:16,finding:f});
-        }
+    }
+    /* OUTSIDE the showUnearth block. It was nested inside, so the measured-damage
+       rings appeared and vanished with the unearthings layer and its own toggle
+       did nothing -- two independent layers sharing one switch. */
+    if(findOn){
+      for(var fi=0;fi<FINDINGS.length;fi++){
+        var f=FINDINGS[fi];
+        if(f.lat==null)continue;
+        var fpt=m.latLngToContainerPoint([f.lat,f.lng]);
+        drawFinding(ctx,fpt.x,fpt.y,f);
+        this._hit.push({x:fpt.x,y:fpt.y,r:16,finding:f});
       }
     }
   },
@@ -2087,11 +2090,22 @@ function facManifest(){
     .then(function(j){ FAC_MAN=j; return j; })
     .catch(function(){ return null; });
 }
+/* A request that never settles holds a queue slot for the whole session and, in
+   the old code, prevented the layer from ever drawing. Nothing here is worth
+   waiting more than 20 seconds for; the cell is retried on the next pan. */
+function withTimeout(p,ms){
+  return new Promise(function(res,rej){
+    var t=setTimeout(function(){ rej(new Error('timeout')); },ms||20000);
+    p.then(function(v){ clearTimeout(t); res(v); },
+           function(e){ clearTimeout(t); rej(e); });
+  });
+}
 function facFetch(base){
   var bust='?_='+Date.now();
-  return fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
+  return withTimeout(fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
     .catch(function(){ return fetch(base+'.json'+bust,{cache:'no-store'})
-      .then(function(r){ if(!r.ok)return Promise.reject('http '+r.status); return r.json(); }); });
+      .then(function(r){ if(!r.ok)return Promise.reject('http '+r.status); return r.json(); }); }),
+    20000);
 }
 /* Which manifest cells the current view touches. */
 function facVisibleCells(spec){
@@ -2138,11 +2152,23 @@ function facEnsureTiles(id){
       if(!keys.length)done(); else next();
     });
   }
+  /* Draw as cells arrive, not once the whole queue finishes.
+     A world view wants 288 cemetery tiles and 260 museum tiles. The old code
+     redrew only in the queue's final .then, so for the whole load you saw
+     nothing -- and if ONE request hung, that .then never fired and the layer
+     stayed blank forever. That is the blank grid: not missing data, a redraw
+     that never came.
+     Now each cell paints as it lands, throttled so 288 arrivals do not force 288
+     full redraws. */
+  function paintSoon(){
+    if(f._paintTimer)return;
+    f._paintTimer=setTimeout(function(){ f._paintTimer=null; layer.redraw(); },220);
+  }
   runQueue(want,6,function(k){
     var url=FACILITIES[id][0]+'_'+k;
     return facFetch(url)
       .catch(function(){ return facFetch(url); })      /* one retry */
-      .then(function(rows){ f.cells[k]=Array.isArray(rows)?rows:[]; })
+      .then(function(rows){ f.cells[k]=Array.isArray(rows)?rows:[]; paintSoon(); })
       .catch(function(){
         /* Two failures on a cell the manifest says has rows is a network problem,
            not an empty region. Delete the entry rather than caching [] so the next
@@ -2150,6 +2176,7 @@ function facEnsureTiles(id){
            looks exactly like genuine absence. */
         if(f.spec&&f.spec.tiles&&f.spec.tiles[k]) delete f.cells[k];
         else f.cells[k]=[];
+        paintSoon();
       });
   }).then(function(){
     f.rows=[];
