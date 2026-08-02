@@ -2030,12 +2030,23 @@ _ZERO_EXPECTED = {
     "icmp":               "No machine-readable endpoint found yet.",
 }
 _ZERO_NEEDS_KEY = {}
-_ZERO_DISCOVERY = {
-    "sahris": "Discovery fetcher. Open sahris.sahra.org.za, watch the network tab "
-              "while searching cases, set SAHRIS_PATHS to the JSON path.",
-    "nps_nagpra_grid": "Discovery fetcher. If it printed no FOUND line, set "
-                       "NPS_GRID_PATHS from the browser network tab.",
+# Sources that are down at the far end, not misconfigured here. Checked by hand on
+# 2026-08-02; both fail in a browser exactly as they fail for the harvester, so
+# there is no path to set and nothing to discover. They stay in the roster because
+# the endpoints are correct and will start producing the day the hosts return.
+_ZERO_UPSTREAM = {
+    "nps_nagpra_grid":
+        "UPSTREAM DOWN. apps.cr.nps.gov/nagprapublic returns 404 for every table, "
+        "in a browser as well as here, while nps.gov/subjects/nagpra/databases.htm "
+        "(updated 2026-06-09) still links to all seven. The NPS app is gone or "
+        "moved; the links have not caught up. Nothing to configure -- the Federal "
+        "Register families already carry the notices, but not the per-institution "
+        "counts of individuals still held, which is what this source is for.",
+    "sahris":
+        "UPSTREAM DOWN. sahris.sahra.org.za does not resolve. Not a JSON-path "
+        "problem: the host itself is unreachable.",
 }
+_ZERO_DISCOVERY = {}
 _ZERO_NEEDS_KEY_REAL = {
     "courtlistener":  ("COURTLISTENER_TOKEN", "courtlistener.com -> Profile -> API"),
     "tribal_comments": ("REGULATIONS_API_KEY", "api.data.gov/signup"),
@@ -2047,9 +2058,11 @@ def _print_triage(zero):
     """Sort the zeros into: expected, fixable now, and actually broken."""
     if not zero:
         return
-    expected, keys, broken, disc = [], [], [], []
+    expected, keys, broken, disc, up = [], [], [], [], []
     for k in zero:
-        if k in _ZERO_DISCOVERY:
+        if k in _ZERO_UPSTREAM:
+            up.append(k)
+        elif k in _ZERO_DISCOVERY:
             disc.append(k)
         elif k in _ZERO_EXPECTED:
             expected.append(k)
@@ -2069,6 +2082,11 @@ def _print_triage(zero):
         for k in keys:
             env, where = _ZERO_NEEDS_KEY[k]
             print("     %-22s %s not set -- get one free at %s" % (k, env, where))
+    if up:
+        print("\n  -- zero because the SOURCE IS DOWN (%d). Not yours to fix: --"
+              % len(up))
+        for k in up:
+            print("     %-22s %s" % (k, _ZERO_UPSTREAM[k]))
     if disc:
         print("\n  -- zero PENDING DISCOVERY (%d). One browser check each: --" % len(disc))
         for k in disc:
