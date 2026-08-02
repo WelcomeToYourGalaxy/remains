@@ -1368,6 +1368,48 @@ def _fed_budget():
     return time.time() + int(os.environ.get("FED_REMAINS_MAX_MIN", "90")) * 60
 
 
+# ---------------------------------------------------------------------------
+# FEDERATION CONCURRENCY
+# ---------------------------------------------------------------------------
+# The 2026-08-01 run hit the 200-minute timeout on all six shards. The arithmetic
+# says why: 1,236 portals over 6 shards is ~205 portals each, and every portal is
+# searched for up to 12 vocabulary terms -- roughly 2,460 HTTP requests per shard
+# BEFORE a single GeoJSON is downloaded. At five seconds a request that is 3.4
+# hours of searching alone, which is almost exactly how long it ran.
+#
+# Portals are independent and the work is pure waiting, so it parallelises cleanly
+# -- the same argument as the daily sources. FED_WORKERS is deliberately modest,
+# and note what it does here: eight in flight means eight DIFFERENT government
+# servers, not eight requests at one of them.
+FED_WORKERS = max(1, int(os.environ.get("FED_WORKERS", "8")))
+
+
+def _fed_safe(fn, p):
+    """One portal, never allowed to raise.
+
+    A federation sweep touches hundreds of independent servers and some fraction
+    will always be down, slow, or serving broken JSON. One bad portal must never
+    end the sweep."""
+    try:
+        return fn(p) or []
+    except Exception:
+        return []
+
+
+def _fed_map(portals, fn, label):
+    """Run fn over portals concurrently and collect what they return."""
+    rows = []
+    if FED_WORKERS <= 1:
+        for p in portals:
+            rows += _fed_safe(fn, p)
+        return rows
+    import concurrent.futures as _cf
+    with _cf.ThreadPoolExecutor(max_workers=FED_WORKERS) as ex:
+        for got in ex.map(lambda p: _fed_safe(fn, p), portals):
+            rows += got or []
+    return rows
+
+
 def _portal_url_country(p):
     """Unpack one registry entry into (url, country).
 
@@ -1406,35 +1448,50 @@ def fetch_ckan_remains(per_ds=400):
     reg = _fed_registries()
     if not reg:
         return []
-    out, end = [], _fed_budget()
-    for proto, lister in (("ckan", None), ("dkan", None)):
-        for p in _fed_shard(list(reg.get(proto) or [])):
+    end = _fed_budget()
+
+    def one_portal(p):
+        # The deadline is checked INSIDE the worker, not only between portals:
+        # with a pool in flight, a per-loop check would let every already-queued
+        # portal start after the budget had passed. It is checked again between
+        # terms, because twelve searches per portal are not free either.
+        got = []
+        if time.time() > end:
+            return got
+        base, country = _portal_url_country(p)
+        if not base:
+            return got
+        for term in _REMAINS_TERMS[:12]:
             if time.time() > end:
-                _flag("%s_remains: budget passed" % proto); break
-            base, country = _portal_url_country(p)
-            if not base:
-                continue
-            for term in _REMAINS_TERMS[:12]:
-                for ds in _ckan_datasets(base, term, rows=20):
-                    title = str(ds.get("title") or ds.get("name") or "")
-                    blob = title + " " + str(ds.get("notes") or "")
-                    if _is_site_register(blob):
-                        _REFUSED[0] += 1
-                        continue                    # policy refusal, not a miss
-                    if not _is_remains(blob):
+                break
+            for ds in _ckan_datasets(base, term, rows=20):
+                title = str(ds.get("title") or ds.get("name") or "")
+                blob = title + " " + str(ds.get("notes") or "")
+                if _is_site_register(blob):
+                    _REFUSED[0] += 1
+                    continue                        # policy refusal, not a miss
+                if not _is_remains(blob):
+                    continue
+                for res in (ds.get("resources") or []):
+                    if "geojson" not in str(res.get("format") or "").lower():
                         continue
-                    for res in (ds.get("resources") or []):
-                        if "geojson" not in str(res.get("format") or "").lower():
-                            continue
-                        ru = res.get("url") or ""
-                        if not ru.startswith("http"):
-                            continue
-                        for lat, lng, pr in _geojson_points(ru, per=per_ds):
-                            out.append(_fed_record(lat, lng, pr, title,
-                                                   ds.get("url") or base, country,
-                                                   "ckan_remains"))
-                        break
-            time.sleep(0.2)
+                    ru = res.get("url") or ""
+                    if not ru.startswith("http"):
+                        continue
+                    for lat, lng, pr in _geojson_points(ru, per=per_ds):
+                        got.append(_fed_record(lat, lng, pr, title,
+                                               ds.get("url") or base, country,
+                                               "ckan_remains"))
+                    break
+        time.sleep(0.2)
+        return got
+
+    portals = []
+    for proto in ("ckan", "dkan"):
+        portals += _fed_shard(list(reg.get(proto) or []))
+    out = _fed_map(portals, one_portal, "ckan_remains")
+    if time.time() > end:
+        _flag("ckan_remains: budget passed")
     return out
 
 
@@ -1444,14 +1501,18 @@ def fetch_ods_remains(per_ds=400):
     reg = _fed_registries()
     if not reg or "ods" not in reg:
         return []
-    out, end = [], _fed_budget()
-    for p in _fed_shard(list(reg["ods"])):
+    end = _fed_budget()
+
+    def one_portal(p):
+        got = []
         if time.time() > end:
-            _flag("ods_remains: budget passed"); break
+            return got
         base, country = _portal_url_country(p)
         if not base:
-            continue
+            return got
         for term in _REMAINS_TERMS[:10]:
+            if time.time() > end:
+                break
             for ds in _ods_datasets(base, term, rows=20):
                 if _is_site_register(ds["title"] + " " + ds["notes"]):
                     _REFUSED[0] += 1
@@ -1459,9 +1520,14 @@ def fetch_ods_remains(per_ds=400):
                 if not _is_remains(ds["title"] + " " + ds["notes"]):
                     continue
                 for lat, lng, pr in _geojson_points(ds["geojson"], per=per_ds):
-                    out.append(_fed_record(lat, lng, pr, ds["title"], ds["page"],
+                    got.append(_fed_record(lat, lng, pr, ds["title"], ds["page"],
                                            country, "ods_remains"))
         time.sleep(0.2)
+        return got
+
+    out = _fed_map(_fed_shard(list(reg["ods"])), one_portal, "ods_remains")
+    if time.time() > end:
+        _flag("ods_remains: budget passed")
     return out
 
 
@@ -1471,14 +1537,18 @@ def fetch_geonode_remains(per_ds=400):
     reg = _fed_registries()
     if not reg or "geonode" not in reg:
         return []
-    out, end = [], _fed_budget()
-    for p in _fed_shard(list(reg["geonode"])):
+    end = _fed_budget()
+
+    def one_portal(p):
+        got = []
         if time.time() > end:
-            _flag("geonode_remains: budget passed"); break
+            return got
         base, country = _portal_url_country(p)
         if not base:
-            continue
+            return got
         for term in _REMAINS_TERMS[:8]:
+            if time.time() > end:
+                break
             for ds in _geonode_datasets(base, term, rows=15):
                 if _is_site_register(ds["title"] + " " + ds["notes"]):
                     _REFUSED[0] += 1
@@ -1486,9 +1556,14 @@ def fetch_geonode_remains(per_ds=400):
                 if not _is_remains(ds["title"] + " " + ds["notes"]):
                     continue
                 for lat, lng, pr in _geojson_points(ds["geojson"], per=per_ds):
-                    out.append(_fed_record(lat, lng, pr, ds["title"], ds["page"],
+                    got.append(_fed_record(lat, lng, pr, ds["title"], ds["page"],
                                            country, "geonode_remains"))
         time.sleep(0.2)
+        return got
+
+    out = _fed_map(_fed_shard(list(reg["geonode"])), one_portal, "geonode_remains")
+    if time.time() > end:
+        _flag("geonode_remains: budget passed")
     return out
 
 
