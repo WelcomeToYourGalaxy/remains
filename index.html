@@ -368,14 +368,17 @@
       <span><b>Redress</b> &mdash; returning, reburying, recovering for descendants</span></div>
     <div class="leg-row"><i><span class="sw" style="background:var(--unlawful)"></span></i>
       <span><b>Unlawful</b> &mdash; disturbance without lawful authority</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:var(--facility);border-radius:2px;"></span></i>
-      <span><b>Grey square</b> &mdash; an existing cemetery, crematorium or mortuary</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:#5fb0c4;border-radius:2px;"></span></i>
+      <span><b>Blue square</b> &mdash; a cemetery or burial ground.
+      <span style="color:#e0913f;">Orange</span> is a crematorium,
+      <span style="color:#b98ad0;">violet</span> a mortuary. Each toggles
+      separately.</span></div>
     <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid rgba(197,106,90,.85);border-radius:2px;"></span></i>
       <span><b>Small red square</b> &mdash; ground where a burial ground used to be and
       no longer is. Still blurred to protect from looting and vandals, like every mark that
       would otherwise point at a grave.</span></div>
-    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px dashed var(--facility);border-radius:2px;"></span></i>
-      <span><b>Dashed square</b> &mdash; a museum, i.e. a possible <span class="gl" title="The documented history of how an object or ancestor came to be where they are now, and through whose hands.">provenance</span> and/or remains holder.</span></div>
+    <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px dashed #e8d24a;border-radius:2px;"></span></i>
+      <span><b>Dashed yellow square</b> &mdash; a museum, i.e. a possible <span class="gl" title="The documented history of how an object or ancestor came to be where they are now, and through whose hands.">provenance</span> and/or remains holder.</span></div>
     <div class="leg-row"><i><span class="sw" style="background:transparent;border:2px solid #b8912f;border-radius:2px;"></span></i>
       <span><b>Gold outline</b> &mdash; an <span class="gl" title="The first tier of government below a country: a state, province or region; then counties, districts and municipalities below that.">administrative unit</span>. Hover lights it;
       clicking opens it and descends into its own sub-units.</span></div>
@@ -399,22 +402,22 @@
       <span class="lay-desc">&mdash; every harvested record: permits, notices, licences,
       recoveries, grounds no longer there</span></label>
 
-    <label class="chk"><input type="checkbox" id="layCem">
+    <label class="chk"><input type="checkbox" id="layCem" checked>
       <b>Cemeteries &amp; burial grounds</b> <span id="nCem" class="qn">not loaded</span>
       <span class="lay-desc">&mdash; working, signposted burial places. Unmarked burial
       sites are excluded from these layers by design &mdash; the places where a community
       was never permitted to record its dead cannot be but silent</span></label>
 
-    <label class="chk"><input type="checkbox" id="layCrem">
+    <label class="chk"><input type="checkbox" id="layCrem" checked>
       <b>Crematoria</b> <span id="nCrem" class="qn">not loaded</span>
       <span class="lay-desc">&mdash; relevant when a disposition names cremation rather
       than reburial</span></label>
 
-    <label class="chk"><input type="checkbox" id="layMort">
+    <label class="chk"><input type="checkbox" id="layMort" checked>
       <b>Mortuaries &amp; funeral directors</b> <span id="nMort" class="qn">not loaded</span>
       <span class="lay-desc">&mdash; where the recently dead are held before burial</span></label>
 
-    <label class="chk"><input type="checkbox" id="layMus">
+    <label class="chk"><input type="checkbox" id="layMus" checked>
       <b>Museums</b> <span id="nMus" class="qn">not loaded</span>
       <span class="lay-desc">&mdash; institutions that might hold ancestors. Most do
       not</span></label>
@@ -434,7 +437,7 @@
       <span class="lay-desc">&mdash; coastal erosion unearths burial grounds every
       winter; national programmes exist, a worldwide feed does not</span></label>
 
-    <label class="chk"><input type="checkbox" id="layFind">
+    <label class="chk"><input type="checkbox" id="layFind" checked>
       <b>Measured damage &amp; density</b> <span id="nFind" class="qn">not loaded</span>
       <span class="lay-desc">&mdash; published findings on how much has already been
       looted or lost. Aggregate percentages only; no site locations are held or
@@ -868,17 +871,24 @@ var GEO_LABEL={exact:'Named institution or address',area:'Centre of permit or pr
   admin:'Centre of an administrative unit',coarsened:'Blurred to about 5 km'};
 var WINDOWS=[[0,'All ages'],[30,'\u226430d'],[90,'\u226490d'],[180,'\u22646mo'],[365,'\u22641yr']];
 /* facility layers: id -> [file, label, min zoom at which the mark is readable] */
+/* [file, label, minZoom, colour]
+   minZoom 0 everywhere: the layers now draw at every zoom, so a toggle that is on
+   is visibly on. They were hidden below z5-7 because the old single-file layers
+   were fetched whole and 573,000 grey squares at world zoom was unreadable. Both
+   halves of that changed -- tiles mean only what is in view is ever loaded, and
+   each type now has its own colour instead of one grey that vanished against the
+   satellite basemap. */
 var FACILITIES={
-  cem:  ['remains_local_cemetery','Cemetery or burial ground',6],
-  crem: ['remains_local_crematory','Crematorium',6],
-  mort: ['remains_local_mortuary','Mortuary or funeral director',7],
+  cem:  ['remains_local_cemetery','Cemetery or burial ground',0,'#5fb0c4'],
+  crem: ['remains_local_crematory','Crematorium',0,'#e0913f'],
+  mort: ['remains_local_mortuary','Mortuary or funeral director',0,'#b98ad0'],
   /* Museums are the POTENTIAL-HOLDER layer, not a burial layer. An OSM museum tag
      says nothing about whether that museum holds human remains, and most do not.
      This is the set of institutions a researcher would have to ask -- the physical
      counterpart to the `holding` records and the NAGPRA inventories. Shown at a
      wider zoom than the burial facilities because you want to see the whole
      institutional field at once, not hunt for it. */
-  mus:  ['remains_local_museum','Museum (may hold remains \u2014 unconfirmed)',5]
+  mus:  ['remains_local_museum','Museum (may hold remains \u2014 unconfirmed)',0,'#e8d24a']
 };
 var WTOPIC=[['opposition','Opposition'],['trade','Trade in remains'],
             ['redress','Return'],['conflict','Conflict & the disappeared'],
@@ -1021,23 +1031,29 @@ function hexA(hex,a){
 /* Facilities get a deliberately plain, quiet mark: a small grey square. They are
    context, not events, and must never read as an unearthing. */
 function drawFacility(ctx,x,y,z,ftype){
-  var sz=z<8?2:(z<11?2.6:3.4);
+  /* Never smaller than 3px. A 2px mark on a satellite photo is invisible, which
+     is what "the grey isn't working" meant: it was both the wrong colour and
+     below the size at which any colour reads. */
+  var sz=z<6?3:(z<9?3.4:(z<12?4:4.6));
+  var col=(FACILITIES[ftype]&&FACILITIES[ftype][3])||'#8f9bab';
   if(ftype==='mus'){
     /* Museums are drawn HOLLOW and dashed, deliberately unlike the solid burial
        facilities. A solid mark would read as "remains are here". The dashes say
        the opposite: this is an institution to ask, not a finding. */
-    sz=Math.max(sz,3);
-    ctx.strokeStyle='rgba(143,155,171,.85)';
-    ctx.lineWidth=1;
-    ctx.setLineDash([1.6,1.4]);
+    sz=Math.max(sz,3.4);
+    ctx.strokeStyle=col;
+    ctx.lineWidth=1.3;
+    ctx.setLineDash([1.8,1.5]);
     ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);
     ctx.setLineDash([]);
     return;
   }
-  ctx.fillStyle='rgba(143,155,171,.72)';
+  /* A dark hairline first, so a light mark still reads against pale ground --
+     snow, desert, cloud -- as well as against dark satellite imagery. */
+  ctx.fillStyle='rgba(0,0,0,.55)';
+  ctx.fillRect(x-sz/2-0.6,y-sz/2-0.6,sz+1.2,sz+1.2);
+  ctx.fillStyle=col;
   ctx.fillRect(x-sz/2,y-sz/2,sz,sz);
-  if(z>=11){ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=.8;
-    ctx.strokeRect(x-sz/2,y-sz/2,sz,sz);}
 }
 /* GROUND MARKS -- for records that describe a place rather than an event in motion.
    A burial ground that vanished at an unknown date is standing context: it is not
@@ -1094,7 +1110,7 @@ var MarkLayer=L.Layer.extend({
     Object.keys(FACILITIES).forEach(function(id){
       var f=FAC[id];
       if(!f||!f.on||!f.rows)return;
-      if(z<FACILITIES[id][2])return;      /* too zoomed out for the mark to read */
+      if(z<(FACILITIES[id][2]||0))return;   /* all zero now: layers draw at every zoom */
       var rows=f.rows,drawn=0;
       for(var i=0;i<rows.length&&drawn<40000;i++){
         var fr=rows[i];
@@ -2361,6 +2377,14 @@ document.getElementById('layFind').addEventListener('change',function(){
 });
 
 load(); loadWire(); loadLenses(); loadFindings(); loadGuides(); gbWorld(false);
+
+/* The layer toggles are checked in the markup, but a checkbox that starts checked
+   never fires `change` -- so without this the boxes would look on while nothing
+   loaded. Dispatch it once for each, which runs exactly the code a click would. */
+['layCem','layCrem','layMort','layMus','layFind'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el&&el.checked) el.dispatchEvent(new Event('change'));
+});
 </script>
 </body>
 </html>

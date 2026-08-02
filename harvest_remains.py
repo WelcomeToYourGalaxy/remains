@@ -1316,6 +1316,50 @@ def _dkan_datasets(base, term, rows=30):
             for ds in _ckan_datasets(base, term, rows=rows)]
 
 
+# GeoJSON is *supposed* to be WGS84 lon/lat, and most portals comply. Some publish
+# the file exactly as it left their GIS, in Web Mercator metres (EPSG:3857).
+# Bogota's cemetery layer is one: its points arrive as (511404, -8250830), which is
+# not a coordinate anywhere on earth. All 64 Colombian records were written with
+# those values, so the country reported a record count while showing nothing on the
+# map -- the worst kind of failure, because it looks like coverage.
+#
+# Detected by magnitude: no latitude exceeds 90 and no longitude exceeds 180, so
+# anything larger is metres. Converted back if the result is plausible, DROPPED if
+# it is not -- a wrongly reprojected grave is worse than a missing one.
+_MERC_R = 6378137.0
+
+
+def _unproject(x, y):
+    """Web Mercator metres -> (lat, lng), or None if the result is implausible."""
+    try:
+        lng = (x / _MERC_R) * 180.0 / math.pi
+        lat = (2.0 * math.atan(math.exp(y / _MERC_R)) - math.pi / 2.0) * 180.0 / math.pi
+        if -90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0:
+            return lat, lng
+    except Exception:
+        pass
+    return None
+
+
+def _fix_coords(lat, lng):
+    """Return usable (lat,lng), reprojecting if the numbers are clearly metres."""
+    try:
+        lat, lng = float(lat), float(lng)
+    except Exception:
+        return None
+    if abs(lat) <= 90.0 and abs(lng) <= 180.0:
+        return lat, lng
+    # _geom_center yields (lat, lng); in projected data that is (northing, easting).
+    fixed = _unproject(lng, lat)
+    if fixed:
+        _PROJECTED[0] += 1
+        return fixed
+    return None
+
+
+_PROJECTED = [0]
+
+
 def _geojson_points(url, per=600):
     """Read a GeoJSON resource and return (lat,lng,props) tuples."""
     try:
@@ -1328,8 +1372,11 @@ def _geojson_points(url, per=600):
     got = []
     for f in feats[:per]:
         c = _geom_center(f.get("geometry") or {})
-        if c:
-            got.append((c[0], c[1], f.get("properties") or {}))
+        if not c:
+            continue
+        fixed = _fix_coords(c[0], c[1])
+        if fixed:
+            got.append((fixed[0], fixed[1], f.get("properties") or {}))
     return got
 
 
@@ -1949,6 +1996,9 @@ def _print_diagnostics():
     print("  " + "-" * 40)
     print("  %-30s %7d" % ("TOTAL (pre-dedup)", total))
     print("  sources reporting:  %d / %d" % (active, len(_SRC_COUNTS)))
+    if _PROJECTED[0]:
+        print("  reprojected %d point(s) from Web Mercator metres to lat/lng"
+              % _PROJECTED[0])
     zero = sorted(k for k, v in _SRC_COUNTS.items() if v == 0)
     if zero:
         print("  ZERO-YIELD (review): " + ", ".join(zero))
