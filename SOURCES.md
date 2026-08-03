@@ -234,6 +234,89 @@ Spain 18, Ukraine 17, Vietnam 13, Costa Rica 13, Ecuador 12, Bolivia 10, Ethiopi
 10, Colombia 8, Guatemala 8, Nepal 8, Philippines 8, Chile 7, Peru 4 — **89% of the
 1,236 portals are non-Anglophone.**
 
+### Wikidata → mass graves and memorials, worldwide
+
+Every register-based source on this map belongs to one country, which is why the
+map skews Anglophone. Wikidata does not: one endpoint, free, no key, structured
+records with coordinates for every country there is.
+
+**What is queried, and only this:** mass graves, ossuaries, charnel houses, and
+memorials to massacres and genocide. These are the categories already **public by
+intention** — a genocide memorial exists to be visited, an ossuary is signposted, a
+memorialised mass grave has been deliberately marked by the community it belongs to.
+That is the same test the facility layer applies to working cemeteries.
+
+**What is not queried:** archaeological sites, tumuli, barrows, burial mounds,
+unmarked graves. Wikidata holds thousands of them with precise coordinates, and
+publishing those would be exactly the site register this harvester refuses on
+principle. The query names its classes explicitly rather than filtering afterwards,
+so a broad class cannot leak in through a subclass chain.
+
+Memorials additionally have to be *about* a massacre, genocide or mass killing — a
+war memorial in a village square is not this map's business, and the test drops it.
+
+The placement gate still applies: `mass-grave` identifies a burial location, so it
+is coarsened like everything else, memorial or not. Verified.
+
+### Institutional holdings → ProPublica's state pages
+
+The `holding` kind is now populated by name, not by aggregate. `fetch_propublica_holdings()`
+reads ProPublica's 51 **state** pages, each carrying a table of every institution in
+that state with two figures: remains made available for return, and remains not.
+Fifty-one requests for what would otherwise be six hundred.
+
+Each record is one institution: its name, the number of ancestors it reports holding,
+how many it has made available, and a link to the page.
+
+On scraping someone else's site:
+
+- The facts are federally mandated self-reports and are not copyrightable. The
+  presentation is ProPublica's; the numbers are the public's.
+- Every record credits them in `source` and links to the page it came from.
+- One request per second, and pages are **cached to disk** and committed, so a
+  re-run costs nothing and a failed harvest never re-hammers them.
+- Both better routes stay open and should replace this the moment either lands:
+  ProPublica invites data requests directly, and National NAGPRA is under a
+  statutory duty to publish this even while its app is down.
+
+Parsing note worth keeping: the first version used one regex per row and silently
+dropped every institution whose name was wrapped in a link — which is nearly all of
+them, since each links to its own page. Rows are now split into cells and read
+positionally, which does not care about markup.
+
+Counts are the **unreturned** figure, and every record says so, along with the
+caveat that all of it is self-reported and a minimum — some bodies subject to NAGPRA
+have never reported at all.
+
+### The national aggregates, kept alongside
+
+The `holding` kind was defined from the start and never populated, because the
+source that would fill it — NPS's public NAGPRA database — has been unreachable
+since 2026-08 while nps.gov still links to all seven tables.
+
+Four published aggregates now stand in, in `findings.json` under `kind: holdings`,
+drawn from reporting on that same federal dataset:
+
+| Finding | Figure |
+|---|---|
+| Ancestors still held, unrepatriated | **~97,000** (down from 110,000 a year earlier) |
+| Held by just **ten** entities | **50%** of everything unreturned |
+| Institutions that have repatriated **nothing** | **180** of ~600 reporting |
+| Returned to tribes in 2024 | **10,300** — third-largest year since 1990 |
+
+The concentration figure is the one that changes what pressure looks like: this is
+not a diffuse problem across six hundred museums, it is a concentrated one at ten
+addresses. And 180 institutions that admit holding ancestors have returned not one,
+thirty-three years after the statute passed.
+
+All four are self-reported by institutions and are **minimums** — some bodies
+subject to NAGPRA have never reported at all. Plotted at national centroids and
+drawn in their own colour, with counts abbreviated (`97k`) rather than rendered as
+percentages, because they are counts.
+
+This is deliberately aggregates rather than a scrape. The per-institution detail is
+another organisation's work product; the lens entry points readers at it directly.
+
 ### South Africa → SAHRIS (discovery fetcher)
 
 The closest non-US analogue to the NSW AHIP feed, and the best answer available to

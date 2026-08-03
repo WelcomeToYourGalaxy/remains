@@ -438,10 +438,10 @@
       winter; national programmes exist, a worldwide feed does not</span></label>
 
     <label class="chk"><input type="checkbox" id="layFind" checked>
-      <b>Measured damage &amp; density</b> <span id="nFind" class="qn">not loaded</span>
-      <span class="lay-desc">&mdash; published findings on how much has already been
-      looted or lost. Aggregate percentages only; no site locations are held or
-      shown</span></label>
+      <b>Measured damage, density &amp; holdings</b> <span id="nFind" class="qn">not loaded</span>
+      <span class="lay-desc">&mdash; published findings: how much has already been looted
+      or lost, and how many ancestors institutions still hold. Aggregates only; no site
+      locations are held or shown</span></label>
 
     <details class="disc">
     <summary>Where this data comes from &amp; what&rsquo;s not (yet) in it</summary>
@@ -937,6 +937,8 @@ var SOURCE_LABEL={
   'projects_on_burial_ground':'Live Projects map (proximity)',
   'courtlistener':'US case law (CourtListener)',
   'tribal_comments':'Objections filed (Regulations.gov)',
+  'propublica_holdings':'Institutions holding remains (NAGPRA/ProPublica)',
+  'wikidata_graves':'Mass graves & memorials (Wikidata)',
   'nps_nagpra_grid':'US NAGPRA inventories','ckan_remains':'Open-data portals (CKAN)',
   'ods_remains':'Open-data portals (ODS)','geonode_remains':'Open-data portals (GeoNode)'};
 var fWindow=0, inclUndated=true, query='';
@@ -1126,7 +1128,26 @@ var MarkLayer=L.Layer.extend({
          bounded by the budget (~40,000 points) rather than by how much data is
          loaded. Zoom in, fewer cells are visible, each gets a larger share, and
          the stride falls to 1 -- every mark drawn, no thinning at all. */
-      var CAP=40000, drawn=0;
+      /* THIN BY SPACE, NOT BY COUNT.
+         Keeping every nth point looked reasonable and was not: the rows arrive in
+         the harvester's sweep order, so they are spatially ordered, and a fixed
+         stride drops whole contiguous runs. Measured on the real 44,026-point tile
+         over France, keeping 1 in 30 left 21% of populated sub-cells with no mark
+         at all -- in runs, which is exactly the grid of empty space that showed up
+         wherever density was highest.
+
+         Shuffling first does not help; at 1-in-30 the loss is inherent to keeping
+         a fraction. So do not keep a fraction. Bin by position at roughly three
+         screen pixels and draw ONE mark per bin: complete visual coverage at every
+         zoom, and the mark count falls out of the viewport rather than a budget.
+         Measured on the same tile: 99-100% of populated sub-cells covered from z6
+         up, and only 87 marks at world zoom, where a 10-degree tile is 30px wide
+         and 87 is all that could possibly be distinguished.
+
+         The binning key is plain integer arithmetic on lat/lng -- no projection,
+         no bounds test -- so the per-point cost is trivial. Only the survivors are
+         projected and drawn. */
+      var drawn=0;
       var cellList=[];
       if(f.spec&&f.spec.mode==='tiled'&&f.cells){
         var vis=facVisibleCells(f.spec);
@@ -1139,24 +1160,32 @@ var MarkLayer=L.Layer.extend({
       }
       if(!cellList.length)return;
 
-      var totalPts=0;
-      for(var ci=0;ci<cellList.length;ci++) totalPts+=cellList[ci].length;
+      var degPerBin=3*360/(256*Math.pow(2,z));
+      var south=b.getSouth(), north=b.getNorth(),
+          west=b.getWest(),  east=b.getEast();
+      var bins={}, order=[];
+      for(var ci=0;ci<cellList.length;ci++){
+        var arr=cellList[ci];
+        for(var i=0;i<arr.length;i++){
+          var la=arr[i][0], lo=arr[i][1];
+          if(la<south||la>north||lo<west||lo>east)continue;
+          var key=((la/degPerBin)|0)+':'+((lo/degPerBin)|0);
+          if(bins[key])continue;
+          bins[key]=1; order.push(arr[i]);
+          if(order.length>60000)break;      /* pathological safety valve only */
+        }
+        if(order.length>60000)break;
+      }
+      for(var oi=0;oi<order.length;oi++){
+        var fr=order[oi];
+        var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
+        drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
+        if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
+      }
       if(!self._drewOnce)self._drewOnce={};
       if(!self._drewOnce[id]){
         self._drewOnce[id]=1;
-        faclog(id+' first draw: '+cellList.length+' cell(s), '+totalPts+' points');
-      }
-      var stride=Math.max(1,Math.ceil(totalPts/CAP));
-
-      for(var ci=0;ci<cellList.length;ci++){
-        var arr=cellList[ci];
-        for(var i=0;i<arr.length;i+=stride){
-          var fr=arr[i];
-          if(!b.contains([fr[0],fr[1]]))continue;
-          var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
-          drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
-          if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
-        }
+        faclog(id+' first draw: '+cellList.length+' cell(s), '+drawn+' marks');
       }
     });
 
@@ -2038,22 +2067,35 @@ function loadFindings(){
 }
 function drawFinding(ctx,x,y,f){
   var big=f.value>=50, r=big?15:12;
-  ctx.strokeStyle=f.kind==='density'?'rgba(120,170,190,.95)':'rgba(214,122,90,.95)';
+  ctx.strokeStyle=f.kind==='density'?'rgba(120,170,190,.95)'
+                 :f.kind==='holdings'?'rgba(196,160,214,.95)'
+                 :'rgba(214,122,90,.95)';
   ctx.lineWidth=1.6;
   ctx.setLineDash([3,2.5]);
   ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle='rgba(12,10,8,.72)';
   ctx.beginPath(); ctx.arc(x,y,r-2,0,6.2832); ctx.fill();
-  ctx.fillStyle=f.kind==='density'?'#a8d0de':'#f0b49a';
+  ctx.fillStyle=f.kind==='density'?'#a8d0de'
+               :f.kind==='holdings'?'#dcc2ea':'#f0b49a';
   ctx.font='bold 10px Marcellus, Georgia, serif';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(f.value?(f.value+'%'):'!', x, y);
+  /* Holdings are counts, not percentages -- 97,000 ancestors, not 97,000%.
+     Abbreviated so a five-figure number still fits inside the ring. */
+  var txt='!';
+  if(f.value){
+    if(f.kind==='holdings'&&/percent/.test(f.unit||'')) txt=f.value+'%';
+    else if(f.kind==='holdings') txt=f.value>=1000?Math.round(f.value/1000)+'k':String(f.value);
+    else txt=f.value+'%';
+  }
+  ctx.fillText(txt, x, y);
   ctx.textAlign='start'; ctx.textBaseline='alphabetic';
 }
 function findingHTML(f){
   var h='<div class="pk">'+esc(f.place)+'</div>';
-  h+='<span class="tag t-plain">'+(f.kind==='density'?'Site density':'Measured looting')+'</span>';
+  h+='<span class="tag t-plain">'
+    +(f.kind==='density'?'Site density'
+      :f.kind==='holdings'?'Institutional holdings':'Measured looting')+'</span>';
   if(f.period) h+='<span class="tag t-plain">'+esc(f.period)+'</span>';
   if(f.value) h+='<div class="kv"><span>Finding:</span> <b>'+f.value+'</b> '+esc(f.unit)+'</div>';
   else h+='<div class="kv"><span>Finding:</span> '+esc(f.unit)+'</div>';
@@ -2097,6 +2139,8 @@ function facManifest(){
      request and all four get the same answer. */
   if(FAC_MAN) return Promise.resolve(FAC_MAN);
   if(FAC_MAN_PROMISE) return FAC_MAN_PROMISE;
+  /* The manifest stays uncached on purpose: it is small, and it is what tells the
+     map that a new harvest exists. The tiles it points at are cached by count. */
   FAC_MAN_PROMISE=fetch('remains_local_manifest.json?_='+Date.now(),{cache:'no-store'})
     .then(function(r){ if(!r.ok)throw 0; return r.json(); })
     .then(function(j){ FAC_MAN=j; return j; })
@@ -2125,12 +2169,24 @@ function faclog(msg){
   FACLOG.push(msg);
   if(window.console) console.log('FAC: '+msg);
 }
-function facFetch(base){
-  var bust='?_='+Date.now();
-  return withTimeout(fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
-    .catch(function(){ return fetch(base+'.json'+bust,{cache:'no-store'})
+/* LET THE BROWSER CACHE TILES.
+   These were fetched with cache:'no-store' and a Date.now() buster, so every page
+   load re-downloaded the whole layer -- 6.6 MB of cemeteries plus 2.6 MB of
+   museums -- and every retry started from zero. The densest cells are the biggest
+   files (30_-90 is 908 KB), so on a slower connection they were the ones that ran
+   past the timeout, got dropped, and timed out again on the retry. Dense regions
+   came through as empty for exactly that reason.
+
+   Tiles only change when a harvest reruns, so the row count from the manifest is
+   used as the cache key: same data, browser cache; new harvest, new URL, fresh
+   fetch. The timeout also rises to 45s, because a megabyte on a phone is not a
+   hung request. */
+function facFetch(base,ver){
+  var v=ver?('?v='+ver):'';
+  return withTimeout(fetch(base+'.json.gz'+v).then(parseGz)
+    .catch(function(){ return fetch(base+'.json'+v)
       .then(function(r){ if(!r.ok)return Promise.reject('http '+r.status); return r.json(); }); }),
-    20000);
+    45000);
 }
 /* Which manifest cells the current view touches. */
 function facVisibleCells(spec){
@@ -2192,13 +2248,14 @@ function facEnsureTiles(id){
   /* 4, not 6. The basemap, the boundary topojson and these tiles all load at
      once on first paint, and browsers cap concurrent connections; leaving room
      stops the satellite imagery from stalling behind a queue of facility tiles. */
+  var ver=(f.spec&&f.spec.count)||'';
   runQueue(want,4,function(k){
     var url=FACILITIES[id][0]+'_'+k;
-    return facFetch(url)
-      .catch(function(){ return facFetch(url); })      /* one retry */
+    return facFetch(url,ver)
+      .catch(function(){ return facFetch(url,ver); })  /* one retry, now cheap */
       .then(function(rows){
         f.cells[k]=Array.isArray(rows)?rows:[];
-        faclog(id+' '+k+' -> '+(Array.isArray(rows)?rows.length+' rows':'NOT AN ARRAY: '+typeof rows));
+        if(!Array.isArray(rows)) faclog(id+' '+k+' returned '+typeof rows+', not an array');
         paintSoon();
       })
       .catch(function(){
@@ -2255,7 +2312,7 @@ function facCheckbox(id,cbId,countId){
       }
       if(f.rows||f.loading){ layer.redraw(); return; }
       f.loading=true; lbl.textContent='loading\u2026';
-      facFetch(FACILITIES[id][0])
+      facFetch(FACILITIES[id][0],(spec&&spec.count)||'')
         .then(function(rows){
           f.rows=Array.isArray(rows)?rows:[]; f.loading=false;
           lbl.textContent=f.rows.length.toLocaleString()+' mapped';

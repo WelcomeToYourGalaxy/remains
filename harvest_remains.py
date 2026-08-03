@@ -3001,6 +3001,309 @@ def _first_str(d, *keys):
                     return v[kk].strip()
     return ""
 
+
+# ---------------------------------------------------------------------------
+# INSTITUTIONAL HOLDINGS -- who is holding whom, by name
+# ---------------------------------------------------------------------------
+# The `holding` kind was defined from the first build and never populated, because
+# the only source for it -- National NAGPRA's public database -- has been
+# unreachable since 2026-08 while nps.gov still links to all seven of its tables.
+#
+# ProPublica republishes that same federal dataset and keeps it current. This reads
+# their STATE pages, each of which carries a table of every institution located in
+# that state with two numbers: remains made available for return, and remains not
+# made available. Fifty-one requests instead of six hundred, for the same data.
+#
+# On using someone else's site as a source:
+#  * The underlying facts are federally mandated self-reports, and facts are not
+#    copyrightable. The presentation is ProPublica's; the numbers are the public's.
+#  * Every record credits them in `source` and links to the page it came from.
+#  * One request per second, and results are CACHED TO DISK, so a re-run costs
+#    nothing and a failed harvest does not re-hammer them.
+#  * If they publish a bulk file, or NPS comes back, switch to it -- both are
+#    better than this, and the first is one email away.
+PROPUBLICA_BASE = "https://projects.propublica.org/repatriation-nagpra-database"
+PP_CACHE = "propublica_cache.json"
+PP_SLEEP = float(os.environ.get("PP_SLEEP", "1.0"))
+PP_STATES = sorted(STATE_CENTROID.keys())
+
+
+def _pp_cache_load():
+    try:
+        with open(PP_CACHE, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+def _pp_cache_save(c):
+    try:
+        with open(PP_CACHE, "w", encoding="utf-8") as fh:
+            json.dump(c, fh)
+    except Exception as e:
+        print("  propublica: could not save cache: %s" % e)
+
+
+def _pp_slug(name):
+    return name.lower().replace(" ", "-").replace(".", "").replace(",", "")
+
+
+# Rows are split into cells and read positionally rather than matched by one big
+# pattern. The first attempt used a single regex and silently dropped every
+# institution whose name was wrapped in a link -- which is most of them, since each
+# links to its own page. Splitting is duller and does not care about markup.
+_PP_TR = re.compile(r"<tr[^>]*>([\s\S]*?)</tr>", re.I)
+_PP_TD = re.compile(r"<t[dh][^>]*>([\s\S]*?)</t[dh]>", re.I)
+_PP_TAG = re.compile(r"<[^>]+>")
+
+
+def _pp_cells(row_html):
+    out = []
+    for cell in _PP_TD.findall(row_html):
+        txt = _PP_TAG.sub(" ", cell)
+        txt = txt.replace("&amp;", "&").replace("&#39;", "'").replace("&quot;", '"')
+        out.append(re.sub(r"\s+", " ", txt).strip())
+    return out
+
+
+def _pp_rows(html):
+    """(institution, not_available, made_available) for every data row."""
+    got = []
+    for row in _PP_TR.findall(html or ""):
+        cells = _pp_cells(row)
+        if len(cells) < 3:
+            continue
+        name = cells[0]
+        nums = [c for c in cells[1:] if re.fullmatch(r"[\d,]+", c or "")]
+        if len(nums) < 2 or not name:
+            continue
+        got.append((name, nums[0], nums[1]))
+    return got
+
+
+def _pp_int(x):
+    try:
+        return int(str(x).replace(",", "").strip())
+    except Exception:
+        return None
+
+
+def fetch_propublica_holdings(max_states=None):
+    """Institutions holding Native American ancestors, with counts, by state."""
+    out = []
+    cache = _pp_cache_load()
+    states = PP_STATES[:max_states] if max_states else PP_STATES
+    seen, fetched, cached, failed = set(), 0, 0, 0
+
+    for st in states:
+        slug = _pp_slug(st)
+        url = "%s/state/%s" % (PROPUBLICA_BASE, slug)
+        html = cache.get(slug)
+        if html is None:
+            try:
+                time.sleep(PP_SLEEP)
+                html = _get_text(url, limit=3000000)
+                cache[slug] = html
+                fetched += 1
+            except Exception as e:
+                print("  propublica %-22s failed: %s" % (st, str(e)[:50]))
+                failed += 1
+                continue
+        else:
+            cached += 1
+
+        rows = _pp_rows(html)
+        kept_here = 0
+        for name, a, b in rows:
+            name = re.sub(r"\s+", " ", name).strip()
+            if not name or len(name) < 4:
+                continue
+            low = name.lower()
+            if low.startswith(("institution", "remains", "%", "total", "county")):
+                continue                          # header or summary row
+            n_not, n_avail = _pp_int(a), _pp_int(b)
+            if n_not is None or n_avail is None:
+                continue
+            total = n_not + n_avail
+            if total <= 0:
+                continue
+            key = (name.lower(), st)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            # Geocode once, not twice -- the first version called _geocode a
+            # second time just to decide the precision flag, doubling the cost of
+            # the budget against 600 institutions.
+            hit = _geocode(name + ", " + st)
+            pt = hit or STATE_CENTROID.get(st)
+            if not pt:
+                continue
+            geo = GEO_EXACT if hit else GEO_ADMIN
+
+            rec = {
+                "name": name[:150],
+                "kind": "holding",
+                "posture": KINDS["holding"][1],
+                "trigger": "law",
+                "country": "United States",
+                "region": st,
+                "count": n_not if n_not > 0 else total,
+                "held_by": name[:150],
+                "actor": name[:150],
+                "status": ("%d of %d made available for return"
+                           % (n_avail, total)),
+                "url": url,
+                "date": "",
+                "deadline": "",
+                "desc": ("Reported under NAGPRA as holding the remains of at least "
+                         "%d Native American individuals, of whom %d have been made "
+                         "available for return to tribes and %d have not. "
+                         "Self-reported by the institution and a MINIMUM: some "
+                         "bodies subject to NAGPRA have never reported at all. "
+                         "Federal data, via ProPublica's Repatriation Project."
+                         % (total, n_avail, n_not))[:600],
+                "source": "propublica_holdings",
+            }
+            _place(rec, pt[0], pt[1], geo)
+            rec["impact"] = rate_remains(rec)
+            out.append(rec)
+            kept_here += 1
+        if kept_here:
+            print("  propublica %-22s %d institution(s)" % (st, kept_here))
+
+    _pp_cache_save(cache)
+    print("  propublica_holdings: %d institution(s) across %d state(s) "
+          "(%d fetched, %d from cache, %d failed)"
+          % (len(out), len(states), fetched, cached, failed))
+    if not out and (fetched or cached):
+        print("    Pages were read but no institution rows matched. The table markup "
+              "has changed -- update _pp_rows. Delete %s to force a refetch."
+              % PP_CACHE)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# WIKIDATA -- mass graves and memorials, worldwide
+# ---------------------------------------------------------------------------
+# Every register-based source on this map belongs to one country, which is why the
+# map skews Anglophone. Wikidata does not: it is one endpoint, free, no key, and it
+# holds structured records with coordinates for every country there is.
+#
+# WHAT IS ASKED FOR, AND WHY ONLY THIS:
+# Mass graves, ossuaries, charnel houses, and memorials to massacres and genocide.
+# These are the categories that are already PUBLIC BY INTENTION -- a genocide
+# memorial exists to be visited, an ossuary is signposted, a mass-grave site that
+# has been memorialised has been deliberately marked by the community it belongs
+# to. That is the same test the facility layer uses for working cemeteries.
+#
+# WHAT IS NOT ASKED FOR:
+# Archaeological sites, tumuli, barrows, burial mounds, unmarked graves. Wikidata
+# has thousands of them with precise coordinates, and publishing those would be the
+# site register this harvester refuses on principle -- see _is_site_register(). The
+# query names its classes explicitly rather than filtering afterwards, so a broad
+# class can never leak in through a subclass chain.
+#
+# Placement still runs through the gate: `mass-grave` is a burial location, so it
+# is coarsened like everything else, memorial or not.
+WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
+WD_DAYS = int(os.environ.get("WD_DAYS", "0"))          # 0 = no date filter
+
+# (QID, label, kind). Deliberately narrow; add only classes that are public by
+# intention, never a class that would expose an unmarked or unadvertised burial.
+WD_CLASSES = [
+    ("Q1195942",  "mass grave",            "mass-grave"),
+    ("Q211748",   "ossuary",               "holding"),
+    ("Q1076486",  "charnel house",         "holding"),
+    ("Q5003624",  "memorial",              "review"),
+]
+# Only memorials that are ABOUT a massacre, genocide or mass killing. A war
+# memorial in a village square is not this map's business.
+WD_MEMORIAL_TERMS = ("massacre", "genocide", "mass killing", "mass grave",
+                     "killing field", "holocaust", "atrocity")
+
+
+def _wd_query(sparql):
+    url = WIKIDATA_SPARQL + "?" + urllib.parse.urlencode(
+        {"query": sparql, "format": "json"})
+    # Wikidata's policy asks for a descriptive User-Agent with contact details;
+    # UA already carries one, and the Accept header keeps the JSON shape stable.
+    return _get_json_auth(url, {"Accept": "application/sparql-results+json"})
+
+
+def fetch_wikidata_graves():
+    """Mass graves, ossuaries and massacre memorials worldwide, with coordinates."""
+    out, seen = [], set()
+    for qid, label, kind in WD_CLASSES:
+        if (qid, label) in seen:
+            continue
+        seen.add((qid, label))
+        sparql = ("""
+SELECT ?item ?itemLabel ?coord ?countryLabel ?date WHERE {
+  ?item wdt:P31/wdt:P279* wd:%s .
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P17 ?country . }
+  OPTIONAL { ?item wdt:P571 ?date . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
+}
+LIMIT 3000""" % qid)
+        try:
+            data = _wd_query(sparql)
+        except Exception as e:
+            print("  wikidata %-16s failed: %s" % (label, str(e)[:60]))
+            continue
+        rows = ((data or {}).get("results") or {}).get("bindings") or []
+        kept = 0
+        for r in rows:
+            name = (r.get("itemLabel") or {}).get("value") or ""
+            coord = (r.get("coord") or {}).get("value") or ""
+            if not name or not coord:
+                continue
+            m = re.match(r"Point\(([-\d.]+)\s+([-\d.]+)\)", coord)
+            if not m:
+                continue
+            lng, lat = float(m.group(1)), float(m.group(2))
+            if abs(lat) > 90 or abs(lng) > 180:
+                continue
+            low = name.lower()
+            if kind == "review" and not any(t in low for t in WD_MEMORIAL_TERMS):
+                continue                       # a memorial, but not to a killing
+            if _is_site_register(name):
+                _REFUSED[0] += 1
+                continue
+            qidnum = (r.get("item") or {}).get("value", "").rsplit("/", 1)[-1]
+            if not qidnum or qidnum in seen:
+                continue
+            seen.add(qidnum)
+            rec = {
+                "name": name[:150],
+                "kind": kind,
+                "posture": KINDS[kind][1],
+                "trigger": "unknown",
+                "country": ((r.get("countryLabel") or {}).get("value") or "")[:80],
+                "region": "",
+                "count": None,
+                "held_by": "",
+                "actor": "",
+                "status": "",
+                "url": "https://www.wikidata.org/wiki/" + qidnum,
+                "date": _iso_date((r.get("date") or {}).get("value")),
+                "deadline": "",
+                "desc": ("Recorded on Wikidata as a %s. Community-maintained, not an "
+                         "official register: it is here because this category is "
+                         "public by intention -- memorials and ossuaries exist to be "
+                         "found. Archaeological and unmarked burial classes are "
+                         "deliberately not queried." % label)[:600],
+                "source": "wikidata_graves",
+            }
+            _place(rec, lat, lng, GEO_AREA)
+            rec["impact"] = rate_remains(rec)
+            out.append(rec)
+            kept += 1
+        print("  wikidata %-16s %d of %d row(s) kept" % (label, kept, len(rows)))
+    print("  wikidata_graves: %d record(s)" % len(out))
+    return out
+
 def main():
     if os.environ.get("FED_MERGE") == "1":
         print("MODE: merge federation shard parts")
