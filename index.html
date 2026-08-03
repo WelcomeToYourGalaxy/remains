@@ -1115,45 +1115,43 @@ var MarkLayer=L.Layer.extend({
          every row ever loaded. At Europe zoom that is one or two cells of ~15,000
          rows instead of iterating all 573,680 on every pan -- which is what made a
          big layer feel slow to come back after a toggle. */
-      var rows;
+      /* THE COST WAS THE ITERATION, NOT THE FETCH.
+         The previous version concatenated every visible cell into one array and
+         called bounds.contains() on all of it -- 573,680 times at world zoom,
+         repeated on every progressive paint. The browser could not finish a frame,
+         so the layer read as blank however complete the data was.
+
+         Now the thinning happens PER CELL and BEFORE any per-point test. Each
+         visible cell contributes at most its share of the budget, so the work is
+         bounded by the budget (~40,000 points) rather than by how much data is
+         loaded. Zoom in, fewer cells are visible, each gets a larger share, and
+         the stride falls to 1 -- every mark drawn, no thinning at all. */
+      var CAP=40000, drawn=0;
+      var cellList=[];
       if(f.spec&&f.spec.mode==='tiled'&&f.cells){
-        rows=[];
         var vis=facVisibleCells(f.spec);
         for(var vi=0;vi<vis.length;vi++){
           var cell=f.cells[vis[vi]];
-          if(Array.isArray(cell)) rows=rows.concat(cell);
+          if(Array.isArray(cell)&&cell.length) cellList.push(cell);
         }
-      } else {
-        rows=f.rows||[];
+      } else if(f.rows&&f.rows.length){
+        cellList.push(f.rows);
       }
-      var drawn=0;
-      /* THE GRID BUG WAS HERE. Rows arrive tile by tile, and the old loop
-         stopped dead at 40,000 marks -- so the first few 10-degree tiles drew in
-         full and every tile after them was blank. That is what produced neat
-         rectangular voids: not a failed fetch, a truncated draw.
+      if(!cellList.length)return;
 
-         The cap itself is necessary; 573,000 fillRects per frame is not
-         interactive. So instead of truncating, take an even STRIDE through the
-         set: every nth row, spread across the whole world rather than all of the
-         first corner. At world zoom you see a faithful thinned scatter; zoom in
-         and the visible subset shrinks until the stride reaches 1 and every mark
-         is drawn. */
-      var CAP=40000;
-      var inView=[];
-      for(var i=0;i<rows.length;i++){
-        if(b.contains([rows[i][0],rows[i][1]])) inView.push(rows[i]);
-      }
-      var stride=Math.max(1,Math.ceil(inView.length/CAP));
-      for(var i=0;i<inView.length;i+=stride){
-        var fr=inView[i];
-        var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
-        drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
-        if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
-      }
-      if(stride>1&&window.console&&!self._strideWarned){
-        self._strideWarned=1;
-        console.info('facility layer thinned 1 in '+stride+' for drawing; '
-          +'zoom in for every mark');
+      var totalPts=0;
+      for(var ci=0;ci<cellList.length;ci++) totalPts+=cellList[ci].length;
+      var stride=Math.max(1,Math.ceil(totalPts/CAP));
+
+      for(var ci=0;ci<cellList.length;ci++){
+        var arr=cellList[ci];
+        for(var i=0;i<arr.length;i+=stride){
+          var fr=arr[i];
+          if(!b.contains([fr[0],fr[1]]))continue;
+          var fp=m.latLngToContainerPoint([fr[0],fr[1]]);
+          drawFacility(ctx,fp.x,fp.y,z,id); drawn++;
+          if(z>=10)self._hit.push({x:fp.x,y:fp.y,r:6,fac:fr,facType:id});
+        }
       }
     });
 
@@ -2162,9 +2160,12 @@ function facEnsureTiles(id){
      full redraws. */
   function paintSoon(){
     if(f._paintTimer)return;
-    f._paintTimer=setTimeout(function(){ f._paintTimer=null; layer.redraw(); },220);
+    f._paintTimer=setTimeout(function(){ f._paintTimer=null; layer.redraw(); },600);
   }
-  runQueue(want,6,function(k){
+  /* 4, not 6. The basemap, the boundary topojson and these tiles all load at
+     once on first paint, and browsers cap concurrent connections; leaving room
+     stops the satellite imagery from stalling behind a queue of facility tiles. */
+  runQueue(want,4,function(k){
     var url=FACILITIES[id][0]+'_'+k;
     return facFetch(url)
       .catch(function(){ return facFetch(url); })      /* one retry */
