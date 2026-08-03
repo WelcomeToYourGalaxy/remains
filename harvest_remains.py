@@ -331,6 +331,16 @@ def _iso_date(v):
     m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", s)
     if m:
         return "%s-%02d-%02d" % (m.group(3), int(m.group(1)), int(m.group(2)))
+    # Wikidata and several registers give a bare year, or a year-month. Returning
+    # "" for those threw away every closure date on the institutions source, and
+    # would silently drop dates from any future source that reports the same way.
+    # A year is a real date at the precision the source knows it.
+    m = re.match(r"^(\d{4})-(\d{2})$", s)
+    if m:
+        return s
+    m = re.match(r"^(1[5-9]\d{2}|20\d{2}|21\d{2})$", s.strip())
+    if m:
+        return m.group(1)
     if s.isdigit() and len(s) == 13:          # epoch ms (ArcGIS)
         try:
             return datetime.datetime.utcfromtimestamp(int(s) / 1000).date().isoformat()
@@ -480,6 +490,12 @@ def _geocode(q, cc="us"):
 # Deliberately narrower than a general heritage filter: "archaeology" alone is not
 # enough, because most archaeology involves no burials. A record must name human
 # remains, a burial, a grave, a cemetery, or a statutory burial regime.
+# The topic filter, in every language the harvester searches in.
+#
+# This lagged the query vocabulary badly. The portal sweep was taught to ask a
+# Brazilian portal for "cemiterio" -- and then this pattern, which knew English,
+# Spanish, French, German and Dutch only, threw the answer away. Every language
+# added to _LANG_TERMS has to appear here too or the two halves cancel out.
 _REMAINS_RE = re.compile(
     r"\b("
     r"human remains|skeletal remains|ancestral remains|osteolog|"
@@ -488,11 +504,41 @@ _REMAINS_RE = re.compile(
     r"tomb(?:s|stone)?|barrow|tumul(?:us|i)|mound\sgroup|kurgan|crypt|catacomb|"
     r"exhumation|exhume|mass\sgrave|funerary\sobject|"
     r"nagpra|repatriat|unmarked\sgrave|potter'?s\sfield|"
-    r"fosa(?:s)?\scomun(?:e|es)?|cementerio|sepultura|"
-    r"s\u00e9pulture|cimeti\u00e8re|ossements|"
-    r"gr\u00e4berfeld|friedhof|gebeine|"
-    r"begraafplaats|grafveld"
-    r")\b", re.I)
+    # Spanish / Portuguese
+    r"fosa(?:s)?\scomun(?:e|es)?|cementerio|sepultura|panteon|restos\shumanos|"
+    r"cemit\u00e9rio|cemiterio|escava\u00e7\u00e3o\sarqueol\u00f3gica|ossada|exuma\u00e7\u00e3o|"
+    # French
+    r"s\u00e9pulture|cimeti\u00e8re|ossements|restes\shumains|ossuaire|"
+    # German / Dutch / Scandinavian
+    r"gr\u00e4berfeld|friedhof|gebeine|\u00fcberreste|"
+    r"begraafplaats|grafveld|menselijke\sresten|opgraving|"
+    r"gravplats|begravningsplats|kirkeg\u00e5rd|gravplads|gravlund|hautausmaa|"
+    # Italian / Polish / Czech / Romanian / Hungarian / Greek
+    r"cimitero|resti\sumani|scavo\sarcheologico|"
+    r"cmentarz|wykopaliska|szcz\u0105tki|"
+    r"h\u0159bitov|cimitir|temet\u0151|"
+    r"\u03bd\u03b5\u03ba\u03c1\u03bf\u03c4\u03b1\u03c6\u03b5\u03af\u03bf|"
+    # Turkish / Indonesian / Vietnamese
+    r"mezarl\u0131k|mezar|"
+    r"pemakaman|makam|kuburan|"
+    r"ngh\u0129a\strang"
+    r")\b", re.I | re.U)
+
+# Scripts without spaces between words, where \b does not apply. Python's \b is
+# defined by \w, which includes CJK, Arabic, Thai and Devanagari -- so a term
+# surrounded by more of the same script never sits on a boundary and never matches.
+# These are tested by plain containment instead.
+_REMAINS_CJK = (
+    "\u5893\u5730", "\u58b3\u5834", "\u57cb\u846c", "\u907a\u9ab8",   # zh/ja
+    "\u0645\u0642\u0628\u0631\u0629", "\u0631\u0641\u0627\u062a",     # ar
+    "\u0e2a\u0e38\u0e2a\u0e32\u0e19",                                     # th
+    "\u0936\u094d\u092e\u0936\u093e\u0928",
+    "\u0915\u092c\u094d\u0930\u093f\u0938\u094d\u0924\u093e\u0928",   # hi
+    "\u043a\u043b\u0430\u0434\u0431\u0438\u0449\u0435",
+    "\u0437\u0430\u0445\u043e\u0440\u043e\u043d\u0435\u043d\u0438\u0435",
+    "\u043a\u043b\u0430\u0434\u043e\u0432\u0438\u0449\u0435",
+    "\u043f\u043e\u0445\u043e\u0432\u0430\u043d\u043d\u044f",           # ru/uk
+)
 
 # Things that use burial vocabulary but are not an unearthing event.
 _REMAINS_DENY_RE = re.compile(
@@ -553,11 +599,21 @@ def _is_individual_case(text):
     return not any(x in t for x in _MULTI_HINT)
 
 
+_REMAINS_CJK_FOLDED = tuple(w.casefold() for w in _REMAINS_CJK)
+
+
 def _is_remains(text):
     t = text or ""
     if _REMAINS_DENY_RE.search(t):
         return False
-    return bool(_REMAINS_RE.search(t))
+    if _REMAINS_RE.search(t):
+        return True
+    # Casefolded, because the containment test is otherwise case-sensitive and
+    # Cyrillic has case: "Кладбище города" failed against the lower-case term while
+    # CJK, Arabic and Thai passed, which made the bug look script-specific rather
+    # than case-specific.
+    low = t.casefold()
+    return any(w in low for w in _REMAINS_CJK_FOLDED)
 
 
 # ---------------------------------------------------------------------------
@@ -1190,7 +1246,7 @@ _REMAINS_TERMS = [
     "cemit\u00e9rio", "escava\u00e7\u00e3o arqueol\u00f3gica",
     "cmentarz", "wykopaliska", "\u043a\u043b\u0430\u0434\u0431\u0438\u0449\u0435",
     "gravplats", "kirkeg\u00e5rd", "hautausmaa", "mezarl\u0131k",
-    "\u0645\u0642\u0628\u0631\u0629", "\u58d3\u5834", "\u5893\u5730",
+    "\u0645\u0642\u0628\u0631\u0629", "\u58b3\u5834", "\u5893\u5730",
     "pemakaman", "makam", "\u0936\u094d\u092e\u0936\u093e\u0928",
 ]
 
@@ -1457,6 +1513,85 @@ def _fed_map(portals, fn, label):
     return rows
 
 
+# ---------------------------------------------------------------------------
+# SEARCHING PORTALS IN THEIR OWN LANGUAGE
+# ---------------------------------------------------------------------------
+# _REMAINS_TERMS holds 37 terms across 17 languages, and the fetchers were slicing
+# _REMAINS_TERMS[:12], [:10] and [:8] -- which are the ENGLISH ones. Every portal
+# in the world was searched in English only: a French municipal portal was asked
+# for "cemetery" and never for "cimetiere", a Brazilian one never for "cemiterio".
+# That is a large part of why this map skews Anglophone, and it is a query problem
+# rather than a coverage problem.
+#
+# Searching all 37 terms at every portal would cost 37 x ~205 portals per shard.
+# Instead each portal is searched in ITS OWN language plus English -- about the
+# same number of requests, aimed correctly.
+_LANG_TERMS = {
+    "en": ["cemetery", "burial ground", "human remains", "graveyard", "exhumation",
+           "archaeological excavation", "burial site", "necropolis"],
+    "es": ["cementerio", "fosas comunes", "sepulturas", "restos humanos",
+           "excavacion arqueologica", "panteon"],
+    "fr": ["cimeti\u00e8re", "s\u00e9pultures", "fouille arch\u00e9ologique",
+           "restes humains", "ossuaire"],
+    "de": ["friedhof", "gr\u00e4berfeld", "arch\u00e4ologische ausgrabung"],
+    "nl": ["begraafplaats", "opgraving", "menselijke resten"],
+    "it": ["cimitero", "scavo archeologico", "resti umani"],
+    "pt": ["cemit\u00e9rio", "escava\u00e7\u00e3o arqueol\u00f3gica",
+           "restos humanos", "ossada"],
+    "pl": ["cmentarz", "wykopaliska"],
+    "ru": ["\u043a\u043b\u0430\u0434\u0431\u0438\u0449\u0435",
+           "\u0437\u0430\u0445\u043e\u0440\u043e\u043d\u0435\u043d\u0438\u0435"],
+    "uk": ["\u043a\u043b\u0430\u0434\u043e\u0432\u0438\u0449\u0435",
+           "\u043f\u043e\u0445\u043e\u0432\u0430\u043d\u043d\u044f"],
+    "sv": ["gravplats", "begravningsplats"],
+    "da": ["kirkeg\u00e5rd", "gravplads"],
+    "no": ["gravlund", "kirkeg\u00e5rd"],
+    "fi": ["hautausmaa", "hautaus"],
+    "tr": ["mezarl\u0131k", "mezar"],
+    "ar": ["\u0645\u0642\u0628\u0631\u0629", "\u0631\u0641\u0627\u062a"],
+    "zh": ["\u5893\u5730", "\u58b3\u5834"],
+    "ja": ["\u5893\u5730", "\u57cb\u846c"],
+    "id": ["pemakaman", "makam", "kuburan"],
+    "th": ["\u0e2a\u0e38\u0e2a\u0e32\u0e19"],
+    "vi": ["ngh\u0129a trang", "m\u1ed9"],
+    "el": ["\u03bd\u03b5\u03ba\u03c1\u03bf\u03c4\u03b1\u03c6\u03b5\u03af\u03bf"],
+    "cs": ["h\u0159bitov"],
+    "ro": ["cimitir"],
+    "hu": ["temet\u0151"],
+    "hi": ["\u0936\u094d\u092e\u0936\u093e\u0928",
+           "\u0915\u092c\u094d\u0930\u093f\u0938\u094d\u0924\u093e\u0928"],
+}
+_COUNTRY_LANG = {
+    "france": "fr", "belgium": "fr", "switzerland": "fr", "luxembourg": "fr",
+    "senegal": "fr", "morocco": "fr", "tunisia": "fr", "canada": "fr",
+    "spain": "es", "mexico": "es", "argentina": "es", "chile": "es",
+    "colombia": "es", "peru": "es", "ecuador": "es", "bolivia": "es",
+    "uruguay": "es", "paraguay": "es", "costa rica": "es", "guatemala": "es",
+    "panama": "es", "honduras": "es", "nicaragua": "es", "el salvador": "es",
+    "dominican republic": "es", "venezuela": "es", "cuba": "es",
+    "brazil": "pt", "portugal": "pt", "angola": "pt", "mozambique": "pt",
+    "germany": "de", "austria": "de", "netherlands": "nl", "italy": "it",
+    "poland": "pl", "russia": "ru", "ukraine": "uk", "sweden": "sv",
+    "denmark": "da", "norway": "no", "finland": "fi", "turkey": "tr",
+    "greece": "el", "czechia": "cs", "czech republic": "cs", "romania": "ro",
+    "hungary": "hu", "japan": "ja", "china": "zh", "taiwan": "zh",
+    "indonesia": "id", "thailand": "th", "vietnam": "vi", "india": "hi",
+    "nepal": "hi", "egypt": "ar", "saudi arabia": "ar", "jordan": "ar",
+    "united arab emirates": "ar", "iraq": "ar", "bahrain": "ar", "kuwait": "ar",
+    "qatar": "ar", "oman": "ar", "lebanon": "ar", "algeria": "ar",
+    "libya": "ar", "sudan": "ar", "syria": "ar", "yemen": "ar",
+}
+
+
+def _portal_terms(country, cap=None):
+    """English plus the portal's own language. The right terms, not all of them."""
+    lang = _COUNTRY_LANG.get((country or "").strip().lower())
+    terms = list(_LANG_TERMS["en"])
+    if lang and lang in _LANG_TERMS:
+        terms += _LANG_TERMS[lang]
+    return terms[:cap] if cap else terms
+
+
 def _portal_url_country(p):
     """Unpack one registry entry into (url, country).
 
@@ -1508,7 +1643,7 @@ def fetch_ckan_remains(per_ds=400):
         base, country = _portal_url_country(p)
         if not base:
             return got
-        for term in _REMAINS_TERMS[:12]:
+        for term in _portal_terms(country, 14):
             if time.time() > end:
                 break
             for ds in _ckan_datasets(base, term, rows=20):
@@ -1557,7 +1692,7 @@ def fetch_ods_remains(per_ds=400):
         base, country = _portal_url_country(p)
         if not base:
             return got
-        for term in _REMAINS_TERMS[:10]:
+        for term in _portal_terms(country, 12):
             if time.time() > end:
                 break
             for ds in _ods_datasets(base, term, rows=20):
@@ -1593,7 +1728,7 @@ def fetch_geonode_remains(per_ds=400):
         base, country = _portal_url_country(p)
         if not base:
             return got
-        for term in _REMAINS_TERMS[:8]:
+        for term in _portal_terms(country, 10):
             if time.time() > end:
                 break
             for ds in _geonode_datasets(base, term, rows=15):
@@ -3302,6 +3437,103 @@ LIMIT 3000""" % qid)
             kept += 1
         print("  wikidata %-16s %d of %d row(s) kept" % (label, kept, len(rows)))
     print("  wikidata_graves: %d record(s)" % len(out))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# INSTITUTIONS UNDER INVESTIGATION FOR UNMARKED BURIALS
+# ---------------------------------------------------------------------------
+# Residential schools, boarding schools, industrial schools, Magdalene laundries,
+# asylums. A category of its own because the pattern is its own: children and
+# inmates who died in institutional custody and were buried on the grounds, often
+# without a marker and often without the family being told.
+#
+# WHAT IS PLOTTED IS THE INSTITUTION, NOT A GRAVE. This distinction is the whole
+# reason the source is safe to carry. The schools are public knowledge -- the NCTR
+# publishes the Canadian list, the Interior Department published the American one,
+# many of the buildings still stand and several are commemorated. The burial
+# grounds attached to them frequently are NOT public, are under the control of the
+# affected Nation, and are nobody else's to publish.
+#
+# So: `kind` is "review", the institution is the accountable actor, and the record
+# says an investigation exists -- not where anyone is buried. If a community has
+# published a grave location itself, that is their disclosure to make and this map
+# still does not mirror it.
+WD_INSTITUTION_CLASSES = [
+    ("Q1130970",  "Canadian Indian residential school"),
+    ("Q4744106",  "American Indian boarding school"),
+    ("Q1663017",  "Magdalene laundry"),
+    ("Q3505845",  "industrial school"),
+]
+
+
+def fetch_institution_investigations():
+    """Institutions whose grounds are subject to unmarked-burial investigation."""
+    out, seen = [], set()
+    for qid, label in WD_INSTITUTION_CLASSES:
+        sparql = ("""
+SELECT ?item ?itemLabel ?coord ?countryLabel ?start ?end WHERE {
+  ?item wdt:P31/wdt:P279* wd:%s .
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P17 ?country . }
+  OPTIONAL { ?item wdt:P571 ?start . }
+  OPTIONAL { ?item wdt:P576 ?end . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
+}
+LIMIT 2000""" % qid)
+        try:
+            data = _wd_query(sparql)
+        except Exception as e:
+            print("  institutions %-34s failed: %s" % (label, str(e)[:50]))
+            continue
+        rows = ((data or {}).get("results") or {}).get("bindings") or []
+        kept = 0
+        for r in rows:
+            name = (r.get("itemLabel") or {}).get("value") or ""
+            coord = (r.get("coord") or {}).get("value") or ""
+            m = re.match(r"Point\(([-\d.]+)\s+([-\d.]+)\)", coord or "")
+            if not name or not m:
+                continue
+            lng, lat = float(m.group(1)), float(m.group(2))
+            if abs(lat) > 90 or abs(lng) > 180:
+                continue
+            qidnum = (r.get("item") or {}).get("value", "").rsplit("/", 1)[-1]
+            if not qidnum or qidnum in seen:
+                continue
+            seen.add(qidnum)
+            closed = _iso_date((r.get("end") or {}).get("value"))
+            opened = _iso_date((r.get("start") or {}).get("value"))
+            rec = {
+                "name": name[:150],
+                "kind": "review",
+                "posture": KINDS["review"][1],
+                "trigger": "institution",
+                "country": ((r.get("countryLabel") or {}).get("value") or "")[:80],
+                "region": "",
+                "count": None,
+                "held_by": "",
+                "actor": name[:150],
+                "status": ("%s%s" % ("opened " + opened if opened else "",
+                                     ", closed " + closed if closed else "")).strip(", "),
+                "url": "https://www.wikidata.org/wiki/" + qidnum,
+                "date": closed or opened or "",
+                "deadline": "",
+                "desc": ("A %s. Institutions of this kind buried children and inmates "
+                         "who died in their custody on the grounds, often unmarked and "
+                         "often without telling the family. THE MARK IS THE "
+                         "INSTITUTION, NOT A GRAVE: the buildings are public "
+                         "knowledge, the burial grounds frequently are not and belong "
+                         "to the affected community to disclose or not. Presence here "
+                         "means the question applies to this site, not that a burial "
+                         "has been located." % label)[:600],
+                "source": "institution_investigations",
+            }
+            _place(rec, lat, lng, GEO_EXACT)
+            rec["impact"] = 3
+            out.append(rec)
+            kept += 1
+        print("  institutions %-34s %d of %d" % (label, kept, len(rows)))
+    print("  institution_investigations: %d institution(s)" % len(out))
     return out
 
 def main():
