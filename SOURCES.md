@@ -207,6 +207,51 @@ run 1 tells you which wordings are wrong. Neither failure mode can corrupt the d
 the title check already rejects anything that is not that notice, so a bad phrase
 yields zero rather than noise.
 
+### The topic filter had to learn the same languages
+
+Teaching the sweep to ask a Brazilian portal for *cemitério* achieves nothing if the
+filter that decides what to keep only reads English. `_is_remains()` covered English,
+Spanish, French, German and Dutch — so a record found by the new queries in
+Portuguese, Italian, Polish, Russian, Turkish, Indonesian, Greek, Czech, Romanian,
+Hungarian, Vietnamese, Arabic, Chinese, Japanese, Thai or Hindi would have been
+**found and then thrown away**. The two halves would have cancelled.
+
+Both now cover the same languages, and any language added to `_LANG_TERMS` has to
+appear in the filter too — that is written next to the pattern.
+
+Two script problems worth recording:
+
+- Python's `\b` is defined by `\w`, which **includes** CJK, Arabic, Thai and
+  Devanagari. A term surrounded by more of the same script never sits on a word
+  boundary and never matches. Those languages are tested by plain containment
+  instead.
+- That containment test was case-sensitive, which CJK, Arabic and Thai do not care
+  about but Cyrillic does: `Кладбище города` failed while `墓地` passed, making a
+  case bug look like a script bug. Casefolded now.
+
+Verified across 27 languages, with routine false positives — pet cemeteries, cable
+burial depth, carbon sequestration — still rejected.
+
+### Portals are now searched in their own language
+
+The federation sweep reaches 1,236 portals in 137 countries, 89% of them
+non-Anglophone — and it was searching every one of them **in English**.
+
+`_REMAINS_TERMS` holds 37 terms across 17 languages, but the three fetchers sliced
+`[:12]`, `[:10]` and `[:8]`, which are the English ones. A French municipal portal
+was asked for *cemetery* and never for *cimetière*; a Brazilian one never for
+*cemitério*. That is a large part of the Anglophone skew, and it is a **query**
+problem rather than a coverage problem — the portals were answering the question
+they were asked.
+
+Each portal is now searched in its own language plus English: 26 language sets
+across 71 countries, about the same number of requests, aimed correctly. Searching
+all 37 terms everywhere would cost 37 × ~205 portals per shard; searching the right
+eight or nine costs what the old sweep did.
+
+One term was also wrong. The Chinese entry was 壓場, which is not a word for
+cemetery; it is now 墳場, alongside 墓地.
+
 ### The federation bug, and why the run looked green
 
 The 2026-07-31 federation run reported success on GitHub and harvested **nothing
@@ -233,6 +278,33 @@ Thailand 94, Argentina 87, Brazil 67, Germany 35, Mexico 34, Italy 22, Greece 21
 Spain 18, Ukraine 17, Vietnam 13, Costa Rica 13, Ecuador 12, Bolivia 10, Ethiopia
 10, Colombia 8, Guatemala 8, Nepal 8, Philippines 8, Chile 7, Peru 4 — **89% of the
 1,236 portals are non-Anglophone.**
+
+### Institutions under investigation for unmarked burials
+
+Residential schools, boarding schools, industrial schools, Magdalene laundries. A
+category of its own because the pattern is its own: children and inmates who died in
+institutional custody and were buried on the grounds, often unmarked and often
+without the family being told.
+
+**What is plotted is the institution, not a grave**, and that distinction is the whole
+reason the source is safe to carry. The schools are public knowledge — the NCTR
+publishes the Canadian list, the Interior Department published the American one, many
+buildings still stand and several are commemorated. The burial grounds attached to
+them frequently are **not** public, are under the control of the affected Nation, and
+are nobody else's to publish.
+
+So `kind` is `review`, the institution is the accountable actor, and the record says
+an investigation applies to this site — never that a burial has been located. If a
+community has published a grave location itself, that is their disclosure to make and
+this map still does not mirror it.
+
+Placed exactly, because a school building is a building. Tested across Canada, the
+United States and Ireland.
+
+A parsing fix came out of this and applies everywhere: `_iso_date()` returned `""` for
+a bare year, which threw away every closure date here and would have silently dropped
+dates from any future source reporting the same way. A year is a real date at the
+precision the source knows it.
 
 ### Wikidata → mass graves and memorials, worldwide
 
