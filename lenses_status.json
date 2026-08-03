@@ -1,5 +1,5 @@
 {
- "checked": "2026-08-01T18:32:04.697868Z",
+ "checked": "2026-08-03T08:49:00.474208Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -131,8 +131,9 @@
    "state": "find-only"
   },
   "Business & Human Rights Resource Centre — lawsuits database": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.business-humanrights.org/en/from-us/lawsuits-database/"
   },
   "Bååstede and Sámi repatriation (Norway/Sweden)": {
@@ -362,8 +363,9 @@
    "url": "https://www.icomos.org/"
   },
   "ICRC — missing persons and the dead": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.icrc.org/en"
   },
   "IFC/MIGA Compliance Advisor Ombudsman": {
@@ -400,9 +402,8 @@
    "state": "find-only"
   },
   "IWGIA": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.iwgia.org/en/"
   },
   "Indian Law Resource Center": {
@@ -823,11 +824,11 @@
   }
  },
  "tally": {
-  "blocked": 16,
-  "dead": 11,
+  "blocked": 18,
+  "dead": 10,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 75,
+  "ok": 74,
   "redirect": 1,
   "tls": 0
  }
