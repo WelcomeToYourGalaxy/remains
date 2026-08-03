@@ -1141,6 +1141,11 @@ var MarkLayer=L.Layer.extend({
 
       var totalPts=0;
       for(var ci=0;ci<cellList.length;ci++) totalPts+=cellList[ci].length;
+      if(!self._drewOnce)self._drewOnce={};
+      if(!self._drewOnce[id]){
+        self._drewOnce[id]=1;
+        faclog(id+' first draw: '+cellList.length+' cell(s), '+totalPts+' points');
+      }
       var stride=Math.max(1,Math.ceil(totalPts/CAP));
 
       for(var ci=0;ci<cellList.length;ci++){
@@ -2112,6 +2117,14 @@ function withTimeout(p,ms){
            function(e){ clearTimeout(t); rej(e); });
   });
 }
+/* Every facility request and its outcome, on one line each. Four rounds of this
+   have been diagnosed by inference from the shape of the gaps; this makes the
+   browser say what it actually did. Open the console and read FAC: lines. */
+var FACLOG=[];
+function faclog(msg){
+  FACLOG.push(msg);
+  if(window.console) console.log('FAC: '+msg);
+}
 function facFetch(base){
   var bust='?_='+Date.now();
   return withTimeout(fetch(base+'.json.gz'+bust,{cache:'no-store'}).then(parseGz)
@@ -2183,12 +2196,17 @@ function facEnsureTiles(id){
     var url=FACILITIES[id][0]+'_'+k;
     return facFetch(url)
       .catch(function(){ return facFetch(url); })      /* one retry */
-      .then(function(rows){ f.cells[k]=Array.isArray(rows)?rows:[]; paintSoon(); })
+      .then(function(rows){
+        f.cells[k]=Array.isArray(rows)?rows:[];
+        faclog(id+' '+k+' -> '+(Array.isArray(rows)?rows.length+' rows':'NOT AN ARRAY: '+typeof rows));
+        paintSoon();
+      })
       .catch(function(){
         /* Two failures on a cell the manifest says has rows is a network problem,
            not an empty region. Delete the entry rather than caching [] so the next
            pan or zoom tries again -- a cached empty would be a permanent hole that
            looks exactly like genuine absence. */
+        faclog(id+' '+k+' FAILED (manifest says '+((f.spec&&f.spec.tiles&&f.spec.tiles[k])||0)+' rows)');
         if(f.spec&&f.spec.tiles&&f.spec.tiles[k]) delete f.cells[k];
         else f.cells[k]=[];
         paintSoon();
@@ -2230,6 +2248,8 @@ function facCheckbox(id,cbId,countId){
       var mkey=FACILITIES[id][0].replace('remains_local_','');
       var spec=man&&man.types&&man.types[mkey];
       f.spec=spec||null;
+      faclog(id+' manifest '+(man?'ok':'NULL')+', mode='
+        +(spec?spec.mode+' ('+(spec.count||0)+' rows)':'NO SPEC -> will try a single file'));
       if(spec&&spec.mode==='tiled'){
         f.rows=f.rows||[]; facEnsureTiles(id); return;
       }
