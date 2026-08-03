@@ -2078,15 +2078,29 @@ function findingHTML(f){
    manifest lookup plus a second request would cost more than the file does. Both
    shapes are handled here, so the harvester can switch a type from one to the
    other without touching the map. */
-var FAC_MAN=null, FAC_MAN_TRIED=false;
+var FAC_MAN=null, FAC_MAN_PROMISE=null;
 
 function facManifest(){
-  if(FAC_MAN||FAC_MAN_TRIED) return Promise.resolve(FAC_MAN);
-  FAC_MAN_TRIED=true;
-  return fetch('remains_local_manifest.json?_='+Date.now(),{cache:'no-store'})
+  /* SHARE ONE IN-FLIGHT REQUEST.
+     The previous version set a TRIED flag before the fetch resolved, so of the
+     four facility toggles -- which all fire in the same tick at startup -- only
+     the first received the manifest. The other three were handed `null`, decided
+     their layer was a single file, and requested a file that does not exist for a
+     tiled type. Museums are tiled, so museums 404'd and stayed blank forever
+     while cemeteries (first in the list) worked.
+     Caching the PROMISE rather than a flag means every caller waits on the same
+     request and all four get the same answer. */
+  if(FAC_MAN) return Promise.resolve(FAC_MAN);
+  if(FAC_MAN_PROMISE) return FAC_MAN_PROMISE;
+  FAC_MAN_PROMISE=fetch('remains_local_manifest.json?_='+Date.now(),{cache:'no-store'})
     .then(function(r){ if(!r.ok)throw 0; return r.json(); })
     .then(function(j){ FAC_MAN=j; return j; })
-    .catch(function(){ return null; });
+    .catch(function(){
+      /* Let a later toggle retry rather than caching the failure for the session. */
+      FAC_MAN_PROMISE=null;
+      return null;
+    });
+  return FAC_MAN_PROMISE;
 }
 /* A request that never settles holds a queue slot for the whole session and, in
    the old code, prevented the layer from ever drawing. Nothing here is worth
