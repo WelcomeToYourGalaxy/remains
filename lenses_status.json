@@ -1,5 +1,5 @@
 {
- "checked": "2026-08-10T06:52:19.966789Z",
+ "checked": "2026-08-17T06:01:48.018596Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -92,8 +92,9 @@
    "url": "https://afn.ca/"
   },
   "Association on American Indian Affairs": {
-   "code": 200,
-   "state": "ok",
+   "code": 429,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.indian-affairs.org/"
   },
   "Atlas des patrimoines / Patriarche (France)": {
@@ -131,9 +132,8 @@
    "state": "find-only"
   },
   "Business & Human Rights Resource Centre — lawsuits database": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.business-humanrights.org/en/from-us/lawsuits-database/"
   },
   "Bååstede and Sámi repatriation (Norway/Sweden)": {
@@ -401,9 +401,8 @@
    "state": "find-only"
   },
   "IWGIA": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.iwgia.org/en/"
   },
   "Indian Law Resource Center": {
@@ -649,8 +648,9 @@
    "url": "https://www.justiceinitiative.org/"
   },
   "Parks Canada — archaeology and heritage": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
    "url": "https://parks.canada.ca/"
   },
   "Peabody Museum, Harvard": {
