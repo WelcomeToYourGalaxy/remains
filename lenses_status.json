@@ -1,5 +1,5 @@
 {
- "checked": "2026-08-17T06:01:48.018596Z",
+ "checked": "2026-08-24T06:03:47.479441Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -59,9 +59,9 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 500,
+   "note": "HTTP 500",
+   "state": "dead",
    "url": "https://www.archsite.org.nz/"
   },
   "Archaeological Resources Protection Act (US)": {
@@ -92,9 +92,8 @@
    "url": "https://afn.ca/"
   },
   "Association on American Indian Affairs": {
-   "code": 429,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.indian-affairs.org/"
   },
   "Atlas des patrimoines / Patriarche (France)": {
@@ -648,9 +647,8 @@
    "url": "https://www.justiceinitiative.org/"
   },
   "Parks Canada — archaeology and heritage": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://parks.canada.ca/"
   },
   "Peabody Museum, Harvard": {
@@ -829,11 +827,11 @@
   }
  },
  "tally": {
-  "blocked": 18,
+  "blocked": 16,
   "dead": 5,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 74,
+  "ok": 76,
   "redirect": 1,
   "tls": 5
  }
