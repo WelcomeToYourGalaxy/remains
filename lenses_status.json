@@ -1,5 +1,5 @@
 {
- "checked": "2026-08-24T06:03:47.479441Z",
+ "checked": "2026-08-31T11:46:32.744143Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -280,8 +280,9 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -400,8 +401,9 @@
    "state": "find-only"
   },
   "IWGIA": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
    "url": "https://www.iwgia.org/en/"
   },
   "Indian Law Resource Center": {
@@ -550,10 +552,9 @@
    "url": "https://www.archaeology.ie/"
   },
   "National NAGPRA Inventories database": {
-   "code": 200,
-   "final": "https://apps.cr.nps.gov/nagprapublic/home/inventory",
-   "note": "live, but the server's certificate chain is incomplete",
-   "state": "tls",
+   "code": 0,
+   "note": "HTTP Error 404: Not Found",
+   "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory"
   },
   "National NAGPRA Program (US)": {
@@ -562,24 +563,21 @@
    "url": "https://www.nps.gov/subjects/nagpra/index.htm"
   },
   "National NAGPRA Summaries database": {
-   "code": 200,
-   "final": "https://apps.cr.nps.gov/nagprapublic/home/summary",
-   "note": "live, but the server's certificate chain is incomplete",
-   "state": "tls",
+   "code": 0,
+   "note": "HTTP Error 404: Not Found",
+   "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary"
   },
   "National NAGPRA Unclaimed Lists": {
-   "code": 200,
-   "final": "https://apps.cr.nps.gov/nagprapublic/home/unclaimedlist",
-   "note": "live, but the server's certificate chain is incomplete",
-   "state": "tls",
+   "code": 0,
+   "note": "HTTP Error 404: Not Found",
+   "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList"
   },
   "National NAGPRA grants database": {
-   "code": 200,
-   "final": "https://apps.cr.nps.gov/nagprapublic/home/grant",
-   "note": "live, but the server's certificate chain is incomplete",
-   "state": "tls",
+   "code": 0,
+   "note": "HTTP Error 404: Not Found",
+   "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant"
   },
   "National NAGPRA grants programme": {
@@ -587,10 +585,9 @@
    "state": "find-only"
   },
   "National NAGPRA newspaper notices": {
-   "code": 200,
-   "final": "https://apps.cr.nps.gov/nagprapublic/home/nid",
-   "note": "live, but the server's certificate chain is incomplete",
-   "state": "tls",
+   "code": 0,
+   "note": "HTTP Error 404: Not Found",
+   "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID"
   },
   "National NAGPRA public databases": {
@@ -688,8 +685,9 @@
    "url": "https://www.cultureelerfgoed.nl/"
   },
   "Riksantikvaren (Norway)": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "The read operation timed out",
+   "state": "dead",
    "url": "https://riksantikvaren.no/"
   },
   "Riksantikvarieämbetet (Sweden)": {
@@ -745,7 +743,7 @@
   },
   "UBPD (Colombia)": {
    "code": 0,
-   "note": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (",
+   "note": "<urlopen error [Errno 104] Connection reset by peer>",
    "state": "dead",
    "url": "https://ubpdbusquedadesaparecidos.co/"
   },
@@ -827,12 +825,12 @@
   }
  },
  "tally": {
-  "blocked": 16,
-  "dead": 5,
+  "blocked": 17,
+  "dead": 12,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 76,
+  "ok": 73,
   "redirect": 1,
-  "tls": 5
+  "tls": 0
  }
 }
