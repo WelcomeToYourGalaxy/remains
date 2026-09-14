@@ -1,5 +1,5 @@
 {
- "checked": "2026-09-07T10:37:34.505996Z",
+ "checked": "2026-09-14T10:54:40.471413Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,9 +11,8 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -551,7 +550,7 @@
   },
   "National NAGPRA Inventories database": {
    "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "note": "<urlopen error timed out>",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory"
   },
@@ -562,19 +561,19 @@
   },
   "National NAGPRA Summaries database": {
    "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "note": "<urlopen error timed out>",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary"
   },
   "National NAGPRA Unclaimed Lists": {
    "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "note": "<urlopen error timed out>",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList"
   },
   "National NAGPRA grants database": {
    "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "note": "<urlopen error timed out>",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant"
   },
@@ -584,7 +583,7 @@
   },
   "National NAGPRA newspaper notices": {
    "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "note": "<urlopen error timed out>",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID"
   },
@@ -739,9 +738,10 @@
    "state": "find-only"
   },
   "UBPD (Colombia)": {
-   "code": 0,
-   "note": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (",
-   "state": "dead",
+   "code": 200,
+   "final": "https://unidadbusqueda.gov.co/",
+   "note": "resolves to a different URL",
+   "state": "redirect",
    "url": "https://ubpdbusquedadesaparecidos.co/"
   },
   "UK Parliament — bills before Parliament": {
@@ -823,11 +823,11 @@
  },
  "tally": {
   "blocked": 16,
-  "dead": 10,
+  "dead": 8,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 76,
-  "redirect": 1,
+  "ok": 77,
+  "redirect": 2,
   "tls": 0
  }
 }
