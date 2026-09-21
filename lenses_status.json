@@ -1,5 +1,5 @@
 {
- "checked": "2026-09-14T10:54:40.471413Z",
+ "checked": "2026-09-21T10:57:16.167263Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,8 +11,9 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -58,8 +59,8 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 500,
-   "note": "HTTP 500",
+   "code": 0,
+   "note": "The read operation timed out",
    "state": "dead",
    "url": "https://www.archsite.org.nz/"
   },
@@ -311,8 +312,9 @@
    "state": "find-only"
   },
   "Heritage Gateway (England)": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.heritagegateway.org.uk/gateway/"
   },
   "Heritage NSW — Aboriginal cultural heritage": {
@@ -550,7 +552,7 @@
   },
   "National NAGPRA Inventories database": {
    "code": 0,
-   "note": "<urlopen error timed out>",
+   "note": "HTTP Error 404: Not Found",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory"
   },
@@ -561,19 +563,19 @@
   },
   "National NAGPRA Summaries database": {
    "code": 0,
-   "note": "<urlopen error timed out>",
+   "note": "HTTP Error 404: Not Found",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary"
   },
   "National NAGPRA Unclaimed Lists": {
    "code": 0,
-   "note": "<urlopen error timed out>",
+   "note": "HTTP Error 404: Not Found",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList"
   },
   "National NAGPRA grants database": {
    "code": 0,
-   "note": "<urlopen error timed out>",
+   "note": "HTTP Error 404: Not Found",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant"
   },
@@ -583,7 +585,7 @@
   },
   "National NAGPRA newspaper notices": {
    "code": 0,
-   "note": "<urlopen error timed out>",
+   "note": "HTTP Error 404: Not Found",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID"
   },
@@ -641,8 +643,9 @@
    "url": "https://www.justiceinitiative.org/"
   },
   "Parks Canada — archaeology and heritage": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "Remote end closed connection without response",
+   "state": "dead",
    "url": "https://parks.canada.ca/"
   },
   "Peabody Museum, Harvard": {
@@ -822,11 +825,11 @@
   }
  },
  "tally": {
-  "blocked": 16,
-  "dead": 8,
+  "blocked": 17,
+  "dead": 10,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 77,
+  "ok": 74,
   "redirect": 2,
   "tls": 0
  }
