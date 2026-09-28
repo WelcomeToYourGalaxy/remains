@@ -1,5 +1,5 @@
 {
- "checked": "2026-09-21T10:57:16.167263Z",
+ "checked": "2026-09-28T11:54:24.711858Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -59,8 +59,8 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 0,
-   "note": "The read operation timed out",
+   "code": 500,
+   "note": "HTTP 500",
    "state": "dead",
    "url": "https://www.archsite.org.nz/"
   },
@@ -280,8 +280,9 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -343,9 +344,8 @@
    "url": "https://historicengland.org.uk/"
   },
   "Historic Environment Scotland": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.historicenvironment.scot/"
   },
   "ICMP — International Commission on Missing Persons": {
@@ -422,8 +422,9 @@
    "url": "https://www.oas.org/en/iachr/"
   },
   "Inter-American Court of Human Rights": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.corteidh.or.cr/"
   },
   "International Coalition of Sites of Conscience": {
@@ -643,9 +644,8 @@
    "url": "https://www.justiceinitiative.org/"
   },
   "Parks Canada — archaeology and heritage": {
-   "code": 0,
-   "note": "Remote end closed connection without response",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://parks.canada.ca/"
   },
   "Peabody Museum, Harvard": {
@@ -825,8 +825,8 @@
   }
  },
  "tally": {
-  "blocked": 17,
-  "dead": 10,
+  "blocked": 18,
+  "dead": 9,
   "find-only": 69,
   "moved-to-root": 0,
   "ok": 74,
