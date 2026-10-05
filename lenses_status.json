@@ -1,5 +1,5 @@
 {
- "checked": "2026-09-28T11:54:24.711858Z",
+ "checked": "2026-10-05T12:30:07.176619Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,9 +11,8 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -247,8 +246,9 @@
    "url": "https://www.echr.coe.int/"
   },
   "Excavations.ie": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "The read operation timed out",
+   "state": "dead",
    "url": "https://excavations.ie/"
   },
   "FAFG — Fundación de Antropología Forense de Guatemala": {
@@ -280,9 +280,8 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -422,9 +421,8 @@
    "url": "https://www.oas.org/en/iachr/"
   },
   "Inter-American Court of Human Rights": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.corteidh.or.cr/"
   },
   "International Coalition of Sites of Conscience": {
@@ -825,11 +823,11 @@
   }
  },
  "tally": {
-  "blocked": 18,
+  "blocked": 16,
   "dead": 9,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 74,
+  "ok": 76,
   "redirect": 2,
   "tls": 0
  }
