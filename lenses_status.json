@@ -1,5 +1,5 @@
 {
- "checked": "2026-10-05T12:30:07.176619Z",
+ "checked": "2026-10-12T13:25:20.439666Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -16,8 +16,9 @@
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
-   "code": 200,
-   "state": "ok",
+   "code": 502,
+   "note": "HTTP 502",
+   "state": "dead",
    "url": "https://data.nsw.gov.au/data/dataset/aboriginal-heritage-impact-permit-boundaries"
   },
   "AIATSIS (Australia)": {
@@ -58,8 +59,8 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 500,
-   "note": "HTTP 500",
+   "code": 0,
+   "note": "The read operation timed out",
    "state": "dead",
    "url": "https://www.archsite.org.nz/"
   },
@@ -109,8 +110,9 @@
    "state": "find-only"
   },
   "BABAO": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error [Errno -2] Name or service not known>",
+   "state": "dead",
    "url": "https://babao.org.uk/"
   },
   "Banco Nacional de Datos Genéticos (Argentina)": {
@@ -280,8 +282,9 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "The read operation timed out",
+   "state": "dead",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -511,8 +514,9 @@
    "url": "https://www.nathpo.org/"
   },
   "NCAP — National Collection of Aerial Photography": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.ncap.org/"
   },
   "NCSHPO — State Historic Preservation Officers (US)": {
@@ -823,11 +827,11 @@
   }
  },
  "tally": {
-  "blocked": 16,
-  "dead": 9,
+  "blocked": 17,
+  "dead": 12,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 76,
+  "ok": 72,
   "redirect": 2,
   "tls": 0
  }
