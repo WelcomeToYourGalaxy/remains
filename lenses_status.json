@@ -1,5 +1,5 @@
 {
- "checked": "2026-10-12T13:25:20.439666Z",
+ "checked": "2026-10-19T11:04:27.950250Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,14 +11,14 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
-   "code": 502,
-   "note": "HTTP 502",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://data.nsw.gov.au/data/dataset/aboriginal-heritage-impact-permit-boundaries"
   },
   "AIATSIS (Australia)": {
@@ -110,9 +110,8 @@
    "state": "find-only"
   },
   "BABAO": {
-   "code": 0,
-   "note": "<urlopen error [Errno -2] Name or service not known>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://babao.org.uk/"
   },
   "Banco Nacional de Datos Genéticos (Argentina)": {
@@ -248,9 +247,8 @@
    "url": "https://www.echr.coe.int/"
   },
   "Excavations.ie": {
-   "code": 0,
-   "note": "The read operation timed out",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://excavations.ie/"
   },
   "FAFG — Fundación de Antropología Forense de Guatemala": {
@@ -282,9 +280,8 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 0,
-   "note": "The read operation timed out",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -828,10 +825,10 @@
  },
  "tally": {
   "blocked": 17,
-  "dead": 12,
+  "dead": 9,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 72,
+  "ok": 75,
   "redirect": 2,
   "tls": 0
  }
