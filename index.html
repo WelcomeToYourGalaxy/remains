@@ -939,6 +939,9 @@ var SOURCE_LABEL={
   'tribal_comments':'Objections filed (Regulations.gov)',
   'propublica_holdings':'Institutions holding remains (NAGPRA/ProPublica)',
   'wikidata_graves':'Mass graves & memorials (Wikidata)',
+  'institution_investigations':'Schools & institutions under investigation',
+  'peru_cultura':'Peru Culture Ministry decisions (gob.pe)',
+  'doj_looting':'US prosecutions for grave looting (DOJ)',
   'nps_nagpra_grid':'US NAGPRA inventories','ckan_remains':'Open-data portals (CKAN)',
   'ods_remains':'Open-data portals (ODS)','geonode_remains':'Open-data portals (GeoNode)'};
 var fWindow=0, inclUndated=true, query='';
@@ -1149,7 +1152,12 @@ var MarkLayer=L.Layer.extend({
          projected and drawn. */
       var drawn=0;
       var cellList=[];
-      if(f.spec&&f.spec.mode==='tiled'&&f.cells){
+      if(facUseOverview(f)){
+        /* World and continent zoom: one pre-thinned file of real points, one per
+           0.1 degree -- the same picture the 3-pixel binning below would draw from
+           the full tiles, in one request instead of 166. */
+        cellList.push(f.overview);
+      } else if(f.spec&&f.spec.mode==='tiled'&&f.cells){
         var vis=facVisibleCells(f.spec);
         for(var vi=0;vi<vis.length;vi++){
           var cell=f.cells[vis[vi]];
@@ -2188,6 +2196,25 @@ function facFetch(base,ver){
       .then(function(r){ if(!r.ok)return Promise.reject('http '+r.status); return r.json(); }); }),
     45000);
 }
+/* THE PATCHES. A tiled layer used to need every 10-degree tile in view before
+   the world view was complete: 166 requests, four at a time, so the map filled in
+   square by square and a slow tile stayed a square hole. Below zoom 6 the map now
+   draws from one small overview file instead; from zoom 6 up it loads the full
+   tiles, nearest the centre of the view first, and draws every row. */
+function facUseOverview(f){
+  var ov=f&&f.spec&&f.spec.overview;
+  return !!(ov&&Array.isArray(f.overview)&&f.overview.length&&map.getZoom()<=(ov.max_zoom||5));
+}
+function facLoadOverview(id){
+  var f=FAC[id], ov=f&&f.spec&&f.spec.overview;
+  if(!ov||f.overview||f._ovPromise)return f&&f._ovPromise;
+  var base=ov.file.replace(/\.json\.gz$/,'');
+  f._ovPromise=facFetch(base,ov.count||'')
+    .then(function(rows){ f.overview=Array.isArray(rows)?rows:null; })
+    .catch(function(){ f.overview=null; faclog(id+' overview FAILED -- using tiles'); })
+    .then(function(){ facEnsureTiles(id); layer.redraw(); });
+  return f._ovPromise;
+}
 /* Which manifest cells the current view touches. */
 function facVisibleCells(spec){
   var d=spec.tile_deg||10, b=map.getBounds(), out=[];
@@ -2204,7 +2231,18 @@ function facVisibleCells(spec){
 function facEnsureTiles(id){
   var f=FAC[id]; if(!f||!f.on||!f.spec||f.spec.mode!=='tiled')return;
   var lbl=document.getElementById(f.countId);
-  var want=facVisibleCells(f.spec).filter(function(k){return !f.cells[k];});
+  if(f.spec.overview&&f.overview!==null&&map.getZoom()<=(f.spec.overview.max_zoom||5)){
+    /* overview covers this zoom; tiles are not needed until zoom 6 */
+    if(!f.overview){ facLoadOverview(id); if(lbl)lbl.textContent='loading\u2026'; return; }
+    if(lbl)lbl.textContent=(f.spec.count||0).toLocaleString()+' mapped \u00b7 zoom in for every mark to load';
+    return;
+  }
+  var cen=map.getCenter(), dg=f.spec.tile_deg||10;
+  var want=facVisibleCells(f.spec).filter(function(k){return !f.cells[k];})
+    .sort(function(a,b){   /* fill from the middle of the view outward */
+      function d(k){ var p=k.split('_'); return Math.pow(+p[0]+dg/2-cen.lat,2)+Math.pow(+p[1]+dg/2-cen.lng,2); }
+      return d(a)-d(b);
+    });
   if(!want.length)return;
   want.forEach(function(k){ f.cells[k]='loading'; });
   if(lbl) lbl.textContent='loading\u2026';
@@ -2308,7 +2346,9 @@ function facCheckbox(id,cbId,countId){
       faclog(id+' manifest '+(man?'ok':'NULL')+', mode='
         +(spec?spec.mode+' ('+(spec.count||0)+' rows)':'NO SPEC -> will try a single file'));
       if(spec&&spec.mode==='tiled'){
-        f.rows=f.rows||[]; facEnsureTiles(id); return;
+        f.rows=f.rows||[];
+        if(spec.overview&&f.overview===undefined){ facLoadOverview(id); return; }
+        facEnsureTiles(id); layer.redraw(); return;
       }
       if(f.rows||f.loading){ layer.redraw(); return; }
       f.loading=true; lbl.textContent='loading\u2026';

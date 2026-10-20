@@ -20,6 +20,7 @@ import re
 MANIFEST = "remains_local_manifest.json"
 # remains_local_<type>.json.gz  or  remains_local_<type>_<lat>_<lng>.json.gz
 PATTERN = re.compile(r"^remains_local_([a-z]+)(?:_(-?\d+_-?\d+))?\.json\.gz$")
+# remains_local_<type>_overview.json.gz does not match PATTERN, so it is never deleted here.
 
 
 def main():
@@ -59,6 +60,14 @@ def main():
 
     print("  prune: removed %d stale file(s); %d left alone as unrecognised"
           % (dropped, kept_unknown))
+
+    # The world-view file is rebuilt from whatever tiles survived. Done here so the
+    # cemeteries workflow picks it up without editing the workflow itself.
+    try:
+        import build_overview
+        build_overview.main()
+    except Exception as e:
+        print("  overview: not built (%s)" % e)
 
 
 if __name__ == "__main__":

@@ -93,7 +93,7 @@ Tunables (env):
     CONTACT        contact string for the User-Agent
 """
 
-import os, sys, time, json, glob, gzip, math, urllib.request, urllib.parse
+import os, sys, time, json, glob, gzip, math, zlib, urllib.request, urllib.parse
 
 CONTACT     = os.environ.get("CONTACT", "wheelock.chris@gmail.com")
 UA          = "remains-map-cemeteries/1.0 (+%s)" % CONTACT
@@ -382,10 +382,33 @@ def _memo_out():
 DONE_MAX_AGE_DAYS = int(os.environ.get("DONE_MAX_AGE_DAYS", "14"))
 
 
+# Memo format version. Version 1 memos are DISCARDED on load, because they were
+# poisoned: an early broken run recorded 8,268 of the 8,352 tiles as "empty"
+# (Germany among them). Known-empty tiles are skipped seven runs in eight, and the
+# merge then published only what each run found -- so the layer showed a random
+# eighth of the world in 2.5-degree squares. Version 2 records a tile as empty only
+# when every part of it was fetched successfully and returned nothing.
+MEMO_VERSION = 2
+
+
+def _tile_key(lat, lng):
+    """The sweep-grid key (south-west corner) of the 2.5-degree tile holding a point."""
+    la = _LAT_MIN + math.floor((min(max(lat, _LAT_MIN), _LAT_MAX - 1e-9) - _LAT_MIN)
+                               / TILE_DEG) * TILE_DEG
+    lo = _LNG_MIN + math.floor((min(max(lng, _LNG_MIN), _LNG_MAX - 1e-9) - _LNG_MIN)
+                               / TILE_DEG) * TILE_DEG
+    return "%.3f,%.3f" % (round(la, 3), round(lo, 3))
+
+
 def _load_memo():
     try:
         with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
             j = json.load(fh)
+        if j.get("version") != MEMO_VERSION:
+            print("  memo is an old-format file (version %s) whose 'empty' list is "
+                  "known to be wrong -- ignoring it and sweeping every tile."
+                  % j.get("version"))
+            return set(), set()
         empty = set(j.get("empty", []))
         done = set(j.get("done", []))
         started = j.get("sweep_started")
@@ -409,7 +432,7 @@ def _load_empties():
     return _load_memo()[0]
 
 
-def _save_memo(empties, done, complete):
+def _save_memo(empties, done, complete, swept_ok=()):
     """Persist the empty-tile optimisation and the resume marker.
 
     `complete` means this shard finished every tile it was given. When a shard
@@ -434,9 +457,11 @@ def _save_memo(empties, done, complete):
                                "sweep except a rotating eighth. done = tiles already "
                                "swept by a run that ran out of budget, skipped until "
                                "the sweep completes, then cleared.",
+                       "version": MEMO_VERSION,
                        "empty_count": len(empties), "done_count": len(done),
                        "sweep_started": started,
-                       "empty": sorted(empties), "done": sorted(done)}, fh)
+                       "empty": sorted(empties), "done": sorted(done),
+                       "swept_ok": sorted(swept_ok)}, fh)
     except Exception as e:
         print("  could not save %s: %s" % (EMPTIES_FILE, e))
 
@@ -485,12 +510,15 @@ def harvest(ftype):
     out = {} if combined else []
     stats = {"refused": 0}
     ok = split = gaveup = skipped = preskipped = 0
+    swept_ok = set()     # tiles fetched COMPLETELY this run; the merge replaces only these
     for (s_, w, n, e) in grid:
         key = "%.3f,%.3f" % (s_, w)
         if key in done:
             preskipped += 1
             continue                     # swept by an earlier run; resume past it
-        if (not recheck_all) and key in empties and (hash(key) % 8) != rot:
+        # zlib.crc32, not hash(): Python randomises str hashes per process, so
+        # hash() picked a different "eighth" every run instead of rotating.
+        if (not recheck_all) and key in empties and (zlib.crc32(key.encode()) % 8) != rot:
             preskipped += 1
             continue
         if time.time() > t_end:
@@ -502,17 +530,21 @@ def harvest(ftype):
         after = sum(len(v) for v in out.values()) if combined else len(out)
         if a > 0:
             ok += 1
-            if after == before:
-                empties.add(key)
-            else:
+            if g == 0:
+                swept_ok.add(key)
+            if after != before:
                 empties.discard(key)
+            elif g == 0:
+                # empty only if NOTHING failed: a tile whose dense quarter gave up
+                # and whose other quarters were sea is not an empty tile
+                empties.add(key)
         if sp > 0: split += 1
         gaveup += g
         done.add(key)                    # banked, whether or not it yielded rows
         time.sleep(0.4)
 
     complete = (skipped == 0)
-    _save_memo(empties, done, complete)
+    _save_memo(empties, done, complete, swept_ok)
     if not complete:
         print("  RAN OUT OF BUDGET with %d tile(s) unswept. Progress is saved: the "
               "next run resumes from here rather than starting over." % skipped)
@@ -551,13 +583,17 @@ def merge_memos():
     if not parts:
         print("  memo: no shard memos to merge")
         return
-    empty, done = set(), set()
+    empty, done, swept = set(), set(), set()
     for p in parts:
         try:
             with open(p, "r", encoding="utf-8") as fh:
                 j = json.load(fh)
-            empty |= set(j.get("empty", []))
+            if j.get("version") != MEMO_VERSION:
+                print("  memo: %s is old-format -- its empty list is ignored" % p)
+            else:
+                empty |= set(j.get("empty", []))
             done |= set(j.get("done", []))
+            swept |= set(j.get("swept_ok", []))
         except Exception as e:
             print("  memo: %s unreadable: %s" % (p, e))
     complete = not done
@@ -574,10 +610,13 @@ def merge_memos():
         json.dump({"note": "empty = tiles that returned nothing, skipped next sweep "
                            "except a rotating eighth. done = tiles swept by a run "
                            "that ran out of budget, skipped until the sweep "
-                           "completes, then cleared.",
+                           "completes, then cleared. swept_ok = tiles the last "
+                           "run fetched completely; only their rows were replaced.",
+                   "version": MEMO_VERSION,
                    "empty_count": len(empty), "done_count": len(done),
                    "sweep_started": started,
-                   "empty": sorted(empty), "done": sorted(done)}, fh)
+                   "empty": sorted(empty), "done": sorted(done),
+                   "swept_ok": sorted(swept)}, fh)
     for p in parts:
         try:
             os.remove(p)
@@ -590,28 +629,86 @@ def merge_memos():
               "here." % (len(done), len(empty)))
 
 
-def merge(ftype):
-    """Fold shard parts into one file. Never overwrites a healthy file with a
-    thinner one -- same anti-wipe rule the other harvesters use."""
-    parts = sorted(glob.glob("remains_local_%s_part*.json" % ftype))
+def _swept_this_run():
+    """Tiles the run that produced these parts fetched completely.
+
+    Read from the shard memos if they are still present; otherwise from the merged
+    memo, because the workflow merges one facility type per process and the first
+    process's merge_memos() deletes the shard memos."""
+    parts = sorted(glob.glob("osm_empty_tiles_part*.json"))
+    swept = set()
+    if parts:
+        for p in parts:
+            try:
+                with open(p, "r", encoding="utf-8") as fh:
+                    swept |= set(json.load(fh).get("swept_ok", []))
+            except Exception:
+                pass
+        return swept
+    try:
+        with open(EMPTIES_FILE, "r", encoding="utf-8") as fh:
+            j = json.load(fh)
+        if j.get("version") == MEMO_VERSION:
+            return set(j.get("swept_ok", []))
+    except Exception:
+        pass
+    return set()
+
+
+def _read_published(ftype):
+    """Every row currently published for a type -- single file OR all its tiles.
+
+    The old merge looked only for the single file, which does not exist once a type
+    is tiled, so for cemeteries there was never a prior to protect and each run's
+    partial sweep simply replaced the whole layer."""
+    man = _load_manifest()
+    spec = (man.get("types") or {}).get(ftype) or {}
     rows = []
+    if spec.get("mode") == "tiled":
+        for key in spec.get("tiles", {}):
+            fn = "remains_local_%s_%s.json.gz" % (ftype, key)
+            if os.path.exists(fn):
+                try:
+                    rows += _read_rows(fn)
+                except Exception as e:
+                    print("  merge: published tile %s unreadable: %s" % (fn, e))
+        return rows
+    fn = spec.get("file") or _outfile(ftype)
+    if os.path.exists(fn):
+        try:
+            rows = _read_rows(fn)
+        except Exception:
+            rows = []
+    return rows
+
+
+def merge(ftype):
+    """Fold this run's shard parts INTO the published layer.
+
+    A run never covers the whole world: shards time out, tiles give up, a resumed
+    sweep skips what it banked. So this run's rows replace the published rows ONLY
+    inside the 2.5-degree tiles it fetched completely; everywhere else the
+    published rows stay. A layer can therefore only grow or be corrected tile by
+    tile -- it can no longer shrink to whatever one run happened to reach."""
+    parts = sorted(glob.glob("remains_local_%s_part*.json" % ftype))
+    fresh = []
     for p in parts:
         try:
-            rows += _read_rows(p)
+            fresh += _read_rows(p)
             print("  merge: read %s" % p)
         except Exception as e:
             print("  merge: %s unreadable: %s" % (p, e))
-    merged = _dedup(rows)
-    fn = _outfile(ftype)
-    if os.path.exists(fn):
-        try:
-            prior = _read_rows(fn)
-            if len(merged) < len(prior) * 0.6:
-                print("  merge: %d rows is far thinner than the existing %d -- "
-                      "keeping the existing file" % (len(merged), len(prior)))
-                return prior
-        except Exception:
-            pass
+    prior = _read_published(ftype)
+    swept = _swept_this_run()
+    kept = [r for r in prior if _tile_key(r[0], r[1]) not in swept]
+    merged = _dedup(fresh + kept)
+    print("  merge: %s -- %d fresh rows; %d of %d published rows kept (outside the "
+          "%d tile(s) re-swept completely this run)"
+          % (ftype, len(fresh), len(kept), len(prior), len(swept)))
+    if prior and len(merged) < len(prior) * 0.6:
+        print("  merge: %d rows is far thinner than the existing %d -- keeping the "
+              "existing layer" % (len(merged), len(prior)))
+        return prior
     if not merged:
         print("  merge: nothing to write for %s" % ftype)
         return []

@@ -827,6 +827,37 @@ invisible to readers, because the map only requests what the manifest advertises
 but immortal in git. It only removes files matching the published naming scheme and
 absent from the manifest; anything it cannot account for is left alone.
 
+### Why the facility layers showed up as scattered squares (fixed 2026-10-19)
+
+Two faults, one in the harvest and one in the map.
+
+**The harvest was publishing a random eighth of the world.** An early broken run
+recorded 8,268 of the 8,352 sweep tiles (2.5°) as "empty" — Germany among them.
+Known-empty tiles are rechecked one run in eight, and the rotation used Python's
+`hash()`, which is randomised per process, so each run rechecked a *different*
+random eighth. The merge then published only what that one run found: for a tiled
+type it looked for a single prior file that no longer existed, so the 60% anti-wipe
+guard never fired. Measured on the live layer: the 50–60°N, 0–10°E cell held 18,000
+cemeteries and its eastern neighbour (most of Germany) fewer than 100.
+
+Fixed in `harvest_cemeteries.py`:
+- the memo now carries a version; the old one is discarded, so the next run sweeps
+  every tile;
+- a tile is recorded empty only if every part of it was fetched and returned nothing;
+- the rotation uses `zlib.crc32`, which is stable across runs;
+- **the merge accumulates.** Each shard reports the tiles it fetched completely
+  (`swept_ok`). Published rows inside those tiles are replaced by the fresh ones;
+  everywhere else the published rows stay. A timed-out shard or a resumed sweep can
+  no longer shrink the layer.
+
+**The map drew the world view from 166 separate tiles,** four at a time, so it filled
+in square by square. `build_overview.py` now writes one file per tiled type keeping
+one real point per 0.1° (the first facility in each bin — not a bin centre). Below
+zoom 6 the map's own 3-pixel binning cannot draw finer than that, so the picture is
+the same as the full data, in one request (cemeteries: 25,203 points, 0.17 MB). From
+zoom 6 up it loads the full tiles, nearest the centre first, and draws every row.
+It is rebuilt after each harvest (from `prune_tiles.py`) and by `apply_update.py`.
+
 ### Museums in the facility layer
 
 A fourth facility type, and a different kind of layer from the other three. Cemeteries,
@@ -981,6 +1012,60 @@ returned nothing; delete those rather than leaving them in to look thorough.
 
 ---
 
+### Peru — Ministerio de Cultura decisions → `peru_cultura`
+
+The first Latin American permit system on the map read as records. gob.pe's search
+page carries its results as JSON; the harvester pages through fifteen Spanish terms,
+then reads each candidate's full summary from its own page (the search teaser stops
+at 220 characters), and classifies by the resolution's own wording:
+
+| Wording | Kind |
+|---|---|
+| export of archaeological samples, **and** the text names bone, human or funerary material | `transfer` — often "con carácter destructivo": the samples are consumed by analysis abroad |
+| research approved on state collections, naming human remains | `holding` |
+| approved rescue (PRA), evaluation (PEA), research (PIA) or monitoring plan (PMA) | `excavation` |
+| ruling on a CIRA — the certificate that an area holds *no* remains, which a project needs before it builds | `review` |
+
+Forms, guides, delegations and appointments are skipped by rule: they carry no site
+and no remains. Placement is the department named in the text, at its capital
+(GEO_ADMIN); with none named, the centre of Peru. Refusals and annulments are kept,
+with status "refused or annulled".
+
+### US Department of Justice prosecutions → `doj_looting`
+
+justice.gov's press-release API filters by title. Sixteen title terms are read in
+full; a release is kept only if it concerns archaeological, burial or cultural
+material, describes a case (charged, pleaded, sentenced, forfeited, returned), **and**
+names human remains, a grave, a burial or funerary objects. Of 91 releases about site
+looting, 27 meet that last test; the rest are arrowheads and pottery, outside this
+map's subject. Three of the 27 were fossils (a looted dinosaur skull) and are
+excluded, leaving 24. Kind `looting` (unlawful), placed at the state
+of the US Attorney's district.
+
+Measured 2026-10-19: 233 records — 29 exports naming bone or human remains, 20
+studies of held remains, 53 interventions, 131 CIRA rulings. Most of the ministry's
+3,175 export authorisations describe "muestras arqueológicas" without saying what
+they are; those are not counted as remains, because the summary does not say so.
+Further reading would need the annex PDF of each resolution.
+
+### Three sources that never ran
+
+`propublica_holdings`, `wikidata_graves` and `institution_investigations` were
+written and documented but never added to the daily source list, so no run called
+them. The live file confirmed it: 3,298 records, none from those three. Now listed.
+ProPublica alone returns 4,164 institutions (measured 2026-10-19).
+
+**Wikidata rate limits.** Tested from a shared IP, Wikidata answered "Aggressively
+rate-limiting to 1 req/min" with a 1,000-second wait. The cause was the memorial
+query: every memorial on Wikidata, filtered afterwards by label. It now asks only
+for items that commemorate (P547) a massacre or genocide — smaller and more exact.
+Wikidata queries are serialised with a gap between them, a short 429 is waited out,
+and a long one skips Wikidata for that run.
+
+**A source that returns nothing keeps yesterday's rows.** A whole register going to
+zero overnight is almost always an outage or a ban, not every record withdrawn.
+Sources that return even one row are replaced in full, as before.
+
 ## 3. Pending — real registers, no verified machine route yet
 
 | Register | What blocks it |
@@ -995,6 +1080,10 @@ returned nothing; delete those rather than leaving them in to look thorough.
 | **Mexico CNB** | Clandestine-grave registry. Publication intermittent and aggregate. |
 | **England & Wales MoJ licences** (Burial Act 1857 s.25) | Issued in volume; released only on request. |
 | **ICMP** | Fullest record of conflict-grave exhumations anywhere. Publishes reports, not data. |
+| **Brazil — IPHAN** archaeological-research authorisations | Published as *portarias* in the Diário Oficial; IPHAN's open-data host did not answer (checked 2026-10-19). |
+| **Mexico — INAH** rescue and salvage permits | No published register located; INAH publishes press bulletins only. |
+| **Colombia — ICANH** preventive-archaeology programmes | Published as resolutions in PDF only. datos.gov.co holds two small grave layers (2 and 9 rows); the Bogotá one is a site-location layer and is refused on policy. |
+| **CWGC** war graves | Cemeteries, not unearthings, and already in the OSM cemetery layer where mapped. Recoveries of war dead reach the map through the wire (CWGC, DPAA feeds). |
 
 ### The NPS grids now probe for themselves
 

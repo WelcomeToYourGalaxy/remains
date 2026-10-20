@@ -61,6 +61,8 @@ import gzip
 import json
 import io
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
+import html
 import ssl
 import traceback, sys, os, re, time, datetime, urllib.request, urllib.parse, urllib.error, gzip
 
@@ -3358,12 +3360,49 @@ WD_MEMORIAL_TERMS = ("massacre", "genocide", "mass killing", "mass grave",
                      "killing field", "holocaust", "atrocity")
 
 
+import threading as _threading
+_WD_LOCK = _threading.Lock()
+_WD_LAST = [0.0]
+
+
 def _wd_query(sparql):
+    """One Wikidata query at a time, spaced, and patient with 429.
+
+    Two sources query Wikidata and the harvest runs sources in parallel, so they
+    used to hit it simultaneously -- and from a shared runner IP the service
+    answers "Aggressively rate-limiting to 1 request" and every class failed. A
+    module lock serialises them, a gap is kept between calls, and a 429 is waited
+    out (Retry-After when given) up to five times instead of giving up after one."""
     url = WIKIDATA_SPARQL + "?" + urllib.parse.urlencode(
         {"query": sparql, "format": "json"})
     # Wikidata's policy asks for a descriptive User-Agent with contact details;
     # UA already carries one, and the Accept header keeps the JSON shape stable.
-    return _get_json_auth(url, {"Accept": "application/sparql-results+json"})
+    with _WD_LOCK:
+        for attempt in range(6):
+            gap = 3.0 - (time.time() - _WD_LAST[0])
+            if gap > 0:
+                time.sleep(gap)
+            try:
+                return _get_json_auth(url, {"Accept": "application/sparql-results+json"})
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 5:
+                    raise
+                try:
+                    wait = float(e.headers.get("Retry-After") or 0)
+                except Exception:
+                    wait = 0
+                if wait > 300:
+                    # a ban, not a burst limit: waiting it out would stall the
+                    # whole harvest. Skip Wikidata this run; tomorrow's run retries.
+                    print("  wikidata: told to wait %.0fs -- skipping Wikidata this "
+                          "run" % wait)
+                    raise
+                wait = max(wait, 10 * (attempt + 1))
+                print("  wikidata: rate-limited, waiting %.0fs (try %d of 5)"
+                      % (wait, attempt + 1))
+                time.sleep(min(wait, 120))
+            finally:
+                _WD_LAST[0] = time.time()
 
 
 def fetch_wikidata_graves():
@@ -3373,7 +3412,25 @@ def fetch_wikidata_graves():
         if (qid, label) in seen:
             continue
         seen.add((qid, label))
-        sparql = ("""
+        if kind == "review":
+            # Memorials: start from the KILLING, not from the memorial class.
+            # "Every memorial, then filter by label" scanned hundreds of thousands
+            # of items and was the query that got this harvester rate-banned.
+            # Asking for things that commemorate (P547) a massacre (Q3199915) or a
+            # genocide (Q41397) is small, and more exact than matching words.
+            sparql = """
+SELECT ?item ?itemLabel ?coord ?countryLabel ?date WHERE {
+  VALUES ?evc { wd:Q3199915 wd:Q41397 }
+  ?ev wdt:P31/wdt:P279* ?evc .
+  ?item wdt:P547 ?ev .
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P17 ?country . }
+  OPTIONAL { ?item wdt:P571 ?date . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
+}
+LIMIT 5000"""
+        else:
+          sparql = ("""
 SELECT ?item ?itemLabel ?coord ?countryLabel ?date WHERE {
   ?item wdt:P31/wdt:P279* wd:%s .
   ?item wdt:P625 ?coord .
@@ -3401,8 +3458,8 @@ LIMIT 3000""" % qid)
             if abs(lat) > 90 or abs(lng) > 180:
                 continue
             low = name.lower()
-            if kind == "review" and not any(t in low for t in WD_MEMORIAL_TERMS):
-                continue                       # a memorial, but not to a killing
+            # (memorials are already restricted, by the query, to those that
+            # commemorate a massacre or genocide)
             if _is_site_register(name):
                 _REFUSED[0] += 1
                 continue
@@ -3536,6 +3593,339 @@ LIMIT 2000""" % qid)
     print("  institution_investigations: %d institution(s)" % len(out))
     return out
 
+
+# ---------------------------------------------------------------------------
+# PERU -- Ministerio de Cultura decisions (gob.pe normas legales)
+# ---------------------------------------------------------------------------
+# Peru publishes its Culture Ministry resolutions on gob.pe, and the site's own
+# search page carries every result as JSON (window.initialData). That makes it the
+# first Latin American permit system on this map read as RECORDS, not news.
+#
+# What it yields, by the ministry's own wording:
+#   * exports of archaeological samples for analysis abroad -- often bone, often
+#     "con caracter destructivo" (the samples are consumed). Kept only when the
+#     full text names human or funerary material.            -> transfer
+#   * approved research on human remains held in state collections -> holding
+#   * approved rescue, evaluation, research and monitoring interventions
+#     (PRA, PEA, PIA, PMA) -- each one authorises digging at a named project. The
+#     resolution rarely says whether burials are present; the record says so.
+#                                                            -> excavation
+#   * annulments and rulings on CIRA, the certificate that an area holds NO
+#     archaeological remains -- the gate a project must pass before building.
+#                                                            -> review
+# Procedural norms (forms, guides, delegations, staffing) carry no site and no
+# remains and are not records of an unearthing; they are skipped by rule, not by
+# judgment: a record needs an intervention, an export, a held collection, or a
+# CIRA ruling.
+#
+# The search matches loosely (thousands of results per term), so classification
+# reads each candidate's FULL summary from its own page, not the 220-character
+# teaser. Placement is the department named in the text, at its capital, marked
+# GEO_ADMIN -- never a site.
+PE_TERMS = [
+    "restos humanos", "restos óseos", "muestras óseas", "contextos funerarios",
+    "momias", "fardos funerarios", "bioarqueología", "entierros",
+    "exportación de muestras arqueológicas", "rescate arqueológico",
+    "evaluación arqueológica", "plan de monitoreo arqueológico",
+    "proyecto de investigación arqueológica",
+    "certificado de inexistencia de restos arqueológicos", "cementerio",
+]
+PE_DEPT = {   # department -> its capital (GEO_ADMIN placement)
+    "Amazonas": (-6.2317, -77.8690), "Áncash": (-9.5278, -77.5278),
+    "Apurímac": (-13.6339, -72.8814), "Arequipa": (-16.4090, -71.5375),
+    "Ayacucho": (-13.1631, -74.2236), "Cajamarca": (-7.1638, -78.5003),
+    "Callao": (-12.0566, -77.1181), "Cusco": (-13.5319, -71.9675),
+    "Huancavelica": (-12.7870, -74.9733), "Huánuco": (-9.9306, -76.2422),
+    "Ica": (-14.0678, -75.7286), "Junín": (-12.0651, -75.2049),
+    "La Libertad": (-8.1116, -79.0288), "Lambayeque": (-6.7714, -79.8409),
+    "Lima": (-12.0464, -77.0428), "Loreto": (-3.7491, -73.2538),
+    "Madre de Dios": (-12.5933, -69.1891), "Moquegua": (-17.1983, -70.9357),
+    "Pasco": (-10.6864, -76.2625), "Piura": (-5.1945, -80.6328),
+    "Puno": (-15.8402, -70.0219), "San Martín": (-6.0342, -76.9717),
+    "Tacna": (-18.0066, -70.2463), "Tumbes": (-3.5669, -80.4515),
+    "Ucayali": (-8.3791, -74.5539),
+}
+_PE_PLAIN = {re.sub(r"[áéíóú]", lambda m: "aeiou"["áéíóú".index(m.group(0))], k).lower(): k
+             for k in PE_DEPT}
+_PE_REMAINS = re.compile(
+    r"restos humanos|restos [óo]seos|[óo]se[oa]s?\b|osament|momia|fardo|funerari|"
+    r"entierro|sepultur|bioarqueol|osteol|cr[áa]neo|esquelet|individuos|cementerio",
+    re.I)
+_PE_SKIP = re.compile(r"^\s*(aprobar (el|la|los|las) [\"“”']?(formato|gu[íi]a|directiva|"
+                      r"procedimiento|lineamiento|norma|ficha|acta)|delegar|designar|encargar|"
+                      r"aceptar la renuncia|conformar)", re.I)
+_PE_REFUSED = re.compile(r"improcedente|infundad|denegar|nulidad|dejar sin efecto",
+                         re.I)
+
+
+def _pe_search(term, sheet=1):
+    url = "https://www.gob.pe/busquedas?" + urllib.parse.urlencode(
+        [("contenido[]", "normas"), ("institucion[]", "cultura"),
+         ("term", term), ("sheet", sheet)])
+    s = _get_text(url, limit=3000000)
+    i = s.index("window.initialData=") + len("window.initialData=")
+    d, _ = json.JSONDecoder().raw_decode(s[i:])
+    return d["data"]["attributes"]
+
+
+def _pe_detail(path):
+    """The full summary from a resolution's own page."""
+    s = _get_text("https://www.gob.pe" + path, limit=2000000)
+    # The summary sits in one block; <br> inside it splits sentences, so the
+    # block is read whole rather than picking the longest line (which returned
+    # a fragment and lost the half of the sentence that named the material).
+    m = re.search(r'class="description rule-content">(.*?)'
+                  r'(?:<div class="institution-document__files"|</section>)', s, re.S)
+    raw = m.group(1) if m else ""
+    body = html.unescape(re.sub(r"<[^>]+>", " ", raw.replace("<br>", " ")))
+    body = re.sub(r"\s+", " ", body).strip()
+    pdf = re.search(r"https://cdn\.www\.gob\.pe/uploads/document/file/[^\"']+\.pdf", s)
+    return body, (pdf.group(0) if pdf else "")
+
+
+_PE_MONTHS = {m: i + 1 for i, m in enumerate(
+    ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+     "setiembre", "octubre", "noviembre", "diciembre"])}
+_PE_MONTHS["septiembre"] = 9
+
+
+def _pe_date(s):
+    m = re.search(r"(\d{1,2}) de ([a-z]+) de (\d{4})", (s or "").lower())
+    if not m or m.group(2) not in _PE_MONTHS:
+        return ""
+    return "%s-%02d-%02d" % (m.group(3), _PE_MONTHS[m.group(2)], int(m.group(1)))
+
+
+def _pe_dept(text):
+    low = re.sub(r"[áéíóú]", lambda m: "aeiou"["áéíóú".index(m.group(0))],
+                 text.lower())
+    m = re.search(r"departamento de ([a-z ]+?)(?:[,.;]|$| y )", low)
+    if m and m.group(1).strip() in _PE_PLAIN:
+        return _PE_PLAIN[m.group(1).strip()]
+    for plain, name in sorted(_PE_PLAIN.items(), key=lambda kv: -len(kv[0])):
+        if plain == "lima":
+            continue          # the ministry's own seat; matched last
+        if re.search(r"\b%s\b" % re.escape(plain), low):
+            return name
+    return "Lima" if re.search(r"\blima\b", low) else ""
+
+
+_PE_PROCEDURAL = re.compile(r"^\s*(incluir|precisar|modificar|rectificar)\b|"
+                            r"proceso informatizado|modalidad informatizada",
+                            re.I)
+
+
+def _pe_classify(text):
+    """-> (kind, trigger, what) or None. By the resolution's own wording."""
+    if _PE_SKIP.search(text) or _PE_PROCEDURAL.search(text):
+        return None
+    low = text.lower()
+    remains = bool(_PE_REMAINS.search(text))
+    if ("export" in low or "traslado" in low) and ("muestra" in low or "pieza" in low):
+        return ("transfer", "research", "export of samples") if remains else None
+    if "inexistencia de restos" in low or re.search(r"\bciras?\b", low):
+        return ("review", "development", "CIRA ruling")
+    if "colecciones" in low:
+        # a study of a held collection: in scope only when it names the dead
+        return ("holding", "research", "research on held remains") if remains else None
+    if "monitoreo arqueol" in low:
+        return ("excavation", "development", "archaeological monitoring plan (PMA)")
+    if "rescate arqueol" in low:
+        return ("excavation", "development", "archaeological rescue project (PRA)")
+    if "evaluaci" in low and "arqueol" in low:
+        return ("excavation", "development", "archaeological evaluation project (PEA)")
+    if "investigaci" in low and "arqueol" in low and ("proyecto" in low):
+        return ("excavation", "research", "archaeological research project (PIA)")
+    if remains:
+        return ("review", "unknown", "decision naming human remains")
+    return None
+
+
+PE_MAX_PAGES = int(os.environ.get("PE_MAX_PAGES", "400"))
+
+
+def fetch_peru_cultura():
+    cands = {}
+    for term in PE_TERMS:
+        try:
+            a = _pe_search(term)
+        except Exception as e:
+            print("  peru: search %r failed: %s" % (term, str(e)[:60]))
+            continue
+        pages = min(PE_MAX_PAGES, (int(a.get("total_count") or 0) + 24) // 25)
+        res = list(a.get("results") or [])
+
+        def page(p, term=term):
+            try:
+                return _pe_search(term, p).get("results") or []
+            except Exception:
+                return []
+        with ThreadPoolExecutor(4) as ex:
+            for got in ex.map(page, range(2, pages + 1)):
+                res += got
+        for r in res:
+            m = re.search(r'href="([^"]+)"[^>]*>(.*?)</a>', r.get("url") or "", re.S)
+            if not m:
+                continue
+            path, title = m.group(1), re.sub(r"<[^>]+>", "", m.group(2)).strip()
+            teaser = html.unescape(re.sub(r"<[^>]+>", "", r.get("content") or ""))
+            cands.setdefault(path, (title, teaser, r.get("publication") or ""))
+        print("  peru: %-48s %5s result(s); %d unique so far"
+              % (term[:48], a.get("total_count"), len(cands)))
+
+    # Pre-screen on the teaser so only plausible records cost a page fetch.
+    wanted = [(p, v) for p, v in cands.items()
+              if not _PE_SKIP.search(v[1])
+              and re.search(r"arqueol|muestra|restos|funerari|óse|ose[oa]|momia|"
+                            r"cementerio|cira", v[1], re.I)]
+    print("  peru: %d candidate(s) to read in full" % len(wanted))
+
+    def read(item):
+        path, (title, teaser, pub) = item
+        try:
+            body, pdf = _pe_detail(path)
+        except Exception:
+            body, pdf = teaser, ""
+        return path, title, (body if len(body) >= len(teaser.rstrip(" .")) else teaser), pub, pdf
+
+    out = []
+    with ThreadPoolExecutor(6) as ex:
+        for path, title, text, pub, pdf in ex.map(read, wanted):
+            c = _pe_classify(text)
+            if not c:
+                continue
+            kind, trigger, what = c
+            dept = _pe_dept(text)
+            lat, lng = PE_DEPT.get(dept, (-9.19, -75.02))
+            refused = bool(_PE_REFUSED.search(text[:120]))
+            rec = {
+                "name": ("%s -- %s" % (title, what))[:150],
+                "kind": kind,
+                "posture": KINDS[kind][1],
+                "trigger": trigger,
+                "country": "Peru",
+                "region": dept,
+                "count": None,
+                "held_by": "Ministerio de Cultura del Perú" if kind == "holding" else "",
+                "actor": "Ministerio de Cultura del Perú",
+                "status": "refused or annulled" if refused else "approved",
+                "url": pdf or ("https://www.gob.pe" + path),
+                "date": _pe_date(pub),
+                "deadline": "",
+                "desc": (text + (" [Placed at the capital of %s; the resolution "
+                                 "does not give coordinates.]" % dept if dept else
+                                 " [No department named; placed at the centre of "
+                                 "Peru.]"))[:600],
+                "source": "peru_cultura",
+                "lang": "es",
+            }
+            _place(rec, lat, lng, GEO_ADMIN)
+            rec["impact"] = rate_remains(rec)
+            out.append(rec)
+    by = {}
+    for r in out:
+        by[r["kind"]] = by.get(r["kind"], 0) + 1
+    print("  peru_cultura: %d record(s) %s" % (len(out), by))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# US DEPARTMENT OF JUSTICE -- prosecutions for looting graves and sites
+# ---------------------------------------------------------------------------
+# justice.gov's press-release API filters by title. Each matching release is read
+# in full and kept only if it is about disturbing, removing or trafficking burial
+# or archaeological material -- ARPA, NAGPRA's trafficking provision, cemetery
+# desecration. Ordinary homicide "remains" stories are excluded by that rule: the
+# map is about the disturbance of the dead, not about crime reporting.
+# Placement: the state of the US Attorney's district (GEO_ADMIN), never a site.
+DOJ_TITLE_TERMS = ["Archaeological", "Native American", "Grave", "Burial",
+                   "Human Remains", "Skull", "Cemetery", "Artifacts", "Looting",
+                   "Looted", "Antiquities", "Cultural Property", "Funerary",
+                   "Tribal Site", "Sacred Site", "Bones"]
+_DOJ_SUBJECT = re.compile(
+    r"archaeolog|\bARPA\b|Native American Graves|NAGPRA|funerary object|"
+    r"cultural (patrimony|item|propert)|burial (site|mound|ground)|grave robb|"
+    r"looted|looting|antiquit", re.I)
+_DOJ_REMAINS = re.compile(r"human remains|skull|bones|burial|grave|funerary|"
+                          r"cemeter|mummif|skeletal", re.I)
+_DOJ_FOSSIL = re.compile(r"fossil|dinosaur|tyrannosaur|paleontolog", re.I)
+_DOJ_CASE = re.compile(r"sentenced|pleads?|pleaded|indicted|charged|convicted|"
+                       r"guilty|agreement|forfeit|repatriat|returned", re.I)
+
+
+def fetch_doj_looting():
+    seen, out = set(), []
+    for term in DOJ_TITLE_TERMS:
+        page = 0
+        while page < 20:
+            url = ("https://www.justice.gov/api/v1/press_releases.json?"
+                   + urllib.parse.urlencode({"parameters[title]": term,
+                                             "pagesize": 50, "page": page}))
+            try:
+                d = _get_json(url)
+            except Exception as e:
+                print("  doj: %r page %d failed: %s" % (term, page, str(e)[:60]))
+                break
+            res = (d or {}).get("results") or []
+            for r in res:
+                uid = r.get("uuid") or r.get("url")
+                if not uid or uid in seen:
+                    continue
+                seen.add(uid)
+                title = html.unescape(r.get("title") or "")
+                body = html.unescape(re.sub(r"<[^>]+>", " ", r.get("body") or ""))
+                body = re.sub(r"\s+", " ", body).strip()
+                text = title + " " + body
+                if not (_DOJ_SUBJECT.search(text) and _DOJ_CASE.search(text)
+                        and _DOJ_REMAINS.search(text)):
+                    continue                  # must name the dead, a grave or a burial
+                if _DOJ_FOSSIL.search(text):
+                    continue                  # a dinosaur skull is not a burial
+                remains = True
+                comp = r.get("component") or ""
+                if isinstance(comp, list):
+                    comp = " ".join(str(c.get("name", "")) for c in comp
+                                    if isinstance(c, dict))
+                m = re.search(r"USAO - ([A-Za-z .]+?)(?:,|'|\"|$)", str(comp))
+                st = (m.group(1).strip() if m else "")
+                if st == "District of Columbia" or not st:
+                    st = next((s for s in STATE_CENTROID if s in body[:400]), "")
+                lat, lng = STATE_CENTROID.get(st, (38.8977, -77.0365))
+                when = ""
+                try:
+                    when = datetime.datetime.utcfromtimestamp(
+                        int(r.get("date") or 0)).date().isoformat()
+                except Exception:
+                    pass
+                rec = {
+                    "name": title[:150],
+                    "kind": "looting",
+                    "posture": "unlawful",
+                    "trigger": "looting",
+                    "country": "United States",
+                    "region": st,
+                    "count": None,
+                    "held_by": "",
+                    "actor": re.sub(r"[\[\]{}'\"]|uuid: [0-9a-f-]+,|name: ", "",
+                                    str(comp))[:120] or "US Department of Justice",
+                    "status": "prosecution",
+                    "url": r.get("url") or "",
+                    "date": when,
+                    "deadline": "",
+                    "desc": body[:600],
+                    "source": "doj_looting",
+                    "lang": "en",
+                }
+                _place(rec, lat, lng, GEO_ADMIN)
+                rec["impact"] = rate_remains(rec)
+                out.append(rec)
+            if len(res) < 50:
+                break
+            page += 1
+    print("  doj_looting: %d prosecution(s)" % len(out))
+    return out
+
+
 def main():
     if os.environ.get("FED_MERGE") == "1":
         print("MODE: merge federation shard parts")
@@ -3616,8 +4006,25 @@ def main():
         ("courtlistener", fetch_courtlistener),
         ("tribal_comments", fetch_tribal_comments),
         ("sahris", fetch_sahris),
+        # These three were written but never added here, so no run ever called
+        # them: the live file had no ProPublica, Wikidata or institution records.
+        ("propublica_holdings", fetch_propublica_holdings),
+        ("wikidata_graves", fetch_wikidata_graves),
+        ("institution_investigations", fetch_institution_investigations),
+        ("peru_cultura", fetch_peru_cultura),
+        ("doj_looting", fetch_doj_looting),
     ]
     items = _run_all(sources, workers)
+    # A source that returns NOTHING keeps yesterday's rows. A whole register going
+    # to zero overnight is almost always an outage, a ban or a crash -- Wikidata
+    # answering 429, a government server down -- not every record being withdrawn.
+    # Without this, one bad morning wiped a source off the map until the next good
+    # run. Sources that return even one row are replaced in full, as before.
+    zero = set(n for n, _ in sources if not _SRC_COUNTS.get(n))
+    if zero:
+        items += _carry_sources(lambda s: s in zero,
+                                "sources that returned nothing today: "
+                                + ", ".join(sorted(zero)))
     items += _carry_sources(_is_fed, "federation sources")
     _finish(items)
 
