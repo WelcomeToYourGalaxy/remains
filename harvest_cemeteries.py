@@ -93,11 +93,15 @@ Tunables (env):
     CONTACT        contact string for the User-Agent
 """
 
-import os, sys, time, json, glob, gzip, math, zlib, urllib.request, urllib.parse
+import os, sys, time, json, glob, gzip, math, zlib, urllib.request, urllib.parse, urllib.error
 
 CONTACT     = os.environ.get("CONTACT", "wheelock.chris@gmail.com")
 UA          = "remains-map-cemeteries/1.0 (+%s)" % CONTACT
 OSM_MIN_DEG = float(os.environ.get("OSM_MIN_DEG", "0.3125"))
+# Most minutes ONE square may use before the shard moves on. Without this, one
+# square that keeps failing splits into 85 requests and eats the whole budget:
+# the 2026-10-21 run had all 64 shards stuck on a single square at the deadline.
+TILE_MAX_MIN = float(os.environ.get("OSM_TILE_MAX_MIN", "12"))
 TILE_DEG    = float(os.environ.get("OSM_TILE_DEG", "2.5"))
 BUDGET_MIN  = int(os.environ.get("OSM_BUDGET_MIN", "150"))
 
@@ -232,35 +236,58 @@ ALL_SEL = "".join(SETS[k] for k in ("cemetery", "crematory", "mortuary", "museum
 def _query(sel, s, w, n, e):
     bb = "%s,%s,%s,%s" % (s, w, n, e)
     body = sel % tuple([bb] * sel.count("%s"))
-    return "[out:json][timeout:70];(" + body + ");out center tags;"
+    return "[out:json][timeout:90];(" + body + ");out center tags;"
 
 
-def _overpass(q, label=""):
-    """POST to each mirror; return parsed JSON, or None on a real/silent timeout."""
-    for i, ep in enumerate(_EPS):
-        try:
-            req = urllib.request.Request(
-                ep, data=urllib.parse.urlencode({"data": q}).encode(),
-                headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=75) as r:
-                data = json.loads(r.read().decode("utf-8", "replace"))
-            # HTTP 200 + a "remark" == server-side timeout. Treat as failure so the
-            # caller splits, instead of recording an empty tile (the bug that left
-            # box-shaped holes on the projects layer).
-            rm = str((data or {}).get("remark") or "")
-            if rm and ("timed out" in rm.lower() or "error" in rm.lower()
-                       or "out of memory" in rm.lower()):
-                if i == len(_EPS) - 1:
-                    print("  %s server-side timeout -> will split: %s"
-                          % (label, rm[:60]))
-                time.sleep(1.0)
-                continue
-            return data
-        except Exception as ex:
-            if i == len(_EPS) - 1:
-                print("  %s failed on all mirrors: %s" % (label, str(ex)[:60]))
-            time.sleep(1.0)
-    return None
+class _Busy(Exception):
+    """The server refused us for load (HTTP 429/503/504). Splitting the box would
+    only send it four times as many requests, so the caller waits instead."""
+
+
+def _overpass_once(ep, q):
+    req = urllib.request.Request(
+        ep, data=urllib.parse.urlencode({"data": q}).encode(),
+        headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as ex:
+        if ex.code in (429, 503, 504):
+            raise _Busy("HTTP %d" % ex.code)
+        raise
+
+
+def _overpass(q, label="", deadline=None):
+    """Return parsed JSON, or None when the box is genuinely too big (server-side
+    timeout / out of memory), which tells the caller to split it.
+
+    "Busy" is NOT a reason to split. Waits and retries the same box, backing off,
+    until the per-square deadline."""
+    wait = 15
+    while True:
+        too_big = False
+        for i, ep in enumerate(_EPS):
+            try:
+                data = _overpass_once(ep, q)
+                rm = str((data or {}).get("remark") or "").lower()
+                if rm and ("timed out" in rm or "out of memory" in rm or "error" in rm):
+                    too_big = True              # real "box too big" -> split
+                    continue
+                return data
+            except _Busy as ex:
+                print("  %s %s busy (%s)" % (label, ep.split("/")[2], ex))
+            except Exception as ex:
+                # client-side read timeout counts as too big; other errors as busy
+                if "timed out" in str(ex).lower():
+                    too_big = True
+                print("  %s %s failed: %s" % (label, ep.split("/")[2], str(ex)[:60]))
+        if too_big:
+            return None
+        if deadline and time.time() + wait > deadline:
+            return None
+        print("  %s all servers busy -- waiting %ds" % (label, wait))
+        time.sleep(wait)
+        wait = min(wait * 2, 240)
 
 
 def _collect(data, out, stats, ftype=None):
@@ -298,7 +325,7 @@ def _fetch_recursive(sel, s, w, n, e, deadline, out, label, stats, ftype=None):
     """Query a box; on timeout, quarter-split recursively to OSM_MIN_DEG."""
     if deadline and time.time() > deadline:
         return (0, 1, 0)
-    data = _overpass(_query(sel, s, w, n, e), label)
+    data = _overpass(_query(sel, s, w, n, e), label, deadline)
     if data is not None:
         _collect(data, out, stats, ftype)
         return (1, 0, 0)
@@ -528,7 +555,8 @@ def harvest(ftype):
             skipped += 1; continue       # out of budget: leave it for the next run
         label = "%s %.1f,%.1f" % (ftype, s_, w)
         before = sum(len(v) for v in out.values()) if combined else len(out)
-        a, g, sp = _fetch_recursive(sel, s_, w, n, e, t_end, out, label, stats,
+        tile_end = min(t_end, time.time() + TILE_MAX_MIN * 60)
+        a, g, sp = _fetch_recursive(sel, s_, w, n, e, tile_end, out, label, stats,
                                     None if combined else ftype)
         after = sum(len(v) for v in out.values()) if combined else len(out)
         if a > 0:
@@ -543,7 +571,11 @@ def harvest(ftype):
                 empties.add(key)
         if sp > 0: split += 1
         gaveup += g
-        done.add(key)                    # banked, whether or not it yielded rows
+        # Bank only squares that came back COMPLETE. A square that gave up used to
+        # be banked too, so it was skipped until the whole sweep finished -- with
+        # most squares failing, that meant never. Now it is simply retried next run.
+        if g == 0 and a > 0:
+            done.add(key)
         time.sleep(0.4)
 
     complete = (skipped == 0)
