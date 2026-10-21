@@ -104,10 +104,13 @@ BUDGET_MIN  = int(os.environ.get("OSM_BUDGET_MIN", "150"))
 _LAT_MIN, _LAT_MAX = -60.0, 84.0
 _LNG_MIN, _LNG_MAX = -180.0, 180.0
 
+# Whole-world mirrors ONLY. overpass.osm.ch was on this list, but it holds
+# Switzerland alone: whenever the other two were busy, every tile outside
+# Switzerland came back "successfully" empty, was marked empty, and had its
+# published cemeteries wiped by the merge -- the 2.5-degree holes on the map.
 _EPS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.osm.ch/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 ]
 
 # facility type -> Overpass selector (node + way + relation).
@@ -388,7 +391,7 @@ DONE_MAX_AGE_DAYS = int(os.environ.get("DONE_MAX_AGE_DAYS", "14"))
 # merge then published only what each run found -- so the layer showed a random
 # eighth of the world in 2.5-degree squares. Version 2 records a tile as empty only
 # when every part of it was fetched successfully and returned nothing.
-MEMO_VERSION = 2
+MEMO_VERSION = 3   # v2 memos were poisoned by the Swiss-only mirror; discard them
 
 
 def _tile_key(lat, lng):
@@ -544,6 +547,12 @@ def harvest(ftype):
         time.sleep(0.4)
 
     complete = (skipped == 0)
+    # Each shard saves ONLY its own tiles. It loaded the whole world's memo, so
+    # saving everything let 63 stale copies out-vote the one shard that actually
+    # re-checked a tile -- a tile once marked empty could never be un-marked.
+    mine = {"%.3f,%.3f" % (t[0], t[1]) for t in grid}
+    empties &= mine
+    done &= mine
     _save_memo(empties, done, complete, swept_ok)
     if not complete:
         print("  RAN OUT OF BUDGET with %d tile(s) unswept. Progress is saved: the "
