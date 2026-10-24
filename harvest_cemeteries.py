@@ -409,7 +409,10 @@ def _memo_out():
 # so the layer looks healthy and quietly stops picking up new cemeteries forever.
 # Fourteen days is two weekly sweeps; if the marker is older than that, resuming is
 # no longer what is happening and the sweep restarts.
-DONE_MAX_AGE_DAYS = int(os.environ.get("DONE_MAX_AGE_DAYS", "14"))
+# Raised from 14. A full sweep at 4 jobs at a time takes several runs, and weekly
+# runs reach past 14 days -- at which point the saved progress was thrown away
+# and the sweep restarted from the southern edge, never reaching the US/Europe.
+DONE_MAX_AGE_DAYS = int(os.environ.get("DONE_MAX_AGE_DAYS", "60"))
 
 
 # Memo format version. Version 1 memos are DISCARDED on load, because they were
