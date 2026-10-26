@@ -1,5 +1,5 @@
 {
- "checked": "2026-10-19T11:04:27.950250Z",
+ "checked": "2026-10-26T11:23:19.221314Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -551,8 +551,8 @@
    "url": "https://www.archaeology.ie/"
   },
   "National NAGPRA Inventories database": {
-   "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "code": 404,
+   "note": "HTTP 404",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Inventory"
   },
@@ -562,20 +562,20 @@
    "url": "https://www.nps.gov/subjects/nagpra/index.htm"
   },
   "National NAGPRA Summaries database": {
-   "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "code": 404,
+   "note": "HTTP 404",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Summary"
   },
   "National NAGPRA Unclaimed Lists": {
-   "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "code": 404,
+   "note": "HTTP 404",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/UnclaimedList"
   },
   "National NAGPRA grants database": {
-   "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "code": 404,
+   "note": "HTTP 404",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/Grant"
   },
@@ -584,8 +584,8 @@
    "state": "find-only"
   },
   "National NAGPRA newspaper notices": {
-   "code": 0,
-   "note": "HTTP Error 404: Not Found",
+   "code": 404,
+   "note": "HTTP 404",
    "state": "dead",
    "url": "https://apps.cr.nps.gov/nagprapublic/Home/NID"
   },
