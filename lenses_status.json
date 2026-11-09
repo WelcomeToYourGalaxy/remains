@@ -1,5 +1,5 @@
 {
- "checked": "2026-11-02T13:45:07.923956Z",
+ "checked": "2026-11-09T14:10:50.537943Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -207,7 +207,9 @@
   },
   "EAMENA": {
    "code": 200,
-   "state": "ok",
+   "final": "https://eamena.org/home",
+   "note": "resolves to a different URL",
+   "state": "redirect",
    "url": "https://eamena.org/"
   },
   "ELAW — Environmental Law Alliance Worldwide": {
@@ -279,9 +281,8 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -421,9 +422,9 @@
    "url": "https://www.oas.org/en/iachr/"
   },
   "Inter-American Court of Human Rights": {
-   "code": 0,
-   "note": "<urlopen error [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] ssl/tls alert handshake failure (_ssl.",
-   "state": "dead",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.corteidh.or.cr/"
   },
   "International Coalition of Sites of Conscience": {
@@ -826,11 +827,11 @@
  },
  "tally": {
   "blocked": 18,
-  "dead": 9,
+  "dead": 8,
   "find-only": 69,
   "moved-to-root": 0,
   "ok": 74,
-  "redirect": 2,
+  "redirect": 3,
   "tls": 0
  }
 }
