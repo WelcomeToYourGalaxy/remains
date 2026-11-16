@@ -1,5 +1,5 @@
 {
- "checked": "2026-11-09T14:10:50.537943Z",
+ "checked": "2026-11-16T13:55:16.332133Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,8 +11,9 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 200,
-   "state": "ok",
+   "code": 0,
+   "note": "<urlopen error timed out>",
+   "state": "dead",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -207,9 +208,7 @@
   },
   "EAMENA": {
    "code": 200,
-   "final": "https://eamena.org/home",
-   "note": "resolves to a different URL",
-   "state": "redirect",
+   "state": "ok",
    "url": "https://eamena.org/"
   },
   "ELAW — Environmental Law Alliance Worldwide": {
@@ -281,8 +280,9 @@
    "url": "https://forensic-architecture.org/"
   },
   "Forest Peoples Programme — legal and human rights": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.forestpeoples.org/"
   },
   "Fornsök (Sweden)": {
@@ -826,12 +826,12 @@
   }
  },
  "tally": {
-  "blocked": 18,
-  "dead": 8,
+  "blocked": 19,
+  "dead": 9,
   "find-only": 69,
   "moved-to-root": 0,
-  "ok": 74,
-  "redirect": 3,
+  "ok": 73,
+  "redirect": 2,
   "tls": 0
  }
 }
