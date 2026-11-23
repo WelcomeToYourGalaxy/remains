@@ -1,5 +1,5 @@
 {
- "checked": "2026-11-16T13:55:16.332133Z",
+ "checked": "2026-11-23T16:19:47.020676Z",
  "entries": {
   "36 CFR Part 800 (Section 106 regulations)": {
    "find": "36 CFR 800 protection of historic properties section 106 regulations",
@@ -11,9 +11,8 @@
    "url": "https://www.achp.gov/"
   },
   "AHIMS (NSW)": {
-   "code": 0,
-   "note": "<urlopen error timed out>",
-   "state": "dead",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.environment.nsw.gov.au/topics/heritage/aboriginal-cultural-heritage/aboriginal-heritage-information-management-system"
   },
   "AHIP Boundaries dataset (NSW)": {
@@ -59,8 +58,8 @@
    "state": "find-only"
   },
   "ArchSite (New Zealand)": {
-   "code": 0,
-   "note": "The read operation timed out",
+   "code": 500,
+   "note": "HTTP 500",
    "state": "dead",
    "url": "https://www.archsite.org.nz/"
   },
@@ -131,8 +130,9 @@
    "state": "find-only"
   },
   "Business & Human Rights Resource Centre — lawsuits database": {
-   "code": 200,
-   "state": "ok",
+   "code": 403,
+   "note": "server refuses automated requests",
+   "state": "blocked",
    "url": "https://www.business-humanrights.org/en/from-us/lawsuits-database/"
   },
   "Bååstede and Sámi repatriation (Norway/Sweden)": {
@@ -241,9 +241,8 @@
    "state": "find-only"
   },
   "European Court of Human Rights": {
-   "code": 403,
-   "note": "server refuses automated requests",
-   "state": "blocked",
+   "code": 200,
+   "state": "ok",
    "url": "https://www.echr.coe.int/"
   },
   "Excavations.ie": {
@@ -790,8 +789,9 @@
    "state": "find-only"
   },
   "USGS EarthExplorer": {
-   "code": 200,
-   "state": "ok",
+   "code": 503,
+   "note": "HTTP 503",
+   "state": "dead",
    "url": "https://earthexplorer.usgs.gov/"
   },
   "Ukraine exhumation and identification": {
